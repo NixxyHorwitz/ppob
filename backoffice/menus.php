@@ -168,7 +168,7 @@ function menus_card(array $m): string
         <input type="hidden" name="id" value="<?= $id ?>" />
         <button type="submit" title="<?= $m['show_on_main'] ? 'Pindah ke Lainnya' : 'Pindah ke Utama' ?>"
           style="width:28px;height:28px;border-radius:7px;border:none;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;<?= $m['show_on_main'] ? 'background:rgba(59,130,246,.15);color:#3b82f6' : 'background:rgba(255,255,255,.06);color:#4b5e7a' ?>">
-          <i class="ph <?= $m['show_on_main'] ? 'ph-star-fill' : 'ph-star' ?>"></i>
+          <i class="ph <?= $m['show_on_main'] ? 'ph-star' : 'ph-dropbox' ?>"></i>
         </button>
       </form>
       <!-- Edit -->
