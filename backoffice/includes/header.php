@@ -41,13 +41,18 @@ $_menus = [
     ['key' => 'dashboard',  'label' => 'Dashboard',   'icon' => 'ph-squares-four',         'url' => 'dashboard.php'],
     ['key' => 'analytics',  'label' => 'Analytics',   'icon' => 'ph-chart-line-up',        'url' => 'analytics.php'],
   ]],
+  ['section' => 'CMS', 'items' => [
+    ['key' => 'promo_banners',  'label' => 'Banners',   'icon' => 'ph-slideshow',         'url' => 'promo_banners'],
+    ['key' => 'frontend',  'label' => 'Frontend',   'icon' => 'ph-app-window',        'url' => 'frontend'],
+    ['key' => 'menus',  'label' => 'Menus', 'icon' => 'ph-list',        'url' => 'menus'],
+  ]],
   ['section' => 'Management', 'items' => [
     ['key' => 'users',      'label' => 'Users',       'icon' => 'ph-users-three',          'url' => 'users.php'],
     ['key' => 'transaksi',  'label' => 'Transaksi',   'icon' => 'ph-swap',                 'url' => 'transaksi.php'],
     ['key' => 'bank',      'label' => 'Bank',       'icon' => 'ph-bank',      'url' => 'bank'],
-    ['key' => 'topup',      'label' => 'Topup',       'icon' => 'ph-currency-dollar',      'url' => 'topup.php'],
+    ['key' => 'topups',      'label' => 'Topup',       'icon' => 'ph-currency-dollar',      'url' => 'topups'],
     ['key' => 'products',     'label' => 'Produk PPOB', 'icon' => 'ph-storefront',           'url' => 'products'],
-    ['key' => 'notifikasi', 'label' => 'Notifikasi',  'icon' => 'ph-bell',                 'url' => 'notifikasi.php'],
+    ['key' => 'notifications', 'label' => 'Notifications',  'icon' => 'ph-bell',                 'url' => 'notifications'],
   ]],
   ['section' => 'System', 'items' => [
     ['key' => 'settings',   'label' => 'Settings',    'icon' => 'ph-gear-six',             'url' => 'settings.php'],
