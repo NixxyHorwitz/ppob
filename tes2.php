@@ -6,7 +6,7 @@ $botToken = "8300472698:AAFhoPsePTRPSOHRbGE92LZEW1qP1gtr4D0";
 $chatId   = "-1003706044521";
 
 $message = "✅ TEST TELEGRAM\nServer: " . gethostname() . "\nTime: " . date("Y-m-d H:i:s");
-
+//WILLLLWOTK?s
 $url = "https://api.telegram.org/bot$botToken/sendMessage";
 
 $data = [
