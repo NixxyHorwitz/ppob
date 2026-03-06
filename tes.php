@@ -23,7 +23,7 @@ $BASE_URL = "https://ppob.bersamakita.my.id/api/v1/";
 
 
 /* ==========================
-   CURL REQUEST FUNCTION
+   CURL REQUEST FUNC TION
 ========================== */
 function send_request($endpoint, $params = [])
 {
