@@ -426,192 +426,157 @@ $b = $banner;
     .hbe-preview-stage {
         flex: 1;
         display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 24px;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
         overflow: auto;
     }
 
-    /* Phone mockup */
-    .hbe-phone-shell {
-        width: 288px;
-        background: #0d0d0d;
-        border-radius: 36px;
-        box-shadow: 0 0 0 2px #2a2a2a, 0 0 0 7px #141414, 0 28px 72px rgba(0, 0, 0, .75);
-        overflow: hidden;
+    /* Preview wrapper — mirrors the actual .hero container */
+    #prevCanvas {
         position: relative;
+        overflow: hidden;
+    }
+
+    /* Exact copies of user-side CSS classes scoped to preview */
+    #prevCanvas .hero-ov {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+    }
+
+    #prevCanvas::before,
+    #prevCanvas::after {
+        content: '';
+        position: absolute;
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    #prevCanvas::before {
+        width: 240px;
+        height: 240px;
+        background: rgba(255, 255, 255, .07);
+        top: -80px;
+        right: -60px;
+    }
+
+    #prevCanvas::after {
+        width: 130px;
+        height: 130px;
+        background: rgba(255, 255, 255, .05);
+        bottom: 60px;
+        left: -40px;
+    }
+
+    #prevCanvas .hero-deco {
+        position: absolute;
+        bottom: 0;
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    /* hd-strip: exact match from user CSS */
+    #prevCanvas .hd-strip {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        margin-top: 14px;
+        padding-bottom: 44px;
+        pointer-events: none;
+    }
+
+    #prevCanvas .hd-strip a,
+    #prevCanvas .hd-strip button {
+        pointer-events: auto;
+    }
+
+    #prevCanvas .hd-side {
+        display: flex;
+        align-items: flex-end;
         flex-shrink: 0;
     }
 
-    .hbe-notch {
-        position: absolute;
-        top: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 90px;
-        height: 26px;
-        background: #0d0d0d;
-        border-radius: 0 0 18px 18px;
-        z-index: 10;
+    #prevCanvas .hd-side img {
+        object-fit: contain;
+        display: block;
     }
 
-    .hbe-screen {
-        background: #0f172a;
-        min-height: 500px;
-        padding-top: 28px;
-        overflow: hidden;
-    }
-
-    /* App chrome */
-    .hbe-app-bar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 9px 12px 5px;
-    }
-
-    .hbe-app-brand {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        font-size: 11px;
-        font-weight: 800;
-        color: #fff;
-    }
-
-    .hbe-app-brand-dot {
-        width: 20px;
-        height: 20px;
-        border-radius: 6px;
-        background: rgba(255, 255, 255, .14);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .hbe-app-icons {
-        display: flex;
-        gap: 6px;
-    }
-
-    .hbe-app-icon {
-        width: 24px;
-        height: 24px;
-        border-radius: 7px;
-        background: rgba(255, 255, 255, .1);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        color: rgba(255, 255, 255, .7);
-    }
-
-    /* Banner strip */
-    .hbe-strip {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 8px 10px;
-        overflow: hidden;
-        position: relative;
-        transition: height .2s;
-    }
-
-    .hbe-strip-center {
+    #prevCanvas .hd-center {
         flex: 1;
-        text-align: center;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 3px;
+        justify-content: flex-end;
+        text-align: center;
+        padding: 0 4px 6px;
     }
 
-    .hbe-strip-btn {
+    #prevCanvas .hd-title {
+        font-size: 16px;
+        font-weight: 900;
+        line-height: 1.15;
+        letter-spacing: -.3px;
+        text-shadow: 0 1px 6px rgba(0, 0, 0, .25);
+        margin-bottom: 2px;
+    }
+
+    #prevCanvas .hd-sub {
+        font-size: 10.5px;
+        font-weight: 700;
+        margin-bottom: 10px;
+        opacity: .88;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, .2);
+    }
+
+    #prevCanvas .hd-center-img {
+        max-width: 100%;
+        object-fit: contain;
+        margin-bottom: 10px;
+    }
+
+    #prevCanvas .hd-btn {
+        display: inline-block;
+        padding: 7px 26px;
         border-radius: 99px;
-        font-weight: 800;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: .4px;
+        text-decoration: none;
         cursor: pointer;
         border: none;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, .22);
+        transition: transform .15s;
     }
 
-    /* Below banner fake content */
-    .hbe-app-body {
-        padding: 10px;
+    #prevCanvas .hd-btn:active {
+        transform: scale(.93);
     }
 
-    .hbe-app-card {
-        background: rgba(255, 255, 255, .04);
-        border-radius: 10px;
-        padding: 10px 12px;
-        margin-bottom: 8px;
-    }
-
-    .hbe-app-card-lbl {
-        font-size: 8px;
-        color: rgba(255, 255, 255, .35);
-        margin-bottom: 3px;
-    }
-
-    .hbe-app-card-val {
-        font-size: 17px;
-        font-weight: 800;
-        color: #fff;
-        font-family: 'JetBrains Mono', monospace;
-        letter-spacing: 2px;
-    }
-
-    .hbe-app-menu-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 6px;
-    }
-
-    .hbe-app-menu-item {
-        background: rgba(255, 255, 255, .04);
-        border-radius: 8px;
-        padding: 7px 4px;
-        text-align: center;
-    }
-
-    .hbe-app-menu-ico {
-        width: 22px;
-        height: 22px;
-        border-radius: 7px;
-        margin: 0 auto 3px;
-    }
-
-    .hbe-app-menu-lbl {
-        font-size: 7px;
-        color: rgba(255, 255, 255, .35);
-    }
-
-    /* VP buttons */
-    .hbe-vp-btns {
+    /* Inactive overlay */
+    #prevInactiveOv {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, .6);
         display: flex;
-        gap: 4px;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
     }
 
-    .hbe-vp-btn {
-        padding: 4px 10px;
+    .hbe-inactive-badge {
+        background: rgba(239, 68, 68, .18);
+        border: 1px solid #ef4444;
         border-radius: 6px;
+        padding: 5px 12px;
         font-size: 11px;
-        font-weight: 600;
-        cursor: pointer;
-        border: 1px solid var(--border);
-        background: var(--hover);
-        color: var(--mut);
-        transition: all .15s;
-    }
-
-    .hbe-vp-btn.on {
-        background: rgba(59, 130, 246, .15);
-        border-color: #3b82f6;
-        color: #3b82f6;
-    }
-
-    /* Wide preview */
-    .hbe-wide-wrap {
-        width: 100%;
-        max-width: 560px;
+        font-weight: 700;
+        color: #ef4444;
+        display: flex;
+        align-items: center;
+        gap: 6px;
     }
 
     /* Gradient preview bar */
@@ -623,7 +588,20 @@ $b = $banner;
         transition: background .15s;
     }
 
-    /* Anim keyframes */
+    /* Scale ruler below preview */
+    .hbe-prev-ruler {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 16px;
+        border-top: 1px solid var(--border);
+        font-size: 10px;
+        color: var(--mut);
+        flex-shrink: 0;
+        background: var(--card);
+    }
+
+    /* Anim keyframes — match exactly user side */
     @keyframes hbe-float {
 
         0%,
@@ -650,7 +628,7 @@ $b = $banner;
 
     @keyframes hbe-sliL {
         from {
-            transform: translateX(-16px);
+            transform: translateX(-20px);
             opacity: 0
         }
 
@@ -662,7 +640,7 @@ $b = $banner;
 
     @keyframes hbe-sliR {
         from {
-            transform: translateX(16px);
+            transform: translateX(20px);
             opacity: 0
         }
 
@@ -679,18 +657,18 @@ $b = $banner;
             transform: translateY(0)
         }
 
-        45% {
-            transform: translateY(-7px)
+        40% {
+            transform: translateY(-8px)
         }
 
-        65% {
-            transform: translateY(-3px)
+        60% {
+            transform: translateY(-4px)
         }
     }
 
     @keyframes hbe-zoom {
         from {
-            transform: scale(.82);
+            transform: scale(.8);
             opacity: 0
         }
 
@@ -698,27 +676,6 @@ $b = $banner;
             transform: scale(1);
             opacity: 1
         }
-    }
-
-    /* Inactive overlay */
-    .hbe-inactive-ov {
-        position: absolute;
-        inset: 0;
-        background: rgba(0, 0, 0, .55);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 5;
-    }
-
-    .hbe-inactive-badge {
-        background: rgba(239, 68, 68, .2);
-        border: 1px solid #ef4444;
-        border-radius: 6px;
-        padding: 4px 10px;
-        font-size: 9px;
-        font-weight: 700;
-        color: #ef4444;
     }
 </style>
 
@@ -1035,107 +992,80 @@ $b = $banner;
         <div class="hbe-preview">
             <div class="hbe-preview-bar">
                 <div style="display:flex;align-items:center;gap:7px">
-                    <i class="ph ph-device-mobile" style="color:#3b82f6;font-size:15px"></i>
+                    <i class="ph ph-eye" style="color:#3b82f6;font-size:15px"></i>
                     <span style="font-size:13px;font-weight:700">Live Preview</span>
-                    <span style="font-size:10px;color:var(--mut);background:rgba(59,130,246,.1);padding:2px 7px;border-radius:99px;color:#3b82f6">Realtime</span>
+                    <span style="font-size:10px;background:rgba(59,130,246,.1);padding:2px 8px;border-radius:99px;color:#3b82f6;font-weight:600">Realtime · akurat</span>
                 </div>
-                <div class="hbe-vp-btns">
-                    <button type="button" class="hbe-vp-btn on" onclick="hbeVp(this,'phone')"><i class="ph ph-device-mobile"></i> Phone</button>
-                    <button type="button" class="hbe-vp-btn" onclick="hbeVp(this,'wide')"><i class="ph ph-monitor"></i> Wide</button>
-                </div>
+                <div style="font-size:11px;color:var(--mut)">Tampilan persis seperti di app user</div>
             </div>
 
+            <!-- Preview canvas: mirrors the exact .hero structure from user page -->
             <div class="hbe-preview-stage">
+                <div id="prevCanvas" style="width:100%;position:relative;overflow:hidden;padding:28px 18px 0;">
 
-                <!-- Phone mockup -->
-                <div id="phoneWrap">
-                    <div class="hbe-phone-shell">
-                        <div class="hbe-notch"></div>
-                        <div class="hbe-screen">
+                    <!-- Inactive overlay -->
+                    <div id="prevInactiveOv" style="<?= $b['is_active'] ? 'display:none' : '' ?>">
+                        <span class="hbe-inactive-badge"><i class="ph ph-eye-slash"></i>Banner Nonaktif — tidak tampil di app</span>
+                    </div>
 
-                            <!-- App bar inside hero bg -->
-                            <div id="prevHero" style="position:relative;background:linear-gradient(<?= $b['bg_gradient_angle'] ?>deg,<?= $b['bg_color_start'] ?>,<?= $b['bg_color_end'] ?>)">
+                    <!-- .hero-ov overlay -->
+                    <div class="hero-ov" id="prevHeroOv" style="background:rgba(0,0,0,0)"></div>
 
-                                <?php if (!$b['is_active']): ?>
-                                    <div class="hbe-inactive-ov" id="inactiveOv">
-                                        <span class="hbe-inactive-badge"><i class="ph ph-eye-slash me-1"></i>Banner Nonaktif</span>
-                                    </div>
-                                <?php else: ?>
-                                    <div class="hbe-inactive-ov" id="inactiveOv" style="display:none">
-                                        <span class="hbe-inactive-badge"><i class="ph ph-eye-slash me-1"></i>Banner Nonaktif</span>
-                                    </div>
+                    <!-- hd-strip: exact same structure as user page -->
+                    <div class="hd-strip" id="prevStrip">
+
+                        <!-- Gambar Kiri (.hd-side) -->
+                        <div class="hd-side" id="prevLeft"
+                            style="width:<?= (int)($b['img_left_width'] ?? 90) ?>px;height:<?= (int)($b['height'] ?? 160) ?>px">
+                            <?php if (!empty($b['img_left']) && $b['type'] === 'layout'): ?>
+                                <img src="<?= htmlspecialchars($b['img_left']) ?>"
+                                    style="width:100%;max-height:<?= (int)$b['height'] ?>px;object-fit:contain" />
+                            <?php endif; ?>
+                        </div>
+
+                        <!-- Tengah (.hd-center) -->
+                        <div class="hd-center" id="prevCenter" style="min-height:<?= (int)($b['height'] ?? 160) ?>px">
+                            <?php if (($b['center_type'] ?? 'text') === 'image' && !empty($b['center_image'])): ?>
+                                <img src="<?= htmlspecialchars($b['center_image']) ?>"
+                                    class="hd-center-img"
+                                    style="width:<?= (int)($b['center_image_width'] ?? 160) ?>px;max-height:<?= (int)($b['height'] ?? 160) - 20 ?>px" />
+                            <?php else: ?>
+                                <?php if (!empty($b['title'])): ?>
+                                    <div class="hd-title" style="color:<?= htmlspecialchars($b['title_color'] ?? '#fff') ?>"><?= htmlspecialchars($b['title']) ?></div>
                                 <?php endif; ?>
-
-                                <div class="hbe-app-bar">
-                                    <div class="hbe-app-brand">
-                                        <div class="hbe-app-brand-dot"><i class="ph ph-lightning" style="color:#93c5fd;font-size:9px"></i></div>
-                                        <span>BersamaKita</span>
-                                    </div>
-                                    <div class="hbe-app-icons">
-                                        <div class="hbe-app-icon"><i class="ph ph-bell" style="font-size:9px"></i></div>
-                                        <div class="hbe-app-icon"><i class="ph ph-user-circle" style="font-size:10px"></i></div>
-                                    </div>
-                                </div>
-
-                                <!-- Banner strip -->
-                                <div class="hbe-strip" id="prevStrip" style="height:<?= (int)$b['height'] ?>px">
-                                    <div id="prevLeft" style="flex-shrink:0">
-                                        <?php if (!empty($b['img_left']) && $b['type'] === 'layout'): ?>
-                                            <img src="<?= htmlspecialchars($b['img_left']) ?>" style="height:<?= min((int)$b['height'] - 20, 66) ?>px;max-width:<?= (int)$b['img_left_width'] ?>px;object-fit:contain" />
-                                        <?php endif; ?>
-                                    </div>
-                                    <div class="hbe-strip-center" id="prevCenter">
-                                        <?php if (($b['center_type'] ?? 'text') === 'image' && !empty($b['center_image'])): ?>
-                                            <img src="<?= htmlspecialchars($b['center_image']) ?>" style="max-height:<?= min((int)$b['height'] - 20, 76) ?>px;max-width:<?= (int)$b['center_image_width'] ?>px;object-fit:contain" />
-                                        <?php else: ?>
-                                            <?php if (!empty($b['title'])): ?><div style="font-size:14px;font-weight:900;color:<?= htmlspecialchars($b['title_color'] ?? '#fff') ?>;text-shadow:0 1px 6px rgba(0,0,0,.4);line-height:1.1"><?= htmlspecialchars($b['title']) ?></div><?php endif; ?>
-                                            <?php if (!empty($b['subtitle'])): ?><div style="font-size:10px;color:<?= htmlspecialchars($b['subtitle_color'] ?? '#ffffffcc') ?>"><?= htmlspecialchars($b['subtitle']) ?></div><?php endif; ?>
-                                            <?php if (!empty($b['btn_text'])): ?><button class="hbe-strip-btn" style="background:<?= htmlspecialchars($b['btn_color'] ?? '#FFD700') ?>;color:<?= htmlspecialchars($b['btn_text_color'] ?? '#000') ?>;font-size:9px;padding:3px 12px;margin-top:3px"><?= htmlspecialchars($b['btn_text']) ?></button><?php endif; ?>
-                                        <?php endif; ?>
-                                    </div>
-                                    <div id="prevRight" style="flex-shrink:0">
-                                        <?php if (!empty($b['img_right']) && $b['type'] === 'layout'): ?>
-                                            <img src="<?= htmlspecialchars($b['img_right']) ?>" style="height:<?= min((int)$b['height'] - 20, 66) ?>px;max-width:<?= (int)$b['img_right_width'] ?>px;object-fit:contain" />
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Fake app body -->
-                            <div class="hbe-app-body">
-                                <div class="hbe-app-card">
-                                    <div class="hbe-app-card-lbl">Saldo Utama</div>
-                                    <div class="hbe-app-card-val">Rp ••••••</div>
-                                </div>
-                                <div class="hbe-app-menu-grid">
-                                    <?php $menuColors = ['rgba(99,179,237,.2)', 'rgba(167,139,250,.2)', 'rgba(52,211,153,.2)', 'rgba(251,146,60,.2)', 'rgba(244,114,182,.2)', 'rgba(250,204,21,.2)', 'rgba(96,165,250,.2)', 'rgba(74,222,128,.2)'];
-                                    foreach (['Pulsa', 'Data', 'PLN', 'BPJS', 'Topup', 'Games', 'Transfer', 'Lainnya'] as $i => $item): ?>
-                                        <div class="hbe-app-menu-item">
-                                            <div class="hbe-app-menu-ico" style="background:<?= $menuColors[$i % count($menuColors)] ?>"></div>
-                                            <div class="hbe-app-menu-lbl"><?= $item ?></div>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            </div>
-
+                                <?php if (!empty($b['subtitle'])): ?>
+                                    <div class="hd-sub" style="color:<?= htmlspecialchars($b['subtitle_color'] ?? '#ffffffd9') ?>"><?= htmlspecialchars($b['subtitle']) ?></div>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                            <?php if (!empty($b['btn_text'])): ?>
+                                <a href="<?= htmlspecialchars($b['btn_href'] ?? '#') ?>"
+                                    class="hd-btn"
+                                    style="background:<?= htmlspecialchars($b['btn_color'] ?? '#FFD700') ?>;color:<?= htmlspecialchars($b['btn_text_color'] ?? '#000') ?>">
+                                    <?= htmlspecialchars($b['btn_text']) ?>
+                                </a>
+                            <?php endif; ?>
                         </div>
-                    </div>
-                </div><!-- /phoneWrap -->
 
-                <!-- Wide view -->
-                <div id="wideWrap" class="hbe-wide-wrap" style="display:none">
-                    <div style="border-radius:12px;overflow:hidden;border:1px solid var(--border);box-shadow:0 4px 24px rgba(0,0,0,.3)">
-                        <div id="prevStripWide"
-                            class="hbe-strip"
-                            style="height:<?= (int)$b['height'] ?>px;background:linear-gradient(<?= $b['bg_gradient_angle'] ?>deg,<?= $b['bg_color_start'] ?>,<?= $b['bg_color_end'] ?>)">
-                            <div id="prevLeftW" style="flex-shrink:0"></div>
-                            <div class="hbe-strip-center" id="prevCenterW"></div>
-                            <div id="prevRightW" style="flex-shrink:0"></div>
+                        <!-- Gambar Kanan (.hd-side) -->
+                        <div class="hd-side" id="prevRight"
+                            style="width:<?= (int)($b['img_right_width'] ?? 90) ?>px;height:<?= (int)($b['height'] ?? 160) ?>px">
+                            <?php if (!empty($b['img_right']) && $b['type'] === 'layout'): ?>
+                                <img src="<?= htmlspecialchars($b['img_right']) ?>"
+                                    style="width:100%;max-height:<?= (int)$b['height'] ?>px;object-fit:contain" />
+                            <?php endif; ?>
                         </div>
-                    </div>
-                    <div style="font-size:10px;color:var(--mut);text-align:center;margin-top:8px">Wide · tablet / desktop view</div>
-                </div>
 
+                    </div><!-- /hd-strip -->
+                </div><!-- /prevCanvas -->
+            </div>
+
+            <!-- Ruler / meta bar -->
+            <div class="hbe-prev-ruler">
+                <span>Tinggi: <strong id="rulerH"><?= (int)$b['height'] ?>px</strong></span>
+                <span>Tipe: <strong id="rulerType"><?= htmlspecialchars($b['type']) ?></strong></span>
+                <span id="rulerStatus" style="<?= $b['is_active'] ? 'color:#10b981' : 'color:#ef4444' ?>">
+                    <i class="ph ph-circle-fill" style="font-size:6px;margin-right:3px"></i><?= $b['is_active'] ? 'Aktif' : 'Nonaktif' ?>
+                </span>
             </div>
         </div><!-- /hbe-preview -->
 
@@ -1208,7 +1138,7 @@ function updateGradBar() {
   bar.style.background = `linear-gradient(${a}deg,${s},${e})`;
 }
 
-// ─── Image URL preview ───────────────────────────────────────
+// ─── Image URL preview (thumbnail in editor) ─────────────────
 function hbeImgPrev(input, imgId) {
   const img = document.getElementById(imgId); if (!img) return;
   img.src = input.value.trim();
@@ -1224,14 +1154,6 @@ function hbeSwitch(inp) {
   if (dot) dot.style.left = inp.checked ? '19px' : '3px';
 }
 
-// ─── Viewport toggle ─────────────────────────────────────────
-function hbeVp(btn, mode) {
-  document.querySelectorAll('.hbe-vp-btn').forEach(b => b.classList.remove('on'));
-  btn.classList.add('on');
-  document.getElementById('phoneWrap').style.display = mode === 'phone' ? '' : 'none';
-  document.getElementById('wideWrap').style.display  = mode === 'wide'  ? '' : 'none';
-}
-
 // ─── Unsaved state ───────────────────────────────────────────
 let _dirty = false;
 function markUnsaved() {
@@ -1240,17 +1162,15 @@ function markUnsaved() {
   const txt = document.getElementById('saveTxt');
   const ico = document.getElementById('saveIco');
   if (txt) txt.textContent = 'Belum tersimpan';
-  if (ico) { ico.className = ''; ico.className = 'ph ph-warning'; ico.style.color = '#f59e0b'; }
+  if (ico) { ico.className = 'ph ph-warning'; ico.style.color = '#f59e0b'; }
 }
 document.getElementById('hbeForm').addEventListener('input', markUnsaved);
-document.getElementById('hbeForm').addEventListener('submit', () => {
-  _dirty = false;
-});
+document.getElementById('hbeForm').addEventListener('submit', () => { _dirty = false; });
 window.addEventListener('beforeunload', e => {
   if (_dirty) { e.preventDefault(); e.returnValue = ''; }
 });
 
-// ─── Animation → CSS ─────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────
 const ANIM_MAP = {
   'float':       'animation:hbe-float 3s ease-in-out infinite',
   'bounce':      'animation:hbe-bounce 1.2s ease-in-out infinite',
@@ -1261,7 +1181,9 @@ const ANIM_MAP = {
 };
 function animCSS(a) { return ANIM_MAP[a] || ''; }
 function escH(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function gv(name) {
   const el = document.querySelector(`[name="${name}"]`);
@@ -1270,7 +1192,13 @@ function gv(name) {
   return el.value ?? '';
 }
 
-// ─── LIVE PREVIEW ────────────────────────────────────────────
+// ─── LIVE PREVIEW ─────────────────────────────────────────────
+// Mirrors exactly how the user page renders:
+//   .hero { background: ... ; padding: 28px 18px 0 }
+//   .hd-strip { display:flex; align-items:flex-end; ... padding-bottom:44px }
+//   .hd-side  { display:flex; align-items:flex-end; flex-shrink:0 }
+//   .hd-center { flex:1; flex-direction:column; align-items:center; justify-content:flex-end }
+//   .hd-title / .hd-sub / .hd-btn / .hd-center-img  (exact class names)
 function livePreview() {
   const type     = gv('type')   || 'layout';
   const bgImg    = gv('bg_image');
@@ -1278,68 +1206,98 @@ function livePreview() {
   const bgE      = gv('bg_color_end')   || '#0099ff';
   const bgA      = gv('bg_gradient_angle') || 135;
   const h        = Math.max(60, parseInt(gv('height')) || 160);
-  const imgL     = gv('img_left'), imgLW = parseInt(gv('img_left_width'))||90, imgLA = gv('img_left_anim');
-  const imgR     = gv('img_right'),imgRW = parseInt(gv('img_right_width'))||90, imgRA = gv('img_right_anim');
+  const imgL     = gv('img_left'),  imgLW = parseInt(gv('img_left_width'))||90,  imgLA = gv('img_left_anim');
+  const imgR     = gv('img_right'), imgRW = parseInt(gv('img_right_width'))||90, imgRA = gv('img_right_anim');
   const cType    = gv('center_type') || 'text';
-  const title    = gv('title'), titleClr = gv('title_color')||'#fff';
-  const sub      = gv('subtitle'),  subClr   = gv('subtitle_color')||'#ffffffcc';
+  const title    = gv('title'),    titleClr = gv('title_color')    || '#fff';
+  const sub      = gv('subtitle'), subClr   = gv('subtitle_color') || '#ffffffd9';
   const ci       = gv('center_image'), ciW = parseInt(gv('center_image_width'))||160, ciA = gv('center_image_anim');
-  const btnTxt   = gv('btn_text'), btnBg = gv('btn_color')||'#FFD700', btnClr = gv('btn_text_color')||'#000', btnA = gv('btn_anim');
+  const btnTxt   = gv('btn_text'), btnBg = gv('btn_color')||'#FFD700',
+        btnClr   = gv('btn_text_color')||'#000', btnHref = gv('btn_href')||'#', btnA = gv('btn_anim');
   const isActive = gv('is_active');
 
-  const bgVal = bgImg
-    ? `url('${bgImg}') center/cover no-repeat`
-    : `linear-gradient(${bgA}deg,${bgS},${bgE})`;
+  // ── 1. Canvas background (= .hero background) ──
+  const canvas = document.getElementById('prevCanvas');
+  if (canvas) {
+    canvas.style.background = bgImg
+      ? `url('${bgImg}') center/cover no-repeat`
+      : `linear-gradient(${bgA}deg,${bgS},${bgE})`;
+  }
 
-  // Hero bg
-  const hero = document.getElementById('prevHero');
-  if (hero) hero.style.background = bgVal;
-
-  // Inactive overlay
-  const ov = document.getElementById('inactiveOv');
+  // ── 2. Inactive overlay ──
+  const ov = document.getElementById('prevInactiveOv');
   if (ov) ov.style.display = isActive ? 'none' : '';
 
-  // Strip height
-  const strip = document.getElementById('prevStrip');
-  if (strip) strip.style.height = h + 'px';
+  // ── 3. Ruler info ──
+  const rH = document.getElementById('rulerH');
+  const rT = document.getElementById('rulerType');
+  const rS = document.getElementById('rulerStatus');
+  if (rH) rH.textContent = h + 'px';
+  if (rT) rT.textContent = type;
+  if (rS) {
+    rS.style.color = isActive ? '#10b981' : '#ef4444';
+    rS.innerHTML = `<i class="ph ph-circle-fill" style="font-size:6px;margin-right:3px"></i>${isActive ? 'Aktif' : 'Nonaktif'}`;
+  }
 
-  const leftH = Math.min(h - 20, 66);
-
-  // Left image
+  // ── 4. Left image (.hd-side) ──
   const pL = document.getElementById('prevLeft');
-  if (pL) pL.innerHTML = (imgL && type === 'layout')
-    ? `<img src="${imgL}" style="height:${leftH}px;max-width:${imgLW}px;object-fit:contain;${animCSS(imgLA)}" />`
-    : '';
-
-  // Right image
-  const pR = document.getElementById('prevRight');
-  if (pR) pR.innerHTML = (imgR && type === 'layout')
-    ? `<img src="${imgR}" style="height:${leftH}px;max-width:${imgRW}px;object-fit:contain;${animCSS(imgRA)}" />`
-    : '';
-
-  // Center
-  const pC = document.getElementById('prevCenter');
-  if (pC) {
-    if (cType === 'image' && ci) {
-      pC.innerHTML = `<img src="${ci}" style="max-height:${Math.min(h-20,76)}px;max-width:${ciW}px;object-fit:contain;${animCSS(ciA)}" />`;
+  if (pL) {
+    if (imgL && type === 'layout') {
+      pL.style.width  = imgLW + 'px';
+      pL.style.height = h + 'px';
+      pL.innerHTML = `<img src="${imgL}"
+        style="width:100%;max-height:${h}px;object-fit:contain;${animCSS(imgLA)}" />`;
     } else {
-      let html = '';
-      if (title) html += `<div style="font-size:14px;font-weight:900;color:${titleClr};text-shadow:0 1px 6px rgba(0,0,0,.4);line-height:1.1">${escH(title)}</div>`;
-      if (sub)   html += `<div style="font-size:10px;color:${subClr}">${escH(sub)}</div>`;
-      if (btnTxt) html += `<button class="hbe-strip-btn" style="background:${btnBg};color:${btnClr};font-size:9px;padding:3px 12px;margin-top:3px;${animCSS(btnA)}">${escH(btnTxt)}</button>`;
-      pC.innerHTML = html;
+      pL.style.width = '0'; pL.style.height = h + 'px';
+      pL.innerHTML = '';
     }
   }
 
-  // ─ Wide view ─
-  const sw = document.getElementById('prevStripWide');
-  if (sw) { sw.style.background = bgVal; sw.style.height = h + 'px'; }
-  const pLW = document.getElementById('prevLeftW');
-  const pRW = document.getElementById('prevRightW');
-  const pCW = document.getElementById('prevCenterW');
-  if (pLW) pLW.innerHTML = (imgL && type === 'layout') ? `<img src="${imgL}" style="height:${Math.min(h-20,80)}px;max-width:${imgLW}px;object-fit:contain" />` : '';
-  if (pRW) pRW.innerHTML = (imgR && type === 'layout') ? `<img src="${imgR}" style="height:${Math.min(h-20,80)}px;max-width:${imgRW}px;object-fit:contain" />` : '';
-  if (pCW && pC) pCW.innerHTML = pC.innerHTML;
+  // ── 5. Right image (.hd-side) ──
+  const pR = document.getElementById('prevRight');
+  if (pR) {
+    if (imgR && type === 'layout') {
+      pR.style.width  = imgRW + 'px';
+      pR.style.height = h + 'px';
+      pR.innerHTML = `<img src="${imgR}"
+        style="width:100%;max-height:${h}px;object-fit:contain;${animCSS(imgRA)}" />`;
+    } else {
+      pR.style.width = '0'; pR.style.height = h + 'px';
+      pR.innerHTML = '';
+    }
+  }
+
+  // ── 6. Center (.hd-center) ──
+  const pC = document.getElementById('prevCenter');
+  if (pC) {
+    pC.style.minHeight = h + 'px';
+    let html = '';
+
+    if (cType === 'image' && ci) {
+      // image_center mode: <img class="hd-center-img">
+      html = `<img src="${ci}" class="hd-center-img"
+        style="width:${ciW}px;max-height:${h - 20}px;${animCSS(ciA)}" />`;
+    } else {
+      // text mode: .hd-title, .hd-sub, .hd-btn  — exact class names from user CSS
+      if (title) {
+        html += `<div class="hd-title" style="color:${escH(titleClr)}">${escH(title)}</div>`;
+      }
+      if (sub) {
+        html += `<div class="hd-sub" style="color:${escH(subClr)}">${escH(sub)}</div>`;
+      }
+    }
+
+    // Button always rendered via .hd-btn (outside the if/else, same as user page)
+    if (btnTxt) {
+      html += `<a href="${escH(btnHref)}" class="hd-btn"
+        style="background:${escH(btnBg)};color:${escH(btnClr)};${animCSS(btnA)}">${escH(btnTxt)}</a>`;
+    }
+
+    pC.innerHTML = html;
+  }
+
+  // ── 7. Strip padding-bottom mirrors .hd-strip { padding-bottom:44px } ──
+  // Already set in CSS via .hd-strip — no override needed.
 }
 
 // ─── Init ────────────────────────────────────────────────────
