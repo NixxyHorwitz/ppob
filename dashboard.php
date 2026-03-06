@@ -936,7 +936,7 @@ function timeAgo(string $ts): string
 <div class="sec">
     <div class="sechd">
         <div class="sectit"><i class="fas fa-bell" style="color:var(--cp)"></i> Notifikasi</div>
-        <a href="modules/user/inbox" class="secmore">Semua <i class="fas fa-chevron-right" style="font-size:8px"></i></a>
+        <a href="pages/inbox" class="secmore">Semua <i class="fas fa-chevron-right" style="font-size:8px"></i></a>
     </div>
     <div class="ncard">
         <?php if (empty($feedNotifs)): ?>
@@ -946,7 +946,7 @@ function timeAgo(string $ts): string
             <?php else: foreach ($feedNotifs as $n):
                 [$ico, $col, $bg] = notifMeta($n['title'] ?? '');
             ?>
-                <a href="modules/user/inbox" class="nr">
+                <a href="pages/inbox" class="nr">
                     <div class="n-ico" style="background:<?= $bg ?>"><i class="<?= $ico ?>" style="color:<?= $col ?>"></i></div>
                     <div class="n-body">
                         <div class="n-tit"><?= htmlspecialchars($n['title'] ?? 'Notifikasi') ?></div>
@@ -956,7 +956,7 @@ function timeAgo(string $ts): string
                 </a>
         <?php endforeach;
         endif; ?>
-        <a href="modules/user/inbox" class="nfoot">Semua notifikasi <i class="fas fa-chevron-right" style="font-size:9px"></i></a>
+        <a href="pages/inbox" class="nfoot">Semua notifikasi <i class="fas fa-chevron-right" style="font-size:9px"></i></a>
     </div>
 </div>
 
