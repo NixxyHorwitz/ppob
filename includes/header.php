@@ -13,7 +13,7 @@
  *  - Output <!DOCTYPE html> ... <head> ... CSS global ... </head> <body>
  *
  * Variabel yang tersedia untuk halaman setelah include:
- *  $pdo, $userId, $isAdmin, $user, $unreadCount, $cfg, $hero, $brandName
+ *  $pdo, $userId, $isAdmin, $user, $unreadCount, $cfg, $hero,modules/user/inbox $brandName
  *
  * Cara pakai di setiap halaman:
  *  <?php
