@@ -327,11 +327,20 @@ function timeAgo(string $ts): string
     /* ══ MENU CARD ══════════════════════════════════════════════ */
     .fw {
         padding: 0 14px;
-        margin-top: -40px;
         position: relative;
         z-index: 10
     }
 
+    .fw-overlap {
+        margin-top: -40px;
+    }
+
+    /* pakai kalau TIDAK ada hero_banner */
+    .fw-normal {
+        margin-top: 10px;
+    }
+
+    /* pakai kalau ada hero_banner */
     .mcard {
         background: var(--cc);
         border-radius: 20px;
@@ -795,12 +804,22 @@ function timeAgo(string $ts): string
     }
 
     /* ══ HERO BANNER ═════════════════════════════════════════════ */
+    /* Banner langsung full-width, tanpa padding kiri kanan, tanpa card wrapper */
     .hb-wrap {
-        padding: 0 14px;
-        margin-top: 10px;
+        margin-top: 0;
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 0;
+    }
+
+    .hb {
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    /* override rounded/shadow dari sebelumnya */
+    .hb+.hb {
+        border-top: 1px solid rgba(255, 255, 255, .1);
     }
 
     .hb {
@@ -1022,7 +1041,7 @@ function timeAgo(string $ts): string
                 <span class="b-name"><?= htmlspecialchars($brandName) ?></span>
             </div>
             <div class="hbtns">
-                <a href="pages/inbox" class="hbtn">
+                <a href="modules/user/inbox" class="hbtn">
                     <i class="fas fa-bell"></i>
                     <?php if ($unreadCount > 0): ?><span class="nbadge"><?= $unreadCount > 9 ? '9+' : $unreadCount ?></span><?php endif; ?>
                 </a>
@@ -1051,13 +1070,6 @@ function timeAgo(string $ts): string
                 </a>
             <?php endforeach; ?>
         </div>
-    </div>
-</div>
-
-<!-- ═══ MENU CARD ═══ -->
-<div class="fw">
-    <div class="mcard">
-        <div class="mgrid" id="mgrid"></div>
     </div>
 </div>
 
@@ -1156,6 +1168,13 @@ function timeAgo(string $ts): string
     </div>
 <?php endif; ?>
 
+<!-- ═══ MENU CARD ═══ -->
+<div class="fw <?= !empty($heroBanners) ? 'fw-normal' : 'fw-overlap' ?>">
+    <div class="mcard">
+        <div class="mgrid" id="mgrid"></div>
+    </div>
+</div>
+
 <!-- ═══ RUNNING TEXT ═══ -->
 <?php if (!empty($runningTexts)):
     $rt = $runningTexts[0];
@@ -1243,7 +1262,7 @@ function timeAgo(string $ts): string
 <div class="sec">
     <div class="sechd">
         <div class="sectit"><i class="fas fa-bell" style="color:var(--cp)"></i> Notifikasi</div>
-        <a href="pages/inbox" class="secmore">Semua <i class="fas fa-chevron-right" style="font-size:8px"></i></a>
+        <a href="modules/user/inbox" class="secmore">Semua <i class="fas fa-chevron-right" style="font-size:8px"></i></a>
     </div>
     <div class="ncard">
         <?php if (empty($feedNotifs)): ?>
@@ -1253,7 +1272,7 @@ function timeAgo(string $ts): string
             <?php else: foreach ($feedNotifs as $n):
                 [$ico, $col, $bg] = notifMeta($n['title'] ?? '');
             ?>
-                <a href="pages/inbox" class="nr">
+                <a href="modules/user/inbox" class="nr">
                     <div class="n-ico" style="background:<?= $bg ?>"><i class="<?= $ico ?>" style="color:<?= $col ?>"></i></div>
                     <div class="n-body">
                         <div class="n-tit"><?= htmlspecialchars($n['title'] ?? 'Notifikasi') ?></div>
@@ -1263,7 +1282,7 @@ function timeAgo(string $ts): string
                 </a>
         <?php endforeach;
         endif; ?>
-        <a href="pages/inbox" class="nfoot">Semua notifikasi <i class="fas fa-chevron-right" style="font-size:9px"></i></a>
+        <a href="modules/user/inbox" class="nfoot">Semua notifikasi <i class="fas fa-chevron-right" style="font-size:9px"></i></a>
     </div>
 </div>
 
