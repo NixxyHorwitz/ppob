@@ -1,768 +1,874 @@
 <?php
-// ── Konfigurasi halaman ──────────────────
-$page_title  = 'Products';
-$active_menu = 'products-list';
-$base_path   = '';
+// backoffice/products.php
 
-// ── Sample data produk ───────────────────
-$categories = ['Semua', 'Sepatu', 'Kaos', 'Celana', 'Tas', 'Aksesoris'];
-$products = [
-  [
-    'id'       => 'PRD-001',
-    'name'     => 'Sepatu Lari Pro X',
-    'category' => 'Sepatu',
-    'price'    => 520000,
-    'stock'    => 142,
-    'sold'     => 842,
-    'status'   => 'Aktif',
-    'rating'   => 4.8,
-    'reviews'  => 234,
-    'sku'      => 'SHP-LRX-001',
-    'img_bg'   => '#1e3a5f',
-    'img_color'=> '#3b82f6',
-  ],
-  [
-    'id'       => 'PRD-002',
-    'name'     => 'Kaos Olahraga Slim Fit',
-    'category' => 'Kaos',
-    'price'    => 185000,
-    'stock'    => 310,
-    'sold'     => 621,
-    'status'   => 'Aktif',
-    'rating'   => 4.6,
-    'reviews'  => 187,
-    'sku'      => 'KOS-SLM-002',
-    'img_bg'   => '#1a3a2a',
-    'img_color'=> '#10b981',
-  ],
-  [
-    'id'       => 'PRD-003',
-    'name'     => 'Celana Training V2',
-    'category' => 'Celana',
-    'price'    => 320000,
-    'stock'    => 8,
-    'sold'     => 504,
-    'status'   => 'Aktif',
-    'rating'   => 4.7,
-    'reviews'  => 143,
-    'sku'      => 'CLN-TRV-003',
-    'img_bg'   => '#3a1a3a',
-    'img_color'=> '#a855f7',
-  ],
-  [
-    'id'       => 'PRD-004',
-    'name'     => 'Tas Gym Premium',
-    'category' => 'Tas',
-    'price'    => 780000,
-    'stock'    => 55,
-    'sold'     => 310,
-    'status'   => 'Aktif',
-    'rating'   => 4.9,
-    'reviews'  => 98,
-    'sku'      => 'TAS-GYM-004',
-    'img_bg'   => '#3a2a1a',
-    'img_color'=> '#f59e0b',
-  ],
-  [
-    'id'       => 'PRD-005',
-    'name'     => 'Sarung Tangan Gym',
-    'category' => 'Aksesoris',
-    'price'    => 95000,
-    'stock'    => 0,
-    'sold'     => 188,
-    'status'   => 'Habis',
-    'rating'   => 4.4,
-    'reviews'  => 76,
-    'sku'      => 'AKS-STG-005',
-    'img_bg'   => '#1a2a3a',
-    'img_color'=> '#06b6d4',
-  ],
-  [
-    'id'       => 'PRD-006',
-    'name'     => 'Headband Sport',
-    'category' => 'Aksesoris',
-    'price'    => 55000,
-    'stock'    => 220,
-    'sold'     => 155,
-    'status'   => 'Aktif',
-    'rating'   => 4.3,
-    'reviews'  => 52,
-    'sku'      => 'AKS-HDB-006',
-    'img_bg'   => '#3a1a1a',
-    'img_color'=> '#ef4444',
-  ],
-  [
-    'id'       => 'PRD-007',
-    'name'     => 'Sepatu Futsal Strike',
-    'category' => 'Sepatu',
-    'price'    => 445000,
-    'stock'    => 3,
-    'sold'     => 134,
-    'status'   => 'Draft',
-    'rating'   => 4.5,
-    'reviews'  => 41,
-    'sku'      => 'SHP-FTS-007',
-    'img_bg'   => '#1e2a1a',
-    'img_color'=> '#10b981',
-  ],
-  [
-    'id'       => 'PRD-008',
-    'name'     => 'Jaket Windbreaker Pro',
-    'category' => 'Kaos',
-    'price'    => 650000,
-    'stock'    => 67,
-    'sold'     => 89,
-    'status'   => 'Aktif',
-    'rating'   => 4.7,
-    'reviews'  => 33,
-    'sku'      => 'KOS-WBP-008',
-    'img_bg'   => '#1a1e3a',
-    'img_color'=> '#3b82f6',
-  ],
+require_once __DIR__ . '/includes/session.php';
+require_once __DIR__ . '/../config/database.php';
+
+$page_title  = 'Manage Produk';
+$active_menu = 'products';
+
+// ══ HELPERS ══════════════════════════════════════════════════
+function fmt_rp(float $n): string
+{
+  return 'Rp ' . number_format($n, 0, ',', '.');
+}
+function margin_pct(float $vendor, float $sell): string
+{
+  if ($vendor <= 0) return '0';
+  return number_format((($sell - $vendor) / $vendor) * 100, 1);
+}
+
+// ══ ACTIONS ══════════════════════════════════════════════════
+$toast   = '';
+$toast_e = '';
+$action  = $_POST['action'] ?? '';
+
+// ── Tambah ───────────────────────────────────────────────────
+if ($action === 'add') {
+  $sku_code     = trim($_POST['sku_code']      ?? '');
+  $product_name = trim($_POST['product_name']  ?? '');
+  $category     = trim($_POST['category']      ?? '');
+  $type         = in_array($_POST['type'] ?? '', ['prabayar', 'pascabayar']) ? $_POST['type'] : 'prabayar';
+  $brand        = trim($_POST['brand']         ?? '');
+  $price_vendor = (float)str_replace(['.', ','], ['', '.'], $_POST['price_vendor'] ?? 0);
+  $price_sell   = (float)str_replace(['.', ','], ['', '.'], $_POST['price_sell']   ?? 0);
+  $status       = in_array($_POST['status'] ?? '', ['active', 'non-active']) ? $_POST['status'] : 'active';
+
+  if (!$sku_code)     $toast_e = 'SKU Code wajib diisi.';
+  elseif (!$product_name) $toast_e = 'Nama produk wajib diisi.';
+  elseif (!$category) $toast_e = 'Kategori wajib diisi.';
+  elseif ($price_sell <= 0) $toast_e = 'Harga jual harus lebih dari 0.';
+  else {
+    $chk = $pdo->prepare("SELECT id FROM products WHERE sku_code = ?");
+    $chk->execute([$sku_code]);
+    if ($chk->fetch()) {
+      $toast_e = "SKU Code '$sku_code' sudah digunakan.";
+    } else {
+      $pdo->prepare("INSERT INTO products (sku_code, product_name, category, type, brand, price_vendor, price_sell, status) VALUES (?,?,?,?,?,?,?,?)")
+        ->execute([$sku_code, $product_name, $category, $type, $brand, $price_vendor, $price_sell, $status]);
+      $toast = "Produk '$product_name' berhasil ditambahkan.";
+    }
+  }
+}
+
+// ── Edit ─────────────────────────────────────────────────────
+if ($action === 'edit' && !empty($_POST['id'])) {
+  $id           = (int)$_POST['id'];
+  $product_name = trim($_POST['product_name']  ?? '');
+  $category     = trim($_POST['category']      ?? '');
+  $type         = in_array($_POST['type'] ?? '', ['prabayar', 'pascabayar']) ? $_POST['type'] : 'prabayar';
+  $brand        = trim($_POST['brand']         ?? '');
+  $price_vendor = (float)str_replace(['.', ','], ['', '.'], $_POST['price_vendor'] ?? 0);
+  $price_sell   = (float)str_replace(['.', ','], ['', '.'], $_POST['price_sell']   ?? 0);
+  $status       = in_array($_POST['status'] ?? '', ['active', 'non-active']) ? $_POST['status'] : 'active';
+
+  if (!$product_name) $toast_e = 'Nama produk wajib diisi.';
+  elseif ($price_sell <= 0) $toast_e = 'Harga jual harus lebih dari 0.';
+  else {
+    $pdo->prepare("UPDATE products SET product_name=?, category=?, type=?, brand=?, price_vendor=?, price_sell=?, status=? WHERE id=?")
+      ->execute([$product_name, $category, $type, $brand, $price_vendor, $price_sell, $status, $id]);
+    $toast = "Produk berhasil diupdate.";
+  }
+}
+
+// ── Toggle status ─────────────────────────────────────────────
+if ($action === 'toggle' && !empty($_POST['id'])) {
+  $id  = (int)$_POST['id'];
+  $cur = $pdo->prepare("SELECT status FROM products WHERE id=?");
+  $cur->execute([$id]);
+  $now = $cur->fetchColumn();
+  $new = $now === 'active' ? 'non-active' : 'active';
+  $pdo->prepare("UPDATE products SET status=? WHERE id=?")->execute([$new, $id]);
+  $toast = 'Status produk berhasil diubah.';
+}
+
+// ── Hapus ─────────────────────────────────────────────────────
+if ($action === 'delete' && !empty($_POST['id'])) {
+  $id  = (int)$_POST['id'];
+  // Cek apakah ada transaksi dengan sku ini
+  $used = $pdo->prepare("SELECT COUNT(*) FROM transactions WHERE sku_code = (SELECT sku_code FROM products WHERE id=?)");
+  $used->execute([$id]);
+  if ((int)$used->fetchColumn() > 0) {
+    $toast_e = 'Produk tidak bisa dihapus karena sudah memiliki riwayat transaksi.';
+  } else {
+    $pdo->prepare("DELETE FROM products WHERE id=?")->execute([$id]);
+    $toast = 'Produk berhasil dihapus.';
+  }
+}
+
+// ── Bulk status ───────────────────────────────────────────────
+if ($action === 'bulk_toggle' && !empty($_POST['ids'])) {
+  $ids    = array_map('intval', (array)$_POST['ids']);
+  $status = $_POST['bulk_status'] ?? 'active';
+  $status = in_array($status, ['active', 'non-active']) ? $status : 'active';
+  if ($ids) {
+    $in = implode(',', $ids);
+    $pdo->exec("UPDATE products SET status='$status' WHERE id IN ($in)");
+    $toast = count($ids) . ' produk berhasil diubah ke ' . ($status === 'active' ? 'Aktif' : 'Nonaktif') . '.';
+  }
+}
+
+// ══ FILTER & FETCH ════════════════════════════════════════════
+$q        = trim($_GET['q']        ?? '');
+$f_cat    = trim($_GET['category'] ?? '');
+$f_brand  = trim($_GET['brand']    ?? '');
+$f_type   = trim($_GET['type']     ?? '');
+$f_status = $_GET['status']        ?? '';
+$page     = max(1, (int)($_GET['page'] ?? 1));
+$per_page = 20;
+
+$where = [];
+$params = [];
+if ($q) {
+  $where[] = "(sku_code LIKE ? OR product_name LIKE ? OR brand LIKE ?)";
+  $s = "%$q%";
+  array_push($params, $s, $s, $s);
+}
+if ($f_cat) {
+  $where[] = "category = ?";
+  $params[] = $f_cat;
+}
+if ($f_brand) {
+  $where[] = "brand = ?";
+  $params[] = $f_brand;
+}
+if ($f_type) {
+  $where[] = "type = ?";
+  $params[] = $f_type;
+}
+if ($f_status !== '') {
+  $where[] = "status = ?";
+  $params[] = $f_status;
+}
+$wsql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+
+// Total count
+$cnt   = $pdo->prepare("SELECT COUNT(*) FROM products $wsql");
+$cnt->execute($params);
+$total = (int)$cnt->fetchColumn();
+$pages = max(1, ceil($total / $per_page));
+$offset = ($page - 1) * $per_page;
+
+// Produk dengan stat penjualan dari transactions (soft join via sku_code)
+$stmt = $pdo->prepare("
+    SELECT p.*,
+           COALESCE(t.trx_count, 0)   AS trx_count,
+           COALESCE(t.trx_success, 0) AS trx_success,
+           COALESCE(t.revenue, 0)     AS revenue
+    FROM products p
+    LEFT JOIN (
+        SELECT sku_code,
+               COUNT(*)                         AS trx_count,
+               SUM(status = 'success')          AS trx_success,
+               SUM(CASE WHEN status='success' THEN amount ELSE 0 END) AS revenue
+        FROM transactions
+        GROUP BY sku_code
+    ) t ON t.sku_code = p.sku_code
+    $wsql
+    ORDER BY p.id DESC
+    LIMIT $per_page OFFSET $offset
+");
+$stmt->execute($params);
+$products = $stmt->fetchAll();
+
+// Stats ringkasan
+$stats = $pdo->query("
+    SELECT COUNT(*) total,
+           SUM(status='active') aktif,
+           COUNT(DISTINCT category) cat_count,
+           COUNT(DISTINCT brand) brand_count
+    FROM products
+")->fetch();
+
+// Revenue total dari transaksi sukses semua produk
+$total_rev = (float)$pdo->query("
+    SELECT COALESCE(SUM(t.amount), 0)
+    FROM transactions t
+    INNER JOIN products p ON p.sku_code = t.sku_code
+    WHERE t.status = 'success'
+")->fetchColumn();
+
+// Dropdown options (dari data aktual)
+$categories = $pdo->query("SELECT DISTINCT category FROM products WHERE category IS NOT NULL ORDER BY category")->fetchAll(\PDO::FETCH_COLUMN);
+$brands     = $pdo->query("SELECT DISTINCT brand FROM products WHERE brand IS NOT NULL ORDER BY brand")->fetchAll(\PDO::FETCH_COLUMN);
+
+// Edit data
+$edit_data = null;
+if (!empty($_GET['edit'])) {
+  $eu = $pdo->prepare("SELECT * FROM products WHERE id = ?");
+  $eu->execute([(int)$_GET['edit']]);
+  $edit_data = $eu->fetch();
+}
+
+// Warna per kategori
+$cat_colors = [
+  'Pulsa'            => ['bg' => 'var(--as)',  'cl' => 'var(--accent)', 'ic' => 'ph-device-mobile'],
+  'Data'             => ['bg' => 'var(--oks)', 'cl' => 'var(--ok)',     'ic' => 'ph-wifi-high'],
+  'E-Money'          => ['bg' => 'var(--ws)',  'cl' => 'var(--warn)',   'ic' => 'ph-wallet'],
+  'Games'            => ['bg' => 'var(--ps)',  'cl' => 'var(--pur)',    'ic' => 'ph-game-controller'],
+  'Aktivasi Perdana' => ['bg' => 'var(--es)',  'cl' => 'var(--err)',    'ic' => 'ph-sim-card'],
+  'Aktivasi Voucher' => ['bg' => 'rgba(6,182,212,.12)', 'cl' => '#06b6d4', 'ic' => 'ph-ticket'],
+  'Masa Aktif'       => ['bg' => 'rgba(245,158,11,.12)', 'cl' => '#f59e0b', 'ic' => 'ph-clock-countdown'],
 ];
 
-require_once 'includes/header.php';
+$qs = http_build_query(array_filter(['q' => $q, 'category' => $f_cat, 'brand' => $f_brand, 'type' => $f_type, 'status' => $f_status, 'page' => $page]));
+
+require_once __DIR__ . '/includes/header.php';
 ?>
+
+<!-- ══ TOAST ══ -->
+<div class="toast-wrap">
+  <?php if ($toast):   ?><div class="toast-item toast-ok"><i class="ph ph-check-circle" style="font-size:18px;flex-shrink:0"></i><?= htmlspecialchars($toast) ?></div><?php endif; ?>
+  <?php if ($toast_e): ?><div class="toast-item toast-err"><i class="ph ph-warning-circle" style="font-size:18px;flex-shrink:0"></i><?= htmlspecialchars($toast_e) ?></div><?php endif; ?>
+</div>
 
 <!-- ══ PAGE HEADER ══ -->
 <div class="page-header d-flex flex-wrap align-items-center justify-content-between gap-3">
   <div>
-    <h1>Products</h1>
-    <nav aria-label="breadcrumb">
-      <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="index.php">Home</a></li>
-        <li class="breadcrumb-item active">Products</li>
+    <h1>Manage Produk</h1>
+    <nav>
+      <ol class="breadcrumb bc">
+        <li class="breadcrumb-item"><a href="dashboard.php">Home</a></li>
+        <li class="breadcrumb-item active">Produk</li>
       </ol>
     </nav>
   </div>
-  <div class="d-flex gap-2">
-    <button class="btn btn-sm" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-subtle);border-radius:8px">
-      <i class="ph ph-download-simple me-1"></i> Export
-    </button>
-    <button class="btn btn-sm" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-subtle);border-radius:8px">
-      <i class="ph ph-upload-simple me-1"></i> Import CSV
-    </button>
-    <button class="btn btn-sm btn-primary" style="border-radius:8px" data-bs-toggle="modal" data-bs-target="#modalProduct">
-      <i class="ph ph-plus me-1"></i> Tambah Produk
-    </button>
-  </div>
+  <button class="btn btn-primary" style="border-radius:8px"
+    data-bs-toggle="modal" data-bs-target="#mAdd">
+    <i class="ph ph-plus me-1"></i> Tambah Produk
+  </button>
 </div>
 
 <!-- ══ STAT CARDS ══ -->
 <div class="row g-3 mb-4">
   <div class="col-xl-3 col-sm-6">
-    <div class="stat-card blue">
-      <div class="stat-icon blue"><i class="ph-fill ph-package"></i></div>
-      <div class="stat-value"><?= count($products) ?></div>
-      <div class="stat-label">Total Produk</div>
-      <div class="stat-trend up"><i class="ph ph-trend-up"></i> +3 produk baru bulan ini</div>
+    <div class="sc blue">
+      <div class="si blue"><i class="ph-fill ph-storefront"></i></div>
+      <div class="sv"><?= number_format($stats['total']) ?></div>
+      <div class="sl">Total Produk</div>
     </div>
   </div>
   <div class="col-xl-3 col-sm-6">
-    <div class="stat-card green">
-      <div class="stat-icon green"><i class="ph-fill ph-check-circle"></i></div>
-      <div class="stat-value"><?= count(array_filter($products, fn($p)=>$p['status']==='Aktif')) ?></div>
-      <div class="stat-label">Produk Aktif</div>
-      <div class="stat-trend up"><i class="ph ph-trend-up"></i> <?= round(count(array_filter($products, fn($p)=>$p['status']==='Aktif'))/count($products)*100) ?>% dari total</div>
+    <div class="sc green">
+      <div class="si green"><i class="ph-fill ph-check-circle"></i></div>
+      <div class="sv"><?= number_format($stats['aktif']) ?></div>
+      <div class="sl">Produk Aktif</div>
     </div>
   </div>
   <div class="col-xl-3 col-sm-6">
-    <div class="stat-card orange">
-      <div class="stat-icon orange"><i class="ph-fill ph-warning-circle"></i></div>
-      <div class="stat-value"><?= count(array_filter($products, fn($p)=>$p['stock']<10)) ?></div>
-      <div class="stat-label">Stok Kritis</div>
-      <div class="stat-trend down"><i class="ph ph-warning"></i> Perlu restock segera</div>
+    <div class="sc orange">
+      <div class="si orange"><i class="ph-fill ph-tag"></i></div>
+      <div class="sv"><?= $stats['cat_count'] ?> <span style="font-size:14px;font-weight:500">kategori</span></div>
+      <div class="sl"><?= $stats['brand_count'] ?> brand tersedia</div>
     </div>
   </div>
   <div class="col-xl-3 col-sm-6">
-    <div class="stat-card purple">
-      <div class="stat-icon purple"><i class="ph-fill ph-shopping-cart"></i></div>
-      <div class="stat-value"><?= number_format(array_sum(array_column($products,'sold'))) ?></div>
-      <div class="stat-label">Total Terjual</div>
-      <div class="stat-trend up"><i class="ph ph-trend-up"></i> +8.4% bulan ini</div>
+    <div class="sc purple">
+      <div class="si purple"><i class="ph-fill ph-currency-dollar"></i></div>
+      <div class="sv" style="font-size:18px"><?= $total_rev >= 1000000 ? 'Rp ' . number_format($total_rev / 1000000, 1, ',', '.') . 'jt' : fmt_rp($total_rev) ?></div>
+      <div class="sl">Revenue dari Produk</div>
     </div>
   </div>
 </div>
 
-<!-- ══ FILTER + VIEW TOGGLE ══ -->
-<div class="card-custom mb-4">
-  <div class="card-body-custom">
-    <div class="d-flex flex-wrap align-items-center gap-3">
+<!-- ══ TABEL CARD ══ -->
+<div class="card-c">
+  <div class="ch">
+    <div>
+      <p class="ct">Daftar Produk</p>
+      <p class="cs">
+        <?= $total ?> produk
+        <?= $q ? "· cari: <strong style='color:var(--accent)'>" . htmlspecialchars($q) . "</strong>" : '' ?>
+        <?= $f_cat ? "· <span class='bd bd-acc' style='font-size:10px'>" . htmlspecialchars($f_cat) . "</span>" : '' ?>
+        <?= $f_brand ? "· <span class='bd bd-warn' style='font-size:10px'>" . htmlspecialchars($f_brand) . "</span>" : '' ?>
+      </p>
+    </div>
+    <!-- Bulk action -->
+    <div class="d-flex gap-2 align-items-center" id="bulkBar" style="display:none!important">
+      <span id="bulkCount" style="font-size:12px;color:var(--mut)">0 dipilih</span>
+      <form method="POST" id="bulkForm">
+        <input type="hidden" name="action" value="bulk_toggle" />
+        <input type="hidden" name="bulk_status" id="bulkStatus" value="active" />
+        <div id="bulkIds"></div>
+        <button type="button" class="btn btn-sm"
+          style="border-radius:7px;background:var(--oks);border:1px solid rgba(16,185,129,.2);color:var(--ok);font-size:12px"
+          onclick="doBulk('active')">
+          <i class="ph ph-check me-1"></i>Aktifkan
+        </button>
+        <button type="button" class="btn btn-sm ms-1"
+          style="border-radius:7px;background:var(--es);border:1px solid rgba(239,68,68,.2);color:var(--err);font-size:12px"
+          onclick="doBulk('non-active')">
+          <i class="ph ph-x me-1"></i>Nonaktifkan
+        </button>
+      </form>
+    </div>
+  </div>
 
-      <!-- Search -->
+  <!-- Filter -->
+  <div class="cb pb-0">
+    <form method="GET" class="d-flex flex-wrap gap-2 align-items-center">
       <div style="position:relative;flex:1;min-width:200px">
-        <i class="ph ph-magnifying-glass" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:16px"></i>
-        <input type="text" class="form-control settings-input" id="productSearch"
-               placeholder="Cari nama produk, SKU…"
-               style="padding-left:34px"/>
+        <i class="ph ph-magnifying-glass" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--mut);font-size:16px;pointer-events:none"></i>
+        <input type="text" name="q" value="<?= htmlspecialchars($q) ?>" class="fi"
+          placeholder="Cari SKU, nama, brand…" style="width:100%" />
       </div>
-
-      <!-- Category filter -->
-      <div class="d-flex gap-2 flex-wrap">
-        <?php foreach ($categories as $i => $cat): ?>
-          <button class="cat-filter-btn <?= $i===0?'active':'' ?>" data-cat="<?= $cat ?>">
-            <?= $cat ?>
-          </button>
+      <select name="category" class="fs">
+        <option value="">Semua Kategori</option>
+        <?php foreach ($categories as $c): ?>
+          <option value="<?= htmlspecialchars($c) ?>" <?= $f_cat === $c ? 'selected' : '' ?>><?= htmlspecialchars($c) ?></option>
         <?php endforeach; ?>
-      </div>
-
-      <!-- Status filter -->
-      <select class="form-select settings-input" id="statusFilter" style="width:auto">
+      </select>
+      <select name="brand" class="fs">
+        <option value="">Semua Brand</option>
+        <?php foreach ($brands as $b): ?>
+          <option value="<?= htmlspecialchars($b) ?>" <?= $f_brand === $b ? 'selected' : '' ?>><?= htmlspecialchars($b) ?></option>
+        <?php endforeach; ?>
+      </select>
+      <select name="type" class="fs">
+        <option value="">Semua Tipe</option>
+        <option value="prabayar" <?= $f_type === 'prabayar'  ? 'selected' : '' ?>>Prabayar</option>
+        <option value="pascabayar" <?= $f_type === 'pascabayar' ? 'selected' : '' ?>>Pascabayar</option>
+      </select>
+      <select name="status" class="fs">
         <option value="">Semua Status</option>
-        <option>Aktif</option>
-        <option>Habis</option>
-        <option>Draft</option>
+        <option value="active" <?= $f_status === 'active'     ? 'selected' : '' ?>>Aktif</option>
+        <option value="non-active" <?= $f_status === 'non-active' ? 'selected' : '' ?>>Nonaktif</option>
       </select>
-
-      <!-- Sort -->
-      <select class="form-select settings-input" id="sortSelect" style="width:auto">
-        <option value="sold">Terlaris</option>
-        <option value="price_asc">Harga Termurah</option>
-        <option value="price_desc">Harga Termahal</option>
-        <option value="stock">Stok Terbanyak</option>
-        <option value="rating">Rating Tertinggi</option>
-      </select>
-
-      <!-- View toggle -->
-      <div class="d-flex gap-1" style="background:var(--bg-hover);border:1px solid var(--border);border-radius:8px;padding:3px">
-        <button class="view-btn active" id="viewGrid" title="Grid view">
-          <i class="ph ph-squares-four"></i>
-        </button>
-        <button class="view-btn" id="viewList" title="List view">
-          <i class="ph ph-list"></i>
-        </button>
-      </div>
-
-    </div>
+      <button type="submit" class="btn btn-primary btn-sm" style="border-radius:7px;padding:8px 16px">
+        <i class="ph ph-funnel me-1"></i>Filter
+      </button>
+      <?php if ($q || $f_cat || $f_brand || $f_type || $f_status !== ''): ?>
+        <a href="products.php" class="btn btn-sm"
+          style="border-radius:7px;background:var(--hover);border:1px solid var(--border);color:var(--sub);padding:8px 14px">
+          <i class="ph ph-x me-1"></i>Reset
+        </a>
+      <?php endif; ?>
+    </form>
   </div>
-</div>
 
-<!-- ══ PRODUCT GRID VIEW ══ -->
-<div id="gridView">
-  <div class="row g-3" id="productGrid">
-    <?php foreach ($products as $p):
-      $is_low   = $p['stock'] > 0 && $p['stock'] < 10;
-      $is_empty = $p['stock'] === 0;
-      $status_class = match($p['status']) {
-        'Aktif' => 'badge-success',
-        'Habis' => 'badge-danger',
-        'Draft' => 'badge-warning',
-        default => 'badge-accent',
-      };
-    ?>
-      <div class="col-xl-3 col-lg-4 col-sm-6 product-card-wrap"
-           data-cat="<?= $p['category'] ?>"
-           data-status="<?= $p['status'] ?>"
-           data-name="<?= strtolower($p['name']) ?>"
-           data-sku="<?= strtolower($p['sku']) ?>"
-           data-sold="<?= $p['sold'] ?>"
-           data-price="<?= $p['price'] ?>"
-           data-stock="<?= $p['stock'] ?>"
-           data-rating="<?= $p['rating'] ?>">
-        <div class="product-card card-custom">
-
-          <!-- Image area -->
-          <div style="height:160px;background:<?= $p['img_bg'] ?>;border-radius:var(--radius) var(--radius) 0 0;
-                      display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden">
-            <!-- Decorative circles -->
-            <div style="position:absolute;width:120px;height:120px;border-radius:50%;background:<?= $p['img_color'] ?>;opacity:.1;top:-30px;right:-30px"></div>
-            <div style="position:absolute;width:80px;height:80px;border-radius:50%;background:<?= $p['img_color'] ?>;opacity:.08;bottom:-20px;left:-20px"></div>
-            <!-- Product icon -->
-            <div style="width:72px;height:72px;border-radius:18px;background:<?= $p['img_color'] ?>22;border:1px solid <?= $p['img_color'] ?>44;
-                        display:flex;align-items:center;justify-content:center;font-size:32px;color:<?= $p['img_color'] ?>">
-              <i class="ph <?= match($p['category']) {
-                'Sepatu'     => 'ph-sneaker',
-                'Kaos'       => 'ph-t-shirt',
-                'Celana'     => 'ph-pants',
-                'Tas'        => 'ph-backpack',
-                'Aksesoris'  => 'ph-star',
-                default      => 'ph-package',
-              } ?>"></i>
-            </div>
-            <!-- Status badge -->
-            <div style="position:absolute;top:10px;left:10px">
-              <span class="badge-custom <?= $status_class ?>"><?= $p['status'] ?></span>
-            </div>
-            <!-- Stock warning -->
-            <?php if ($is_empty): ?>
-              <div style="position:absolute;top:10px;right:10px">
-                <span class="badge-custom badge-danger"><i class="ph ph-warning"></i> Habis</span>
-              </div>
-            <?php elseif ($is_low): ?>
-              <div style="position:absolute;top:10px;right:10px">
-                <span class="badge-custom badge-warning"><i class="ph ph-warning"></i> Kritis</span>
-              </div>
-            <?php endif; ?>
-            <!-- Action buttons hover -->
-            <div class="product-actions">
-              <button class="topbar-btn" style="width:32px;height:32px;font-size:15px" title="Preview"
-                      data-bs-toggle="modal" data-bs-target="#modalPreview"
-                      onclick="fillPreview(<?= htmlspecialchars(json_encode($p)) ?>)">
-                <i class="ph ph-eye"></i>
-              </button>
-              <button class="topbar-btn" style="width:32px;height:32px;font-size:15px" title="Edit">
-                <i class="ph ph-pencil-simple"></i>
-              </button>
-              <button class="topbar-btn" style="width:32px;height:32px;font-size:15px;color:var(--danger)" title="Hapus">
-                <i class="ph ph-trash"></i>
-              </button>
-            </div>
-          </div>
-
-          <!-- Card body -->
-          <div class="card-body-custom" style="padding:14px 16px">
-            <div style="font-size:10px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;margin-bottom:4px"><?= $p['sku'] ?></div>
-            <div style="font-size:14px;font-weight:600;margin-bottom:6px;line-height:1.3"><?= $p['name'] ?></div>
-            <div class="d-flex align-items-center gap-1 mb-3">
-              <?php for($s=1;$s<=5;$s++): ?>
-                <i class="ph-fill ph-star" style="font-size:12px;color:<?= $s<=$p['rating']?'var(--warning)':'var(--bg-hover)' ?>"></i>
-              <?php endfor; ?>
-              <span style="font-size:11px;color:var(--text-muted);margin-left:2px">(<?= $p['reviews'] ?>)</span>
-            </div>
-
-            <div class="d-flex align-items-center justify-content-between mb-3">
-              <div style="font-size:16px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--accent)">
-                Rp <?= number_format($p['price'],0,',','.') ?>
-              </div>
-              <div style="font-size:12px;color:var(--text-muted)">
-                Stok: <strong style="color:<?= $is_empty?'var(--danger)':($is_low?'var(--warning)':'var(--text-primary)') ?>"><?= number_format($p['stock']) ?></strong>
-              </div>
-            </div>
-
-            <!-- Progress sold -->
-            <div>
-              <div class="d-flex justify-content-between mb-1">
-                <span style="font-size:11px;color:var(--text-muted)">Terjual</span>
-                <span style="font-size:11px;font-weight:600;color:var(--text-primary)"><?= number_format($p['sold']) ?></span>
-              </div>
-              <?php $sold_pct = min(100, round($p['sold']/($p['sold']+$p['stock'])*100)); ?>
-              <div class="progress-custom">
-                <div class="progress-bar-custom" style="width:<?= $sold_pct ?>%;background:<?= $p['img_color'] ?>"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card footer -->
-          <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;gap:6px">
-            <button class="btn btn-sm flex-fill" style="border-radius:7px;background:var(--accent-soft);border:1px solid var(--border-active);color:var(--accent);font-size:12px">
-              <i class="ph ph-pencil-simple me-1"></i> Edit
-            </button>
-            <button class="topbar-btn" style="width:32px;height:32px;font-size:15px" title="Duplikat">
-              <i class="ph ph-copy"></i>
-            </button>
-          </div>
-
-        </div>
+  <!-- Table -->
+  <div class="cb">
+    <?php if (empty($products)): ?>
+      <div class="text-center py-5" style="color:var(--mut)">
+        <i class="ph ph-storefront" style="font-size:48px;display:block;margin-bottom:10px;opacity:.4"></i>
+        <div style="font-size:14px;font-weight:600;margin-bottom:4px">Tidak ada produk ditemukan</div>
+        <div style="font-size:12px">Coba ubah filter atau <button onclick="document.getElementById('mAdd').querySelector('[data-bs-toggle]') && bootstrap.Modal.getOrCreateInstance(document.getElementById('mAdd')).show()" style="background:none;border:none;color:var(--accent);cursor:pointer;padding:0">tambah produk baru</button></div>
       </div>
-    <?php endforeach; ?>
-
-    <!-- Empty state -->
-    <div class="col-12 d-none" id="emptyState">
-      <div class="card-custom text-center py-5">
-        <i class="ph ph-magnifying-glass" style="font-size:48px;color:var(--text-muted);margin-bottom:12px;display:block"></i>
-        <div style="font-size:16px;font-weight:600">Produk tidak ditemukan</div>
-        <div style="font-size:13px;color:var(--text-muted);margin-top:4px">Coba ubah filter atau kata kunci pencarian</div>
-      </div>
-    </div>
-  </div>
-</div><!-- /gridView -->
-
-<!-- ══ PRODUCT LIST VIEW ══ -->
-<div id="listView" class="d-none">
-  <div class="card-custom">
-    <div class="card-body-custom">
+    <?php else: ?>
       <div class="table-responsive">
-        <table id="productTable" class="table-dark-custom w-100">
+        <table class="tbl" id="prodTable">
           <thead>
             <tr>
-              <th><input type="checkbox" class="form-check-input" id="checkAll" style="background:var(--bg-hover);border-color:var(--border)"/></th>
+              <th style="width:36px">
+                <input type="checkbox" id="chkAll" style="accent-color:var(--accent);cursor:pointer" />
+              </th>
               <th>Produk</th>
               <th>Kategori</th>
-              <th>Harga</th>
-              <th>Stok</th>
-              <th>Terjual</th>
-              <th>Rating</th>
+              <th>Brand</th>
+              <th>Harga Vendor</th>
+              <th>Harga Jual</th>
+              <th>Margin</th>
+              <th>Transaksi</th>
               <th>Status</th>
-              <th>Aksi</th>
+              <th style="text-align:center">Aksi</th>
             </tr>
           </thead>
           <tbody>
             <?php foreach ($products as $p):
-              $is_low   = $p['stock'] > 0 && $p['stock'] < 10;
-              $is_empty = $p['stock'] === 0;
-              $status_class = match($p['status']) {
-                'Aktif' => 'badge-success',
-                'Habis' => 'badge-danger',
-                'Draft' => 'badge-warning',
-                default => 'badge-accent',
-              };
+              $cc = $cat_colors[$p['category']] ?? ['bg' => 'var(--hover)', 'cl' => 'var(--sub)', 'ic' => 'ph-package'];
+              $margin = (float)$p['price_sell'] - (float)$p['price_vendor'];
+              $margin_p = margin_pct((float)$p['price_vendor'], (float)$p['price_sell']);
+              $is_active = $p['status'] === 'active';
             ?>
-              <tr>
-                <td><input type="checkbox" class="form-check-input row-check" style="background:var(--bg-hover);border-color:var(--border)"/></td>
+              <tr style="<?= !$is_active ? 'opacity:.55' : '' ?>">
+
+                <!-- Checkbox -->
                 <td>
-                  <div class="d-flex align-items-center gap-3">
-                    <div style="width:42px;height:42px;border-radius:10px;background:<?= $p['img_bg'] ?>;
-                                display:flex;align-items:center;justify-content:center;font-size:20px;color:<?= $p['img_color'] ?>;flex-shrink:0">
-                      <i class="ph <?= match($p['category']) {
-                        'Sepatu'    => 'ph-sneaker',
-                        'Kaos'      => 'ph-t-shirt',
-                        'Celana'    => 'ph-pants',
-                        'Tas'       => 'ph-backpack',
-                        'Aksesoris' => 'ph-star',
-                        default     => 'ph-package',
-                      } ?>"></i>
+                  <input type="checkbox" class="rowchk" value="<?= $p['id'] ?>"
+                    style="accent-color:var(--accent);cursor:pointer" />
+                </td>
+
+                <!-- Produk -->
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div style="width:36px;height:36px;border-radius:9px;background:<?= $cc['bg'] ?>;
+                            display:flex;align-items:center;justify-content:center;
+                            font-size:17px;color:<?= $cc['cl'] ?>;flex-shrink:0">
+                      <i class="ph <?= $cc['ic'] ?>"></i>
                     </div>
                     <div>
-                      <div style="font-size:13.5px;font-weight:600"><?= $p['name'] ?></div>
-                      <div style="font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace"><?= $p['sku'] ?></div>
+                      <div style="font-weight:600;font-size:13px;line-height:1.3">
+                        <?= htmlspecialchars($p['product_name']) ?>
+                      </div>
+                      <div style="font-size:11px;color:var(--mut);font-family:'JetBrains Mono',monospace">
+                        <?= htmlspecialchars($p['sku_code']) ?>
+                      </div>
                     </div>
                   </div>
                 </td>
-                <td><span class="badge-custom badge-accent"><?= $p['category'] ?></span></td>
-                <td style="font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--accent)">
-                  Rp <?= number_format($p['price'],0,',','.') ?>
-                </td>
+
+                <!-- Kategori -->
                 <td>
-                  <span style="font-weight:600;color:<?= $is_empty?'var(--danger)':($is_low?'var(--warning)':'var(--text-primary)') ?>">
-                    <?= number_format($p['stock']) ?>
-                    <?php if ($is_empty): ?><i class="ph ph-warning-circle" style="color:var(--danger)"></i>
-                    <?php elseif ($is_low): ?><i class="ph ph-warning" style="color:var(--warning)"></i>
-                    <?php endif; ?>
+                  <span style="font-size:12px;padding:3px 9px;border-radius:99px;
+                           background:<?= $cc['bg'] ?>;color:<?= $cc['cl'] ?>;font-weight:600">
+                    <?= htmlspecialchars($p['category'] ?? '—') ?>
                   </span>
                 </td>
-                <td style="font-family:'JetBrains Mono',monospace"><?= number_format($p['sold']) ?></td>
-                <td>
-                  <div class="d-flex align-items-center gap-1">
-                    <i class="ph-fill ph-star" style="font-size:13px;color:var(--warning)"></i>
-                    <span style="font-size:13px;font-weight:600"><?= $p['rating'] ?></span>
-                    <span style="font-size:11px;color:var(--text-muted)">(<?= $p['reviews'] ?>)</span>
-                  </div>
+
+                <!-- Brand -->
+                <td style="font-size:12px;color:var(--sub);font-weight:500">
+                  <?= htmlspecialchars($p['brand'] ?? '—') ?>
                 </td>
-                <td><span class="badge-custom <?= $status_class ?>"><?= $p['status'] ?></span></td>
+
+                <!-- Harga Vendor -->
+                <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--mut)">
+                  <?= fmt_rp((float)$p['price_vendor']) ?>
+                </td>
+
+                <!-- Harga Jual -->
+                <td style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--ok)">
+                  <?= fmt_rp((float)$p['price_sell']) ?>
+                </td>
+
+                <!-- Margin -->
                 <td>
-                  <div class="d-flex gap-1">
-                    <button class="topbar-btn" style="width:28px;height:28px;font-size:15px" title="Preview"
-                            data-bs-toggle="modal" data-bs-target="#modalPreview"
-                            onclick="fillPreview(<?= htmlspecialchars(json_encode($p)) ?>)">
-                      <i class="ph ph-eye"></i>
+                  <div style="font-size:12px;font-weight:600;color:<?= $margin >= 0 ? 'var(--ok)' : 'var(--err)' ?>">
+                    +<?= fmt_rp($margin) ?>
+                  </div>
+                  <div style="font-size:10px;color:var(--mut)"><?= $margin_p ?>%</div>
+                </td>
+
+                <!-- Transaksi (dari transactions join) -->
+                <td>
+                  <?php if ($p['trx_count'] > 0): ?>
+                    <div style="font-size:13px;font-weight:600;color:var(--text)">
+                      <?= number_format($p['trx_success']) ?>
+                      <span style="font-size:10px;color:var(--mut);font-weight:400">sukses</span>
+                    </div>
+                    <div style="font-size:10px;color:var(--mut)">
+                      <?= number_format($p['trx_count']) ?> total trx
+                    </div>
+                  <?php else: ?>
+                    <span style="color:var(--mut);font-size:12px">—</span>
+                  <?php endif; ?>
+                </td>
+
+                <!-- Status -->
+                <td>
+                  <form method="POST" style="display:inline">
+                    <input type="hidden" name="action" value="toggle" />
+                    <input type="hidden" name="id" value="<?= $p['id'] ?>" />
+                    <button type="submit" class="bd <?= $is_active ? 'bd-ok' : 'bd-err' ?>"
+                      style="border:none;cursor:pointer">
+                      <i class="ph <?= $is_active ? 'ph-check-circle' : 'ph-x-circle' ?>"></i>
+                      <?= $is_active ? 'Aktif' : 'Nonaktif' ?>
                     </button>
-                    <button class="topbar-btn" style="width:28px;height:28px;font-size:15px" title="Edit">
+                  </form>
+                </td>
+
+                <!-- Aksi -->
+                <td>
+                  <div class="d-flex gap-1 justify-content-center">
+                    <a href="?edit=<?= $p['id'] ?><?= $qs ? '&' . $qs : '' ?>"
+                      class="ab" title="Edit">
                       <i class="ph ph-pencil-simple"></i>
-                    </button>
-                    <button class="topbar-btn" style="width:28px;height:28px;font-size:15px" title="Duplikat">
-                      <i class="ph ph-copy"></i>
-                    </button>
-                    <button class="topbar-btn" style="width:28px;height:28px;font-size:15px;color:var(--danger)" title="Hapus">
-                      <i class="ph ph-trash"></i>
-                    </button>
+                    </a>
+                    <form method="POST" style="display:inline"
+                      onsubmit="return confirm('Hapus produk \'<?= addslashes(htmlspecialchars($p['product_name'])) ?>\'?<?= $p['trx_count'] > 0 ? '\n\nPeringatan: produk ini memiliki riwayat transaksi.' : '' ?>')">
+                      <input type="hidden" name="action" value="delete" />
+                      <input type="hidden" name="id" value="<?= $p['id'] ?>" />
+                      <button type="submit" class="ab red" title="Hapus"
+                        <?= $p['trx_count'] > 0 ? 'style="cursor:not-allowed;opacity:.4" disabled title="Tidak bisa dihapus — ada riwayat transaksi"' : '' ?>>
+                        <i class="ph ph-trash"></i>
+                      </button>
+                    </form>
                   </div>
                 </td>
+
               </tr>
             <?php endforeach; ?>
           </tbody>
         </table>
       </div>
-    </div>
-  </div>
-</div><!-- /listView -->
 
-<!-- ══ MODAL: Tambah / Edit Produk ══ -->
-<div class="modal fade" id="modalProduct" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content" style="background:var(--bg-card);border:1px solid var(--border)">
-      <div class="modal-header" style="border-color:var(--border)">
-        <h5 class="modal-title"><i class="ph ph-plus-circle me-2" style="color:var(--accent)"></i>Tambah Produk Baru</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="row g-3">
-
-          <!-- Upload gambar -->
-          <div class="col-12">
-            <label class="form-label settings-label">Foto Produk</label>
-            <div class="upload-area" id="productImageUpload">
-              <i class="ph ph-image" style="font-size:36px;color:var(--text-muted);margin-bottom:8px;display:block"></i>
-              <div style="font-size:13px;color:var(--text-subtle);margin-bottom:4px">Drag & drop foto atau klik untuk upload</div>
-              <div style="font-size:11px;color:var(--text-muted)">PNG, JPG — Maks 5MB · Rekomendasi 800×800px</div>
-              <button class="btn btn-sm btn-primary mt-3" style="border-radius:7px" onclick="event.preventDefault()">
-                <i class="ph ph-upload-simple me-1"></i> Pilih Foto
-              </button>
-            </div>
+      <!-- Pagination -->
+      <?php if ($pages > 1): ?>
+        <div class="d-flex align-items-center justify-content-between mt-4 flex-wrap gap-2">
+          <div style="font-size:12px;color:var(--mut)">
+            Menampilkan <?= ($offset + 1) ?>–<?= min($offset + $per_page, $total) ?> dari <?= $total ?> produk
           </div>
-
-          <div class="col-md-8">
-            <label class="form-label settings-label">Nama Produk <span style="color:var(--danger)">*</span></label>
-            <input type="text" class="form-control settings-input" placeholder="Contoh: Sepatu Lari Pro X"/>
+          <div class="d-flex gap-1">
+            <?php
+            $base = 'products.php?' . http_build_query(array_filter(['q' => $q, 'category' => $f_cat, 'brand' => $f_brand, 'type' => $f_type, 'status' => $f_status]));
+            for ($i = 1; $i <= $pages; $i++):
+              $active_pg = $i === $page;
+            ?>
+              <a href="<?= $base ?>&page=<?= $i ?>"
+                style="width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;
+                      font-size:12px;font-weight:600;text-decoration:none;
+                      background:<?= $active_pg ? 'var(--accent)' : 'var(--hover)' ?>;
+                      color:<?= $active_pg ? '#fff' : 'var(--sub)' ?>;
+                      border:1px solid <?= $active_pg ? 'var(--accent)' : 'var(--border)' ?>">
+                <?= $i ?>
+              </a>
+            <?php endfor; ?>
           </div>
-          <div class="col-md-4">
-            <label class="form-label settings-label">SKU</label>
-            <input type="text" class="form-control settings-input" placeholder="Auto-generate" id="skuInput"/>
-          </div>
-
-          <div class="col-md-6">
-            <label class="form-label settings-label">Kategori <span style="color:var(--danger)">*</span></label>
-            <select class="form-select settings-input">
-              <option value="">-- Pilih Kategori --</option>
-              <?php foreach (array_slice($categories, 1) as $cat): ?>
-                <option><?= $cat ?></option>
-              <?php endforeach; ?>
-            </select>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label settings-label">Brand</label>
-            <input type="text" class="form-control settings-input" placeholder="Nama brand / merek"/>
-          </div>
-
-          <div class="col-md-4">
-            <label class="form-label settings-label">Harga Jual <span style="color:var(--danger)">*</span></label>
-            <div class="input-group">
-              <span class="input-group-text settings-input-addon" style="font-size:12px">Rp</span>
-              <input type="number" class="form-control settings-input" placeholder="0" id="priceInput"/>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label settings-label">Harga Coret</label>
-            <div class="input-group">
-              <span class="input-group-text settings-input-addon" style="font-size:12px">Rp</span>
-              <input type="number" class="form-control settings-input" placeholder="0"/>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label settings-label">Margin</label>
-            <div class="input-group">
-              <input type="text" class="form-control settings-input" id="marginOutput" placeholder="–" readonly/>
-              <span class="input-group-text settings-input-addon"><i class="ph ph-percent"></i></span>
-            </div>
-          </div>
-
-          <div class="col-md-4">
-            <label class="form-label settings-label">Stok Awal <span style="color:var(--danger)">*</span></label>
-            <input type="number" class="form-control settings-input" placeholder="0" min="0"/>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label settings-label">Alert Stok Minimum</label>
-            <input type="number" class="form-control settings-input" placeholder="10" min="0"/>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label settings-label">Berat (gram)</label>
-            <input type="number" class="form-control settings-input" placeholder="0"/>
-          </div>
-
-          <div class="col-12">
-            <label class="form-label settings-label">Deskripsi Produk</label>
-            <textarea class="form-control settings-input" rows="4" placeholder="Tulis deskripsi lengkap produk…"></textarea>
-          </div>
-
-          <!-- Varian / Tags -->
-          <div class="col-md-6">
-            <label class="form-label settings-label">Ukuran Tersedia</label>
-            <div class="d-flex flex-wrap gap-2">
-              <?php foreach (['XS','S','M','L','XL','XXL'] as $sz): ?>
-                <label style="cursor:pointer">
-                  <input type="checkbox" class="d-none size-check" value="<?= $sz ?>"/>
-                  <span class="size-badge"><?= $sz ?></span>
-                </label>
-              <?php endforeach; ?>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label settings-label">Status Produk</label>
-            <select class="form-select settings-input">
-              <option>Aktif</option>
-              <option>Draft</option>
-              <option>Nonaktif</option>
-            </select>
-          </div>
-
-          <div class="col-12">
-            <label class="form-label settings-label">Tags</label>
-            <input type="text" class="form-control settings-input" placeholder="Pisahkan dengan koma: olahraga, sport, gym"/>
-          </div>
-
         </div>
+      <?php endif; ?>
+
+    <?php endif; // end if products 
+    ?>
+  </div>
+</div>
+
+<!-- ══ MODAL: TAMBAH ══ -->
+<div class="modal fade" id="mAdd" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content mc">
+      <div class="modal-header mh">
+        <h5 class="modal-title">
+          <i class="ph ph-plus-circle me-2" style="color:var(--accent)"></i>Tambah Produk
+        </h5>
+        <button type="button" class="btn-close" style="filter:invert(1)" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-footer" style="border-color:var(--border)">
-        <button class="btn btn-sm" style="border-radius:7px;background:var(--bg-hover);border:1px solid var(--border);color:var(--text-subtle)" data-bs-dismiss="modal">Batal</button>
-        <button class="btn btn-sm" style="border-radius:7px;background:var(--bg-hover);border:1px solid var(--border);color:var(--text-subtle)">
-          <i class="ph ph-floppy-disk me-1"></i> Simpan Draft
-        </button>
-        <button class="btn btn-sm btn-primary" style="border-radius:7px">
-          <i class="ph ph-check me-1"></i> Publish Produk
-        </button>
-      </div>
+      <form method="POST">
+        <input type="hidden" name="action" value="add" />
+        <div class="modal-body">
+          <div class="row g-3">
+
+            <div class="col-md-6">
+              <label class="ml">SKU Code *</label>
+              <input type="text" name="sku_code" class="fi w-100" required
+                placeholder="ax10, dana20, ff140…"
+                style="font-family:'JetBrains Mono',monospace" />
+              <div style="font-size:10px;color:var(--mut);margin-top:3px">Harus unik, tidak bisa diubah setelah disimpan</div>
+            </div>
+
+            <div class="col-md-6">
+              <label class="ml">Nama Produk *</label>
+              <input type="text" name="product_name" class="fi w-100" required
+                placeholder="Telkomsel 10.000, DANA 20.000…" />
+            </div>
+
+            <div class="col-md-4">
+              <label class="ml">Kategori *</label>
+              <input type="text" name="category" class="fi w-100" required
+                list="catList" placeholder="Pulsa, Data, E-Money…" />
+              <datalist id="catList">
+                <?php foreach ($categories as $c): ?>
+                  <option value="<?= htmlspecialchars($c) ?>">
+                  <?php endforeach; ?>
+              </datalist>
+            </div>
+
+            <div class="col-md-4">
+              <label class="ml">Brand</label>
+              <input type="text" name="brand" class="fi w-100"
+                list="brandList" placeholder="TELKOMSEL, DANA…" />
+              <datalist id="brandList">
+                <?php foreach ($brands as $b): ?>
+                  <option value="<?= htmlspecialchars($b) ?>">
+                  <?php endforeach; ?>
+              </datalist>
+            </div>
+
+            <div class="col-md-4">
+              <label class="ml">Tipe</label>
+              <select name="type" class="fs w-100">
+                <option value="prabayar">Prabayar</option>
+                <option value="pascabayar">Pascabayar</option>
+              </select>
+            </div>
+
+            <div class="col-12">
+              <hr style="border-color:var(--border);margin:4px 0" />
+            </div>
+
+            <div class="col-md-4">
+              <label class="ml">Harga Vendor (Modal)</label>
+              <div style="position:relative">
+                <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--mut)">Rp</span>
+                <input type="number" name="price_vendor" class="fi w-100" min="0" step="1"
+                  placeholder="0" style="padding-left:32px" />
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <label class="ml">Harga Jual *</label>
+              <div style="position:relative">
+                <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--mut)">Rp</span>
+                <input type="number" name="price_sell" class="fi w-100" min="1" step="1" required
+                  placeholder="0" style="padding-left:32px" id="addSell" oninput="calcMargin('add')" />
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <label class="ml">Estimasi Margin</label>
+              <div class="fi d-flex align-items-center gap-2" id="addMarginBox"
+                style="color:var(--mut);font-size:13px;font-family:'JetBrains Mono',monospace">
+                —
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <label class="ml">Status</label>
+              <select name="status" class="fs w-100">
+                <option value="active">Aktif</option>
+                <option value="non-active">Nonaktif</option>
+              </select>
+            </div>
+
+          </div>
+        </div>
+        <div class="modal-footer mf">
+          <button type="button" class="btn btn-sm"
+            style="border-radius:7px;background:var(--hover);border:1px solid var(--border);color:var(--sub)"
+            data-bs-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-sm btn-primary" style="border-radius:7px">
+            <i class="ph ph-plus me-1"></i>Tambahkan
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
 
-<!-- ══ MODAL: Preview Produk ══ -->
-<div class="modal fade" id="modalPreview" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered" style="max-width:480px">
-    <div class="modal-content" style="background:var(--bg-card);border:1px solid var(--border)">
-      <div class="modal-header" style="border-color:var(--border)">
-        <h5 class="modal-title">Detail Produk</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+<!-- ══ MODAL: EDIT ══ -->
+<div class="modal fade" id="mEdit" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content mc">
+      <div class="modal-header mh">
+        <h5 class="modal-title">
+          <i class="ph ph-pencil-simple me-2" style="color:var(--accent)"></i>Edit Produk
+        </h5>
+        <button type="button" class="btn-close" style="filter:invert(1)"
+          onclick="location.href='products.php<?= $qs ? '?' . $qs : '' ?>'"></button>
       </div>
-      <div class="modal-body p-0">
-        <!-- Image header -->
-        <div id="previewImgBg" style="height:180px;display:flex;align-items:center;justify-content:center;font-size:64px">
-        </div>
-        <div class="p-4">
-          <div style="font-size:10px;color:var(--text-muted);font-family:'JetBrains Mono',monospace" id="previewSku"></div>
-          <div style="font-size:18px;font-weight:700;margin:4px 0 8px" id="previewName"></div>
-          <div class="d-flex align-items-center gap-2 mb-3">
-            <div id="previewStars" class="d-flex gap-1"></div>
-            <span style="font-size:12px;color:var(--text-muted)" id="previewReviews"></span>
+      <form method="POST">
+        <input type="hidden" name="action" value="edit" />
+        <input type="hidden" name="id" value="<?= $edit_data['id'] ?? '' ?>" />
+        <div class="modal-body">
+          <div class="row g-3">
+
+            <!-- SKU readonly -->
+            <div class="col-md-6">
+              <label class="ml">SKU Code</label>
+              <div class="fi d-flex align-items-center gap-2"
+                style="font-family:'JetBrains Mono',monospace;opacity:.6;cursor:default">
+                <i class="ph ph-lock-key" style="color:var(--mut)"></i>
+                <?= htmlspecialchars($edit_data['sku_code'] ?? '') ?>
+              </div>
+              <div style="font-size:10px;color:var(--mut);margin-top:3px">SKU tidak bisa diubah</div>
+            </div>
+
+            <div class="col-md-6">
+              <label class="ml">Nama Produk *</label>
+              <input type="text" name="product_name" class="fi w-100" required
+                value="<?= htmlspecialchars($edit_data['product_name'] ?? '') ?>" />
+            </div>
+
+            <div class="col-md-4">
+              <label class="ml">Kategori *</label>
+              <input type="text" name="category" class="fi w-100" required
+                list="catListE"
+                value="<?= htmlspecialchars($edit_data['category'] ?? '') ?>" />
+              <datalist id="catListE">
+                <?php foreach ($categories as $c): ?>
+                  <option value="<?= htmlspecialchars($c) ?>">
+                  <?php endforeach; ?>
+              </datalist>
+            </div>
+
+            <div class="col-md-4">
+              <label class="ml">Brand</label>
+              <input type="text" name="brand" class="fi w-100"
+                list="brandListE"
+                value="<?= htmlspecialchars($edit_data['brand'] ?? '') ?>" />
+              <datalist id="brandListE">
+                <?php foreach ($brands as $b): ?>
+                  <option value="<?= htmlspecialchars($b) ?>">
+                  <?php endforeach; ?>
+              </datalist>
+            </div>
+
+            <div class="col-md-4">
+              <label class="ml">Tipe</label>
+              <select name="type" class="fs w-100">
+                <option value="prabayar" <?= ($edit_data['type'] ?? '') === 'prabayar'   ? 'selected' : '' ?>>Prabayar</option>
+                <option value="pascabayar" <?= ($edit_data['type'] ?? '') === 'pascabayar' ? 'selected' : '' ?>>Pascabayar</option>
+              </select>
+            </div>
+
+            <div class="col-12">
+              <hr style="border-color:var(--border);margin:4px 0" />
+            </div>
+
+            <div class="col-md-4">
+              <label class="ml">Harga Vendor (Modal)</label>
+              <div style="position:relative">
+                <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--mut)">Rp</span>
+                <input type="number" name="price_vendor" id="editVendor" class="fi w-100" min="0" step="1"
+                  value="<?= (int)($edit_data['price_vendor'] ?? 0) ?>"
+                  style="padding-left:32px" oninput="calcMargin('edit')" />
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <label class="ml">Harga Jual *</label>
+              <div style="position:relative">
+                <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--mut)">Rp</span>
+                <input type="number" name="price_sell" id="editSell" class="fi w-100" min="1" step="1" required
+                  value="<?= (int)($edit_data['price_sell'] ?? 0) ?>"
+                  style="padding-left:32px" oninput="calcMargin('edit')" />
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <label class="ml">Margin Saat Ini</label>
+              <div class="fi d-flex align-items-center gap-2" id="editMarginBox"
+                style="font-size:13px;font-family:'JetBrains Mono',monospace;
+                          color:<?= ((float)($edit_data['price_sell'] ?? 0) - (float)($edit_data['price_vendor'] ?? 0)) >= 0 ? 'var(--ok)' : 'var(--err)' ?>">
+                <?php
+                $m = (float)($edit_data['price_sell'] ?? 0) - (float)($edit_data['price_vendor'] ?? 0);
+                $mp = margin_pct((float)($edit_data['price_vendor'] ?? 0), (float)($edit_data['price_sell'] ?? 0));
+                echo '+' . fmt_rp($m) . ' (' . $mp . '%)';
+                ?>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <label class="ml">Status</label>
+              <select name="status" class="fs w-100">
+                <option value="active" <?= ($edit_data['status'] ?? '') === 'active'     ? 'selected' : '' ?>>Aktif</option>
+                <option value="non-active" <?= ($edit_data['status'] ?? '') === 'non-active' ? 'selected' : '' ?>>Nonaktif</option>
+              </select>
+            </div>
+
+            <!-- Info transaksi terkait -->
+            <?php
+            if ($edit_data) {
+              $trx_info = $pdo->prepare("SELECT COUNT(*) total, SUM(status='success') sukses FROM transactions WHERE sku_code=?");
+              $trx_info->execute([$edit_data['sku_code']]);
+              $ti = $trx_info->fetch();
+            }
+            ?>
+            <?php if (!empty($ti) && $ti['total'] > 0): ?>
+              <div class="col-12">
+                <div class="d-flex align-items-center gap-3 p-3"
+                  style="background:var(--as);border:1px solid rgba(59,130,246,.2);border-radius:var(--rs)">
+                  <i class="ph ph-info" style="color:var(--accent);font-size:18px;flex-shrink:0"></i>
+                  <div style="font-size:12px;color:var(--sub)">
+                    Produk ini memiliki <strong><?= number_format($ti['total']) ?> transaksi</strong>
+                    (<?= number_format($ti['sukses']) ?> sukses).
+                    Produk <strong>tidak bisa dihapus</strong> selama ada riwayat transaksi.
+                  </div>
+                </div>
+              </div>
+            <?php endif; ?>
+
           </div>
-          <div class="row g-3 mb-3">
-            <div class="col-6">
-              <div style="font-size:11px;color:var(--text-muted)">Harga</div>
-              <div style="font-size:20px;font-weight:700;color:var(--accent);font-family:'JetBrains Mono',monospace" id="previewPrice"></div>
-            </div>
-            <div class="col-6">
-              <div style="font-size:11px;color:var(--text-muted)">Stok</div>
-              <div style="font-size:20px;font-weight:700;" id="previewStock"></div>
-            </div>
-            <div class="col-6">
-              <div style="font-size:11px;color:var(--text-muted)">Terjual</div>
-              <div style="font-size:16px;font-weight:600" id="previewSold"></div>
-            </div>
-            <div class="col-6">
-              <div style="font-size:11px;color:var(--text-muted)">Kategori</div>
-              <div id="previewCat"></div>
-            </div>
-          </div>
         </div>
-      </div>
-      <div class="modal-footer" style="border-color:var(--border)">
-        <button class="btn btn-sm" style="border-radius:7px;background:var(--bg-hover);border:1px solid var(--border);color:var(--text-subtle)" data-bs-dismiss="modal">Tutup</button>
-        <button class="btn btn-sm btn-primary" style="border-radius:7px">
-          <i class="ph ph-pencil-simple me-1"></i> Edit Produk
-        </button>
-      </div>
+        <div class="modal-footer mf">
+          <a href="products.php<?= $qs ? '?' . $qs : '' ?>" class="btn btn-sm"
+            style="border-radius:7px;background:var(--hover);border:1px solid var(--border);color:var(--sub)">
+            Batal
+          </a>
+          <button type="submit" class="btn btn-sm btn-primary" style="border-radius:7px">
+            <i class="ph ph-floppy-disk me-1"></i>Simpan Perubahan
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
+
+<style>
+  .ml {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--sub);
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .bd-pur {
+    background: rgba(168, 85, 247, .12);
+    color: #a855f7;
+  }
+
+  .fs.w-100 {
+    width: 100% !important;
+  }
+</style>
 
 <?php
-$extra_scripts = <<<'SCRIPT'
+$open_edit = $edit_data ? 'new bootstrap.Modal(document.getElementById("mEdit")).show();' : '';
+
+$page_scripts = <<<SCRIPT
 <script>
+// ── Open edit modal ───────────────────────────────────────────
+{$open_edit}
 
-// ── View toggle ───────────────────────────────────────────────
-document.getElementById('viewGrid').addEventListener('click', function() {
-  document.getElementById('gridView').classList.remove('d-none');
-  document.getElementById('listView').classList.add('d-none');
-  this.classList.add('active');
-  document.getElementById('viewList').classList.remove('active');
-});
-document.getElementById('viewList').addEventListener('click', function() {
-  document.getElementById('listView').classList.remove('d-none');
-  document.getElementById('gridView').classList.add('d-none');
-  this.classList.add('active');
-  document.getElementById('viewGrid').classList.remove('active');
-  // init DataTable jika belum
-  if (!$.fn.DataTable.isDataTable('#productTable')) {
-    $('#productTable').DataTable();
+// ── Margin calculator ─────────────────────────────────────────
+function calcMargin(prefix) {
+  const vendor = parseFloat(document.getElementById(prefix === 'edit' ? 'editVendor' : 'addVendor')?.value || 0);
+  const sell   = parseFloat(document.getElementById(prefix + 'Sell')?.value || 0);
+  const box    = document.getElementById(prefix + 'MarginBox');
+  if (!box) return;
+  if (!sell) { box.textContent = '—'; box.style.color = 'var(--mut)'; return; }
+  const margin = sell - vendor;
+  const pct    = vendor > 0 ? ((margin / vendor) * 100).toFixed(1) : 0;
+  box.textContent = (margin >= 0 ? '+' : '') + 'Rp ' + margin.toLocaleString('id-ID') + ' (' + pct + '%)';
+  box.style.color = margin >= 0 ? 'var(--ok)' : 'var(--err)';
+}
+// Init edit margin on load
+calcMargin('edit');
+
+// ── Bulk select ───────────────────────────────────────────────
+const chkAll  = document.getElementById('chkAll');
+const bulkBar = document.getElementById('bulkBar');
+const bulkCnt = document.getElementById('bulkCount');
+
+function updateBulkBar() {
+  const checked = document.querySelectorAll('.rowchk:checked');
+  if (checked.length > 0) {
+    bulkBar.style.display = 'flex';
+    bulkCnt.textContent   = checked.length + ' dipilih';
+  } else {
+    bulkBar.style.display = 'none';
   }
-});
-
-// ── Category filter ───────────────────────────────────────────
-document.querySelectorAll('.cat-filter-btn').forEach(btn => {
-  btn.addEventListener('click', function() {
-    document.querySelectorAll('.cat-filter-btn').forEach(b => b.classList.remove('active'));
-    this.classList.add('active');
-    filterProducts();
-  });
-});
-
-document.getElementById('statusFilter').addEventListener('change', filterProducts);
-document.getElementById('productSearch').addEventListener('input',  filterProducts);
-document.getElementById('sortSelect').addEventListener('change',    sortProducts);
-
-function filterProducts() {
-  const cat    = document.querySelector('.cat-filter-btn.active')?.dataset.cat || 'Semua';
-  const status = document.getElementById('statusFilter').value;
-  const search = document.getElementById('productSearch').value.toLowerCase();
-  const cards  = document.querySelectorAll('.product-card-wrap');
-  let visible  = 0;
-
-  cards.forEach(card => {
-    const matchCat    = cat === 'Semua' || card.dataset.cat === cat;
-    const matchStatus = !status || card.dataset.status === status;
-    const matchSearch = !search || card.dataset.name.includes(search) || card.dataset.sku.includes(search);
-    const show = matchCat && matchStatus && matchSearch;
-    card.style.display = show ? '' : 'none';
-    if (show) visible++;
-  });
-
-  document.getElementById('emptyState').classList.toggle('d-none', visible > 0);
 }
 
-function sortProducts() {
-  const sortVal = document.getElementById('sortSelect').value;
-  const grid    = document.getElementById('productGrid');
-  const cards   = [...grid.querySelectorAll('.product-card-wrap')];
-
-  cards.sort((a, b) => {
-    switch (sortVal) {
-      case 'sold':       return +b.dataset.sold  - +a.dataset.sold;
-      case 'price_asc':  return +a.dataset.price - +b.dataset.price;
-      case 'price_desc': return +b.dataset.price - +a.dataset.price;
-      case 'stock':      return +b.dataset.stock - +a.dataset.stock;
-      case 'rating':     return +b.dataset.rating- +a.dataset.rating;
-    }
-  });
-  cards.forEach(c => grid.appendChild(c));
-}
-
-// ── Check all (list view) ─────────────────────────────────────
-document.getElementById('checkAll')?.addEventListener('change', function() {
-  document.querySelectorAll('.row-check').forEach(c => c.checked = this.checked);
+chkAll?.addEventListener('change', function() {
+  document.querySelectorAll('.rowchk').forEach(c => c.checked = this.checked);
+  updateBulkBar();
 });
-
-// ── Modal preview ─────────────────────────────────────────────
-function fillPreview(p) {
-  const iconMap = {
-    'Sepatu':'ph-sneaker','Kaos':'ph-t-shirt','Celana':'ph-pants',
-    'Tas':'ph-backpack','Aksesoris':'ph-star','default':'ph-package'
-  };
-  const icon = iconMap[p.category] || iconMap['default'];
-
-  document.getElementById('previewImgBg').style.background   = p.img_bg;
-  document.getElementById('previewImgBg').style.color         = p.img_color;
-  document.getElementById('previewImgBg').innerHTML =
-    `<div style="width:90px;height:90px;border-radius:22px;background:${p.img_color}22;border:1px solid ${p.img_color}44;
-                 display:flex;align-items:center;justify-content:center;font-size:42px">
-       <i class="ph ${icon}"></i>
-     </div>`;
-
-  document.getElementById('previewSku').textContent    = p.sku;
-  document.getElementById('previewName').textContent   = p.name;
-  document.getElementById('previewPrice').textContent  = 'Rp ' + Number(p.price).toLocaleString('id-ID');
-  document.getElementById('previewStock').textContent  = Number(p.stock).toLocaleString('id-ID');
-  document.getElementById('previewStock').style.color  = p.stock === 0 ? 'var(--danger)' : p.stock < 10 ? 'var(--warning)' : 'var(--text-primary)';
-  document.getElementById('previewSold').textContent   = Number(p.sold).toLocaleString('id-ID') + ' terjual';
-  document.getElementById('previewReviews').textContent= '(' + p.reviews + ' ulasan)';
-  document.getElementById('previewCat').innerHTML      = `<span class="badge-custom badge-accent">${p.category}</span>`;
-
-  // stars
-  let stars = '';
-  for (let i = 1; i <= 5; i++) {
-    stars += `<i class="ph-fill ph-star" style="font-size:14px;color:${i<=p.rating?'var(--warning)':'var(--bg-hover)'}"></i>`;
-  }
-  document.getElementById('previewStars').innerHTML = stars;
-}
-
-// ── Size badge toggle ─────────────────────────────────────────
-document.querySelectorAll('.size-check').forEach(cb => {
-  cb.addEventListener('change', function() {
-    this.nextElementSibling.classList.toggle('selected', this.checked);
+document.querySelectorAll('.rowchk').forEach(c => {
+  c.addEventListener('change', function() {
+    chkAll.checked = [...document.querySelectorAll('.rowchk')].every(x => x.checked);
+    updateBulkBar();
   });
 });
 
-// ── SKU generator ─────────────────────────────────────────────
-document.getElementById('skuInput').placeholder = 'PRD-' + Math.floor(Math.random()*9000+1000);
+function doBulk(status) {
+  const ids = [...document.querySelectorAll('.rowchk:checked')].map(c => c.value);
+  if (!ids.length) return;
+  const form    = document.getElementById('bulkForm');
+  const idsDiv  = document.getElementById('bulkIds');
+  document.getElementById('bulkStatus').value = status;
+  idsDiv.innerHTML = ids.map(id => '<input type="hidden" name="ids[]" value="'+id+'"/>').join('');
+  form.submit();
+}
+
+// ── Auto dismiss toast ────────────────────────────────────────
+document.querySelectorAll('.toast-item').forEach(t => {
+  setTimeout(() => t.style.opacity = '0', 3500);
+  setTimeout(() => t.remove(), 4000);
+});
 </script>
 SCRIPT;
 
-require_once 'includes/footer.php';
+require_once __DIR__ . '/includes/footer.php';
 ?>

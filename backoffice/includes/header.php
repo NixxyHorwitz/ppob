@@ -46,7 +46,7 @@ $_menus = [
     ['key' => 'transaksi',  'label' => 'Transaksi',   'icon' => 'ph-swap',                 'url' => 'transaksi.php'],
     ['key' => 'bank',      'label' => 'Bank',       'icon' => 'ph-bank',      'url' => 'bank'],
     ['key' => 'topup',      'label' => 'Topup',       'icon' => 'ph-currency-dollar',      'url' => 'topup.php'],
-    ['key' => 'produk',     'label' => 'Produk PPOB', 'icon' => 'ph-storefront',           'url' => 'produk.php'],
+    ['key' => 'products',     'label' => 'Produk PPOB', 'icon' => 'ph-storefront',           'url' => 'products'],
     ['key' => 'notifikasi', 'label' => 'Notifikasi',  'icon' => 'ph-bell',                 'url' => 'notifikasi.php'],
   ]],
   ['section' => 'System', 'items' => [
