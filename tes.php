@@ -1,4 +1,5 @@
 <?php
+
 /**
  * ==========================================
  * PPOB UNIVERSAL API REQUEST (ONE FILE)
@@ -6,7 +7,7 @@
  * Cara pakai:
  * ?action=saldo
  * ?action=products
- * ?action=deposit&amount=50000&method=QRIS
+ * ?action=deposit& amount=50000&method=QRIS
  * ?action=order&sku=PLN20&target=08123456789&ref=INV001
  */
 
@@ -72,8 +73,8 @@ switch ($action) {
         echo json_encode(
             send_request("cek_saldo.php"),
             JSON_PRETTY_PRINT
-        ); 
-    break;
+        );
+        break;
 
 
     /* ======================
@@ -84,7 +85,7 @@ switch ($action) {
             send_request("price-list.php"),
             JSON_PRETTY_PRINT
         );
-    break;
+        break;
 
 
     /* ======================
@@ -111,7 +112,7 @@ switch ($action) {
             ]),
             JSON_PRETTY_PRINT
         );
-    break;
+        break;
 
 
     /* ======================
@@ -140,7 +141,7 @@ switch ($action) {
             ]),
             JSON_PRETTY_PRINT
         );
-    break;
+        break;
 
 
     /* ======================
