@@ -11,6 +11,8 @@
 require_once __DIR__ . '/includes/session.php';
 require_once __DIR__ . '/../config/database.php';
 
+$page_title  = 'CMS Media';
+$active_menu = 'media';
 /* ── Ensure table exists ────────────────────────────────────── */
 $pdo->exec("
     CREATE TABLE IF NOT EXISTS cms_files (
