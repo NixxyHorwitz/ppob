@@ -173,43 +173,19 @@ if ($act === 'rt_reorder' && !empty($_POST['ids'])) {
 }
 
 /* ═══════════════════════════════════════════════════
-   HERO BANNER — SINGLE ROW MODE
+   HERO BANNER ACTIONS
 ═══════════════════════════════════════════════════ */
-
-// Semua kolom spacing: prefix => [suffix...] berdasarkan skema DB
-$HB_SPACING_PREFIXES = [
-    'strip_',
-    'img_left_',
-    'center_',
-    'title_',
-    'sub_',
-    'center_img_',
-    'btn_',
-    'img_right_',
-];
-$HB_SPACING_SUFFIXES = ['top', 'right', 'bottom', 'left', 'pt', 'pr', 'pb', 'pl', 'mt', 'mr', 'mb', 'ml'];
-
-function hb_css_val(string $v): ?string
-{
-    $v = trim($v);
-    if ($v === '') return null;
-    // izinkan karakter CSS aman saja: angka, huruf, %, px, em, rem, -, .
-    return preg_replace('/[^a-zA-Z0-9.\-% ]/', '', $v) ?: null;
-}
-
 function hb_collect(array $p): array
 {
-    global $HB_SPACING_PREFIXES, $HB_SPACING_SUFFIXES;
     $anim_valid = ['slide-left', 'slide-right', 'float', 'bounce', 'pulse', 'none', ''];
-
-    $f = [
+    return [
         'type'               => in_array($p['type'] ?? '', ['image_only', 'layout', 'image_center']) ? $p['type'] : 'layout',
         'bg_image'           => trim($p['bg_image']          ?? '') ?: null,
         'bg_color_start'     => trim($p['bg_color_start']    ?? '#0066cc'),
         'bg_color_end'       => trim($p['bg_color_end']      ?? '#0099ff'),
         'bg_gradient_angle'  => (int)($p['bg_gradient_angle'] ?? 135),
         'height'             => max(60, min(400, (int)($p['height'] ?? 160))),
-        'img_left'           => trim($p['img_left']          ?? '') ?: null,
+        'img_left'           => trim($p['img_left']   ?? '') ?: null,
         'img_left_width'     => max(20, (int)($p['img_left_width']  ?? 90)),
         'img_left_anim'      => in_array($p['img_left_anim'] ?? '', $anim_valid)  ? ($p['img_left_anim'] ?? '') : '',
         'center_type'        => ($p['center_type'] ?? 'text') === 'image' ? 'image' : 'text',
@@ -228,46 +204,50 @@ function hb_collect(array $p): array
         'img_right'          => trim($p['img_right']  ?? '') ?: null,
         'img_right_width'    => max(20, (int)($p['img_right_width'] ?? 90)),
         'img_right_anim'     => in_array($p['img_right_anim'] ?? '', $anim_valid) ? ($p['img_right_anim'] ?? '') : '',
-        'sort_order'         => 1,
+        'sort_order'         => (int)($p['sort_order'] ?? 0),
         'is_active'          => isset($p['is_active']) ? 1 : 0,
     ];
-
-    // Spacing columns
-    foreach ($HB_SPACING_PREFIXES as $pfx) {
-        foreach ($HB_SPACING_SUFFIXES as $sfx) {
-            $col = $pfx . $sfx;
-            $f[$col] = hb_css_val($p[$col] ?? '');
-        }
-    }
-    return $f;
 }
+$HB_COLS = 'type,bg_image,bg_color_start,bg_color_end,bg_gradient_angle,height,
+    img_left,img_left_width,img_left_anim,
+    center_type,title,title_color,subtitle,subtitle_color,
+    center_image,center_image_width,center_image_anim,
+    btn_text,btn_href,btn_color,btn_text_color,btn_anim,
+    img_right,img_right_width,img_right_anim,sort_order,is_active';
 
-// hb_save: upsert — jika row ada, UPDATE; jika belum, INSERT
-if ($act === 'hb_save') {
-    $f   = hb_collect($_POST);
-    $id  = (int)($_POST['id'] ?? 0);
-
-    // Bangun SET clause dinamis
-    $cols   = array_keys($f);
-    $setCls = implode(',', array_map(fn($c) => "$c=?", $cols));
-    $vals   = array_values($f);
-
-    if ($id > 0) {
-        $pdo->prepare("UPDATE hero_banner SET {$setCls} WHERE id=?")
-            ->execute([...$vals, $id]);
-        $toast = 'Hero banner disimpan.';
-    } else {
-        // Buat satu row baru (hanya boleh 1)
-        $colList = implode(',', $cols);
-        $marks   = implode(',', array_fill(0, count($cols), '?'));
-        $pdo->prepare("INSERT INTO hero_banner ({$colList}) VALUES({$marks})")
-            ->execute($vals);
-        $toast = 'Hero banner dibuat.';
-    }
+if ($act === 'hb_add') {
+    $f = hb_collect($_POST);
+    $pdo->prepare("INSERT INTO hero_banner ({$HB_COLS}) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+        ->execute(array_values($f));
+    $toast = 'Hero banner ditambahkan.';
+}
+if ($act === 'hb_edit' && !empty($_POST['id'])) {
+    $id = (int)$_POST['id'];
+    $f = hb_collect($_POST);
+    $pdo->prepare("UPDATE hero_banner SET
+        type=?,bg_image=?,bg_color_start=?,bg_color_end=?,bg_gradient_angle=?,height=?,
+        img_left=?,img_left_width=?,img_left_anim=?,
+        center_type=?,title=?,title_color=?,subtitle=?,subtitle_color=?,
+        center_image=?,center_image_width=?,center_image_anim=?,
+        btn_text=?,btn_href=?,btn_color=?,btn_text_color=?,btn_anim=?,
+        img_right=?,img_right_width=?,img_right_anim=?,sort_order=?,is_active=?
+        WHERE id=?")
+        ->execute([...array_values($f), $id]);
+    $toast = 'Hero banner disimpan.';
 }
 if ($act === 'hb_toggle' && !empty($_POST['id'])) {
     $pdo->prepare("UPDATE hero_banner SET is_active = NOT is_active WHERE id=?")->execute([(int)$_POST['id']]);
     $toast = 'Status diubah.';
+}
+if ($act === 'hb_delete' && !empty($_POST['id'])) {
+    $pdo->prepare("DELETE FROM hero_banner WHERE id=?")->execute([(int)$_POST['id']]);
+    $toast = 'Banner dihapus.';
+}
+if ($act === 'hb_reorder' && !empty($_POST['ids'])) {
+    $ids = array_map('intval', explode(',', $_POST['ids']));
+    $s = $pdo->prepare("UPDATE hero_banner SET sort_order=? WHERE id=?");
+    foreach ($ids as $i => $id) $s->execute([$i + 1, $id]);
+    $toast = 'Urutan banner disimpan.';
 }
 
 /* ═══════════════════════════════════════════════════
@@ -276,11 +256,11 @@ if ($act === 'hb_toggle' && !empty($_POST['id'])) {
 $navbars      = $pdo->query("SELECT * FROM navbar_items  ORDER BY sort_order, id")->fetchAll();
 $qactions     = $pdo->query("SELECT * FROM quick_actions ORDER BY sort_order, id")->fetchAll();
 $rtexts       = $pdo->query("SELECT * FROM running_text  ORDER BY sort_order, id")->fetchAll();
-$hb_row       = $pdo->query("SELECT * FROM hero_banner   LIMIT 1")->fetch() ?: [];
+$hbanners     = $pdo->query("SELECT * FROM hero_banner   ORDER BY sort_order, id")->fetchAll();
 $global_speed = !empty($rtexts) ? (int)$rtexts[0]['speed'] : 35;
 
 // Edit targets from GET
-$nav_edit = $qa_edit = $rt_edit = null;
+$nav_edit = $qa_edit = $rt_edit = $hb_edit = null;
 $open_tab = $_GET['tab'] ?? 'nav';   // nav | qa | rt | hb
 $editing  = false;
 
@@ -305,24 +285,32 @@ if (!empty($_GET['rt_edit'])) {
     $open_tab = 'rt';
     $editing = true;
 }
+if (!empty($_GET['hb_edit'])) {
+    $s = $pdo->prepare("SELECT * FROM hero_banner WHERE id=?");
+    $s->execute([(int)$_GET['hb_edit']]);
+    $hb_edit = $s->fetch();
+    $open_tab = 'hb';
+    $editing = true;
+}
 
-// Hero banner: selalu pakai $hb_row (single), merge default agar field tidak null
-$HB_DEFAULTS = [
+// Default values for hero banner form
+$HB_ANIM = ['none' => 'Tidak ada', 'slide-left' => 'Slide Kiri', 'slide-right' => 'Slide Kanan', 'float' => 'Float', 'bounce' => 'Bounce', 'pulse' => 'Pulse'];
+$hb = $hb_edit ?: [
     'type' => 'layout',
-    'bg_image' => null,
+    'bg_image' => '',
     'bg_color_start' => '#005bb5',
     'bg_color_end' => '#0099ff',
     'bg_gradient_angle' => 135,
     'height' => 160,
-    'img_left' => null,
-    'img_left_width' => 90,
+    'img_left' => '',
+    'img_left_width' => 85,
     'img_left_anim' => 'slide-left',
     'center_type' => 'text',
     'title' => 'KLAIM HADIAH',
     'title_color' => '#ffffff',
     'subtitle' => '& Jutaan Rupiah',
-    'subtitle_color' => '#ffffffd9',
-    'center_image' => null,
+    'subtitle_color' => 'rgba(255,255,255,0.85)',
+    'center_image' => '',
     'center_image_width' => 160,
     'center_image_anim' => 'float',
     'btn_text' => 'SERBU',
@@ -330,18 +318,12 @@ $HB_DEFAULTS = [
     'btn_color' => '#FFD700',
     'btn_text_color' => '#000000',
     'btn_anim' => 'pulse',
-    'img_right' => null,
-    'img_right_width' => 90,
+    'img_right' => '',
+    'img_right_width' => 85,
     'img_right_anim' => 'slide-right',
-    'sort_order' => 1,
+    'sort_order' => count($hbanners) + 1,
     'is_active' => 1,
-    'btn_pt' => '7px',
-    'btn_pr' => '26px',
-    'btn_pb' => '7px',
-    'btn_pl' => '26px',
 ];
-$hb = array_merge($HB_DEFAULTS, array_filter((array)$hb_row, fn($v) => $v !== null));
-$hb_id = (int)($hb_row['id'] ?? 0);
 
 // Icon pool
 $icon_pool = [
@@ -366,53 +348,6 @@ $icon_pool = [
     'fas fa-store',
     'fas fa-percent',
 ];
-
-// Helper: render spacing UI (4 group: position, padding, margin) untuk satu prefix
-function hb_spacing_ui(string $pfx, string $label, array $hb): string
-{
-    $groups = [
-        'pos' => [
-            'label' => 'Position (top/right/bottom/left)',
-            'icon' => 'ph-arrows-out-cardinal',
-            'color' => '#818cf8',
-            'fields' => ['top' => 'top', 'right' => 'right', 'bottom' => 'bottom', 'left' => 'left']
-        ],
-        'pad' => [
-            'label' => 'Padding',
-            'icon' => 'ph-square-half',
-            'color' => '#34d399',
-            'fields' => ['pt' => 'top', 'pr' => 'right', 'pb' => 'bottom', 'pl' => 'left']
-        ],
-        'mar' => [
-            'label' => 'Margin',
-            'icon' => 'ph-frame-corners',
-            'color' => '#fbbf24',
-            'fields' => ['mt' => 'top', 'mr' => 'right', 'mb' => 'bottom', 'ml' => 'left']
-        ],
-    ];
-    $html  = '<div class="hb-spacing-wrap">';
-    $html .= '<div class="hb-spacing-lbl" onclick="this.parentElement.classList.toggle(\'open\')">';
-    $html .= '<i class="ph ph-sliders" style="color:rgba(255,255,255,.3)"></i> ' . $label;
-    $html .= '<i class="ph ph-caret-down" style="margin-left:auto;font-size:11px;opacity:.4"></i></div>';
-    $html .= '<div class="hb-spacing-body">';
-    foreach ($groups as $g) {
-        $html .= '<div style="margin-bottom:10px">';
-        $html .= '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(255,255,255,.25);margin-bottom:6px;display:flex;align-items:center;gap:5px">';
-        $html .= '<i class="ph ' . $g['icon'] . '" style="color:' . $g['color'] . '"></i>' . $g['label'] . '</div>';
-        $html .= '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px">';
-        foreach ($g['fields'] as $sfx => $dir) {
-            $col = $pfx . $sfx;
-            $val = htmlspecialchars($hb[$col] ?? '');
-            $html .= '<div class="ef-field">';
-            $html .= '<label class="ef-label" style="font-size:9px">' . $dir . '</label>';
-            $html .= '<input type="text" name="' . $col . '" class="ef-input ef-mono" style="padding:5px 7px;font-size:11px" placeholder="—" value="' . $val . '"/>';
-            $html .= '</div>';
-        }
-        $html .= '</div></div>';
-    }
-    $html .= '</div></div>';
-    return $html;
-}
 
 require_once __DIR__ . '/includes/header.php';
 ?>
@@ -1509,46 +1444,6 @@ require_once __DIR__ . '/includes/header.php';
         color: #a5b4fc;
     }
 
-    /* Spacing sub-panel (collapsible) */
-    .hb-spacing-wrap {
-        border: 1px solid rgba(255, 255, 255, .05);
-        border-radius: 8px;
-        overflow: hidden;
-        margin-top: 10px;
-    }
-
-    .hb-spacing-lbl {
-        display: flex;
-        align-items: center;
-        gap: 7px;
-        padding: 7px 12px;
-        cursor: pointer;
-        font-size: 10px;
-        font-weight: 700;
-        color: rgba(255, 255, 255, .3);
-        background: rgba(255, 255, 255, .02);
-        user-select: none;
-        transition: background .12s;
-    }
-
-    .hb-spacing-lbl:hover {
-        background: rgba(255, 255, 255, .04);
-    }
-
-    .hb-spacing-body {
-        display: none;
-        padding: 12px;
-        border-top: 1px solid rgba(255, 255, 255, .04);
-    }
-
-    .hb-spacing-wrap.open .hb-spacing-body {
-        display: block;
-    }
-
-    .hb-spacing-wrap.open .hb-spacing-lbl .ph-caret-down {
-        transform: rotate(180deg);
-    }
-
     /* Responsive ─────────────────────────────────────────────────── */
     @media(max-width:991px) {
         .ws {
@@ -1772,45 +1667,45 @@ require_once __DIR__ . '/includes/header.php';
         <div id="tree-hb" style="display:none;flex-direction:column;height:100%">
             <div class="tree-topbar">
                 <span class="tree-title">hero_banner</span>
-                <span class="tree-pill <?= $hb['is_active'] ? 'tp-on' : 'tp-off' ?>" style="font-size:9px"><?= $hb['is_active'] ? 'AKTIF' : 'NONAKTIF' ?></span>
+                <div style="display:flex;gap:4px;align-items:center">
+                    <button id="hb-save-order" class="tree-save-btn" style="display:none" onclick="submitReorder('hb')" title="Simpan urutan"><i class="ph ph-floppy-disk"></i></button>
+                    <button class="tree-add-btn" onclick="openNew('hb')" title="Tambah banner baru"><i class="ph ph-plus"></i></button>
+                </div>
             </div>
-            <!-- Status panel -->
-            <div style="padding:14px;display:flex;flex-direction:column;gap:10px">
-                <!-- Gradient preview -->
-                <div style="height:52px;border-radius:10px;overflow:hidden;
-          background:linear-gradient(<?= $hb['bg_gradient_angle'] ?>deg,<?= htmlspecialchars($hb['bg_color_start']) ?>,<?= htmlspecialchars($hb['bg_color_end']) ?>);
-          border:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center">
-                    <span style="font-size:9px;font-weight:800;color:rgba(255,255,255,.7);letter-spacing:1.5px;text-shadow:0 1px 3px rgba(0,0,0,.4)">
-                        <?= strtoupper(htmlspecialchars($hb['type'])) ?>
-                    </span>
-                </div>
-                <!-- Info rows -->
-                <div style="font-size:10px;display:flex;flex-direction:column;gap:5px">
-                    <?php if ($hb['title']): ?>
-                        <div style="color:rgba(255,255,255,.55)"><span style="color:rgba(255,255,255,.25)">title</span> · <?= htmlspecialchars(mb_substr($hb['title'], 0, 20)) ?></div>
-                    <?php endif; ?>
-                    <div style="color:rgba(255,255,255,.55)"><span style="color:rgba(255,255,255,.25)">height</span> · <?= $hb['height'] ?>px</div>
-                    <?php if ($hb_id): ?>
-                        <div style="color:rgba(255,255,255,.25)">id #<?= $hb_id ?> · <?= $hb_row['updated_at'] ?? '' ?></div>
-                    <?php else: ?>
-                        <div style="color:rgba(248,113,113,.6)">⚠ Belum ada data di DB</div>
-                    <?php endif; ?>
-                </div>
-                <!-- Quick toggle -->
-                <?php if ($hb_id): ?>
-                    <form method="POST">
-                        <input type="hidden" name="action" value="hb_toggle" />
-                        <input type="hidden" name="id" value="<?= $hb_id ?>" />
-                        <button type="submit" style="width:100%;background:<?= $hb['is_active'] ? 'rgba(248,113,113,.12)' : 'rgba(52,211,153,.12)' ?>;
-            border:1px solid <?= $hb['is_active'] ? 'rgba(248,113,113,.2)' : 'rgba(52,211,153,.2)' ?>;
-            color:<?= $hb['is_active'] ? '#f87171' : '#34d399' ?>;
-            border-radius:7px;padding:7px;font-size:11px;font-weight:700;cursor:pointer">
-                            <i class="ph ph-<?= $hb['is_active'] ? 'eye-slash' : 'eye' ?>"></i>
-                            <?= $hb['is_active'] ? 'Nonaktifkan' : 'Aktifkan' ?>
-                        </button>
-                    </form>
+            <div class="tree-scroll" id="sortable-hb">
+                <?php foreach ($hbanners as $b): ?>
+                    <?php
+                    $typeLabel = ['image_only' => 'IMG', 'layout' => 'LAY', 'image_center' => 'CTR'][$b['type']] ?? '?';
+                    $typeColor = ['image_only' => 'tp-img', 'layout' => 'tp-ctr', 'image_center' => 'tp-on'][$b['type']] ?? 'tp-off';
+                    $previewBg = "linear-gradient({$b['bg_gradient_angle']}deg,{$b['bg_color_start']},{$b['bg_color_end']})";
+                    ?>
+                    <div class="tree-row <?= !$b['is_active'] ? 'dimmed' : '' ?> <?= ($hb_edit && $hb_edit['id'] === $b['id']) ? 'active' : '' ?>"
+                        data-id="<?= $b['id'] ?>" draggable="true" data-group="hb">
+                        <i class="ph ph-dots-six-vertical tree-drag-handle"></i>
+                        <div class="tree-row-ico" style="background:<?= $previewBg ?>;border-radius:6px;overflow:hidden" onclick="gotoEdit('hb', <?= $b['id'] ?>)">
+                            <span style="font-size:9px;font-weight:900;color:rgba(255,255,255,.9)">HB</span>
+                        </div>
+                        <div class="tree-row-body" onclick="gotoEdit('hb', <?= $b['id'] ?>)">
+                            <div class="tree-row-label"><?= htmlspecialchars(mb_substr($b['title'] ?? '(no title)', 0, 22)) ?></div>
+                            <div class="tree-row-sub"><?= $b['height'] ?>px · <?= $b['type'] ?></div>
+                        </div>
+                        <span class="tree-pill <?= $typeColor ?>"><?= $typeLabel ?></span>
+                        <span class="tree-pill <?= $b['is_active'] ? 'tp-on' : 'tp-off' ?>"><?= $b['is_active'] ? 'ON' : 'OFF' ?></span>
+                        <form method="POST" style="display:contents" onsubmit="return confirm('Hapus banner ini?')">
+                            <input type="hidden" name="action" value="hb_delete" />
+                            <input type="hidden" name="id" value="<?= $b['id'] ?>" />
+                            <button type="submit" class="tree-del-btn" onclick="event.stopPropagation()"><i class="ph ph-trash"></i></button>
+                        </form>
+                    </div>
+                <?php endforeach; ?>
+                <?php if (empty($hbanners)): ?>
+                    <div style="padding:20px 14px;text-align:center;font-size:11px;color:rgba(255,255,255,.18)">Belum ada banner</div>
                 <?php endif; ?>
             </div>
+            <form method="POST" id="form-hb-reorder" style="display:none">
+                <input type="hidden" name="action" value="hb_reorder" />
+                <input type="hidden" name="ids" id="hb-reorder-ids" />
+            </form>
         </div>
 
     </aside>
@@ -1824,16 +1719,17 @@ require_once __DIR__ . '/includes/header.php';
             <div class="editor-crumb">
                 <span>frontend /</span>
                 <b id="ed-crumb-label"><?=
-                                        $nav_edit ? 'navbar_items / #' . $nav_edit['id'] : ($qa_edit  ? 'quick_actions / #' . $qa_edit['id'] : ($rt_edit  ? 'running_text / #' . $rt_edit['id'] : ($open_tab === 'qa' ? 'quick_actions / new' : ($open_tab === 'rt' ? 'running_text / new' : ($open_tab === 'hb' ? 'hero_banner / #' . ($hb_id ?: 'new') : 'navbar_items / new')))))
+                                        $nav_edit ? 'navbar_items / #' . $nav_edit['id'] : ($qa_edit  ? 'quick_actions / #' . $qa_edit['id'] : ($rt_edit  ? 'running_text / #' . $rt_edit['id'] : ($hb_edit  ? 'hero_banner / #' . $hb_edit['id'] : ($open_tab === 'qa' ? 'quick_actions / new' : ($open_tab === 'rt' ? 'running_text / new' : ($open_tab === 'hb' ? 'hero_banner / new' : 'navbar_items / new'))))))
                                         ?></b>
             </div>
             <!-- status chip -->
             <?php
             $current_status = $nav_edit ? ($nav_edit['is_active'] ? 'active' : 'inactive')
                 : ($qa_edit ? ($qa_edit['is_active'] ? 'active' : 'inactive')
-                    : ($rt_edit ? ($rt_edit['is_active'] ? 'active' : 'inactive') : null));
-            $toggle_action  = $nav_edit ? 'nav_toggle' : ($qa_edit ? 'qa_toggle' : 'rt_toggle');
-            $toggle_item    = $nav_edit ?? $qa_edit ?? $rt_edit;
+                    : ($rt_edit ? ($rt_edit['is_active'] ? 'active' : 'inactive')
+                        : ($hb_edit ? ($hb_edit['is_active'] ? 'active' : 'inactive') : null)));
+            $toggle_action  = $nav_edit ? 'nav_toggle' : ($qa_edit ? 'qa_toggle' : ($rt_edit ? 'rt_toggle' : 'hb_toggle'));
+            $toggle_item    = $nav_edit ?? $qa_edit ?? $rt_edit ?? $hb_edit;
             ?>
             <?php if ($current_status): ?>
                 <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
@@ -2154,20 +2050,20 @@ require_once __DIR__ . '/includes/header.php';
             <div id="ed-hb" style="display:<?= $open_tab === 'hb' ? 'block' : 'none' ?>">
                 <div class="ef-title">
                     <i class="ph ph-image" style="color:#a5b4fc"></i>
-                    Hero Banner
+                    <?= $hb_edit ? 'Edit Hero Banner' : 'Hero Banner Baru' ?>
                 </div>
-                <div class="ef-sub"><?= $hb_id ? 'id: ' . $hb_id . ' · hero_banner (single row)' : 'hero_banner · belum ada data, akan dibuat saat simpan' ?></div>
+                <div class="ef-sub"><?= $hb_edit ? 'id: ' . $hb_edit['id'] . ' · ' : 'insert into hero_banner · ' ?>banner besar di atas beranda</div>
 
                 <!-- Live preview -->
                 <div id="hb-live-prev" class="hb-prev"
-                    style="background:linear-gradient(<?= $hb['bg_gradient_angle'] ?>deg,<?= htmlspecialchars($hb['bg_color_start']) ?>,<?= htmlspecialchars($hb['bg_color_end']) ?>);height:<?= $hb['height'] ?>px">
+                    style="background:linear-gradient(<?= $hb['bg_gradient_angle'] ?>deg,<?= $hb['bg_color_start'] ?>,<?= $hb['bg_color_end'] ?>);height:<?= $hb['height'] ?>px">
                     <div class="hb-prev-left" id="hb-prev-left">
                         <?php if ($hb['img_left']): ?>
                             <img id="hb-prev-img-left" src="<?= htmlspecialchars($hb['img_left']) ?>"
                                 style="width:<?= $hb['img_left_width'] ?>px;max-height:<?= $hb['height'] ?>px"
                                 class="anim-<?= htmlspecialchars($hb['img_left_anim'] ?? '') ?>" />
                         <?php else: ?>
-                            <div id="hb-prev-img-left" style="width:<?= $hb['img_left_width'] ?>px;height:70%;opacity:.15;background:rgba(255,255,255,.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff">IMG L</div>
+                            <div id="hb-prev-img-left" style="width:<?= $hb['img_left_width'] ?>px;height:70%;opacity:.2;background:rgba(255,255,255,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff">IMG</div>
                         <?php endif; ?>
                     </div>
                     <div class="hb-prev-center" id="hb-prev-center">
@@ -2177,21 +2073,17 @@ require_once __DIR__ . '/includes/header.php';
                                 class="anim-<?= htmlspecialchars($hb['center_image_anim'] ?? '') ?>" />
                         <?php else: ?>
                             <?php if ($hb['title']): ?>
-                                <div id="hb-prev-title" class="hb-prev-title" style="color:<?= htmlspecialchars($hb['title_color']) ?>"><?= htmlspecialchars($hb['title']) ?></div>
-                            <?php else: ?>
-                                <div id="hb-prev-title" class="hb-prev-title" style="color:#fff;opacity:.3">Judul</div>
+                                <div id="hb-prev-title" class="hb-prev-title"
+                                    style="color:<?= htmlspecialchars($hb['title_color']) ?>"><?= htmlspecialchars($hb['title']) ?></div>
                             <?php endif; ?>
                             <?php if ($hb['subtitle']): ?>
-                                <div id="hb-prev-sub" class="hb-prev-sub" style="color:<?= htmlspecialchars($hb['subtitle_color']) ?>"><?= htmlspecialchars($hb['subtitle']) ?></div>
-                            <?php else: ?>
-                                <div id="hb-prev-sub" class="hb-prev-sub" style="color:rgba(255,255,255,.25)">Subtitle</div>
+                                <div id="hb-prev-sub" class="hb-prev-sub"
+                                    style="color:<?= htmlspecialchars($hb['subtitle_color']) ?>"><?= htmlspecialchars($hb['subtitle']) ?></div>
                             <?php endif; ?>
                         <?php endif; ?>
                         <?php if ($hb['btn_text']): ?>
                             <button id="hb-prev-btn" class="hb-prev-btn anim-<?= htmlspecialchars($hb['btn_anim'] ?? 'pulse') ?>"
-                                style="background:<?= htmlspecialchars($hb['btn_color']) ?>;color:<?= htmlspecialchars($hb['btn_text_color']) ?>;padding:<?= htmlspecialchars($hb['btn_pt'] ?? '7px') ?> <?= htmlspecialchars($hb['btn_pr'] ?? '26px') ?> <?= htmlspecialchars($hb['btn_pb'] ?? '7px') ?> <?= htmlspecialchars($hb['btn_pl'] ?? '26px') ?>"><?= htmlspecialchars($hb['btn_text']) ?></button>
-                        <?php else: ?>
-                            <button id="hb-prev-btn" class="hb-prev-btn" style="display:none"></button>
+                                style="background:<?= htmlspecialchars($hb['btn_color']) ?>;color:<?= htmlspecialchars($hb['btn_text_color']) ?>"><?= htmlspecialchars($hb['btn_text']) ?></button>
                         <?php endif; ?>
                     </div>
                     <div class="hb-prev-right" id="hb-prev-right">
@@ -2200,14 +2092,14 @@ require_once __DIR__ . '/includes/header.php';
                                 style="width:<?= $hb['img_right_width'] ?>px;max-height:<?= $hb['height'] ?>px"
                                 class="anim-<?= htmlspecialchars($hb['img_right_anim'] ?? '') ?>" />
                         <?php else: ?>
-                            <div id="hb-prev-img-right" style="width:<?= $hb['img_right_width'] ?>px;height:70%;opacity:.15;background:rgba(255,255,255,.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff">IMG R</div>
+                            <div id="hb-prev-img-right" style="width:<?= $hb['img_right_width'] ?>px;height:70%;opacity:.2;background:rgba(255,255,255,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff">IMG</div>
                         <?php endif; ?>
                     </div>
                 </div>
 
                 <form method="POST" id="hb-form">
-                    <input type="hidden" name="action" value="hb_save" />
-                    <input type="hidden" name="id" value="<?= $hb_id ?>" />
+                    <input type="hidden" name="action" value="<?= $hb_edit ? 'hb_edit' : 'hb_add' ?>" />
+                    <?php if ($hb_edit): ?><input type="hidden" name="id" value="<?= $hb_edit['id'] ?>"><?php endif; ?>
 
                     <!-- TYPE -->
                     <span class="ef-section-lbl">Tipe Banner</span>
@@ -2231,22 +2123,26 @@ require_once __DIR__ . '/includes/header.php';
                                     <label class="ef-label">Gradient Awal</label>
                                     <div class="hb-col-pair">
                                         <input type="color" id="hb-cp-cs" class="hb-col-swatch" name="bg_color_start"
-                                            value="<?= htmlspecialchars($hb['bg_color_start']) ?>" oninput="hbSyncHex('cs');hbLive()" />
-                                        <input type="text" id="hb-ch-cs" class="ef-input hb-col-txt" maxlength="9"
-                                            value="<?= htmlspecialchars($hb['bg_color_start']) ?>" oninput="hbSyncPicker('cs');hbLive()" />
+                                            value="<?= htmlspecialchars($hb['bg_color_start']) ?>"
+                                            oninput="hbSyncHex('cs');hbLive()" />
+                                        <input type="text" id="hb-ch-cs" class="ef-input hb-col-txt" maxlength="7"
+                                            value="<?= htmlspecialchars($hb['bg_color_start']) ?>"
+                                            oninput="hbSyncPicker('cs');hbLive()" />
                                     </div>
                                 </div>
                                 <div class="ef-field">
                                     <label class="ef-label">Gradient Akhir</label>
                                     <div class="hb-col-pair">
                                         <input type="color" id="hb-cp-ce" class="hb-col-swatch" name="bg_color_end"
-                                            value="<?= htmlspecialchars($hb['bg_color_end']) ?>" oninput="hbSyncHex('ce');hbLive()" />
-                                        <input type="text" id="hb-ch-ce" class="ef-input hb-col-txt" maxlength="9"
-                                            value="<?= htmlspecialchars($hb['bg_color_end']) ?>" oninput="hbSyncPicker('ce');hbLive()" />
+                                            value="<?= htmlspecialchars($hb['bg_color_end']) ?>"
+                                            oninput="hbSyncHex('ce');hbLive()" />
+                                        <input type="text" id="hb-ch-ce" class="ef-input hb-col-txt" maxlength="7"
+                                            value="<?= htmlspecialchars($hb['bg_color_end']) ?>"
+                                            oninput="hbSyncPicker('ce');hbLive()" />
                                     </div>
                                 </div>
                             </div>
-                            <div class="ef-grid-2" style="margin-bottom:12px">
+                            <div class="ef-grid-2">
                                 <div class="ef-field">
                                     <label class="ef-label">Sudut Gradient (deg)</label>
                                     <input type="number" name="bg_gradient_angle" id="hb-angle" class="ef-input" min="0" max="360"
@@ -2258,12 +2154,12 @@ require_once __DIR__ . '/includes/header.php';
                                         value="<?= $hb['height'] ?>" oninput="hbLive()" />
                                 </div>
                             </div>
-                            <div class="ef-field" style="margin-bottom:12px">
-                                <label class="ef-label">Background Image URL <span style="opacity:.5">(override gradient)</span></label>
+                            <div class="ef-field">
+                                <label class="ef-label">Background Image URL <span style="opacity:.5">(opsional, override gradient)</span></label>
                                 <input type="text" name="bg_image" id="hb-bgimg" class="ef-input ef-mono"
-                                    placeholder="https://..." value="<?= htmlspecialchars($hb['bg_image'] ?? '') ?>" oninput="hbLive()" />
+                                    placeholder="https://..." value="<?= htmlspecialchars($hb['bg_image'] ?? '') ?>"
+                                    oninput="hbLive()" />
                             </div>
-                            <?= hb_spacing_ui('strip_', 'Spacing Strip (wrapper)', $hb) ?>
                         </div>
                     </div>
 
@@ -2277,9 +2173,10 @@ require_once __DIR__ . '/includes/header.php';
                             <div class="ef-field" style="margin-bottom:12px">
                                 <label class="ef-label">URL Gambar</label>
                                 <input type="text" name="img_left" id="hb-imgl" class="ef-input ef-mono"
-                                    placeholder="https://..." value="<?= htmlspecialchars($hb['img_left'] ?? '') ?>" oninput="hbLive()" />
+                                    placeholder="https://..." value="<?= htmlspecialchars($hb['img_left'] ?? '') ?>"
+                                    oninput="hbLive()" />
                             </div>
-                            <div class="ef-grid-2" style="margin-bottom:12px">
+                            <div class="ef-grid-2">
                                 <div class="ef-field">
                                     <label class="ef-label">Lebar (px)</label>
                                     <input type="number" name="img_left_width" id="hb-imglw" class="ef-input" min="20" max="300"
@@ -2294,7 +2191,6 @@ require_once __DIR__ . '/includes/header.php';
                                     </select>
                                 </div>
                             </div>
-                            <?= hb_spacing_ui('img_left_', 'Spacing Gambar Kiri', $hb) ?>
                         </div>
                     </div>
 
@@ -2327,13 +2223,15 @@ require_once __DIR__ . '/includes/header.php';
                                         <label class="ef-label">Warna Judul</label>
                                         <div class="hb-col-pair">
                                             <input type="color" id="hb-cp-tc" class="hb-col-swatch" name="title_color"
-                                                value="<?= htmlspecialchars($hb['title_color'] ?? '#ffffff') ?>" oninput="hbSyncHex('tc');hbLive()" />
-                                            <input type="text" id="hb-ch-tc" class="ef-input hb-col-txt" maxlength="9"
-                                                value="<?= htmlspecialchars($hb['title_color'] ?? '#ffffff') ?>" oninput="hbSyncPicker('tc');hbLive()" />
+                                                value="<?= htmlspecialchars($hb['title_color'] ?? '#ffffff') ?>"
+                                                oninput="hbSyncHex('tc');hbLive()" />
+                                            <input type="text" id="hb-ch-tc" class="ef-input hb-col-txt" maxlength="7"
+                                                value="<?= htmlspecialchars($hb['title_color'] ?? '#ffffff') ?>"
+                                                oninput="hbSyncPicker('tc');hbLive()" />
                                         </div>
                                     </div>
                                 </div>
-                                <div class="ef-grid-2" style="margin-bottom:12px">
+                                <div class="ef-grid-2">
                                     <div class="ef-field">
                                         <label class="ef-label">Subtitle</label>
                                         <input type="text" name="subtitle" id="hb-sub" class="ef-input" placeholder="& Jutaan Rupiah"
@@ -2343,23 +2241,24 @@ require_once __DIR__ . '/includes/header.php';
                                         <label class="ef-label">Warna Subtitle</label>
                                         <div class="hb-col-pair">
                                             <input type="color" id="hb-cp-sc" class="hb-col-swatch" name="subtitle_color"
-                                                value="<?= htmlspecialchars($hb['subtitle_color'] ?? '#ffffffd9') ?>" oninput="hbSyncHex('sc');hbLive()" />
-                                            <input type="text" id="hb-ch-sc" class="ef-input hb-col-txt" maxlength="9"
-                                                value="<?= htmlspecialchars($hb['subtitle_color'] ?? '#ffffffd9') ?>" oninput="hbSyncPicker('sc');hbLive()" />
+                                                value="<?= htmlspecialchars($hb['subtitle_color'] ?? '#ffffffd9') ?>"
+                                                oninput="hbSyncHex('sc');hbLive()" />
+                                            <input type="text" id="hb-ch-sc" class="ef-input hb-col-txt" maxlength="7"
+                                                value="<?= htmlspecialchars($hb['subtitle_color'] ?? '#ffffffd9') ?>"
+                                                oninput="hbSyncPicker('sc');hbLive()" />
                                         </div>
                                     </div>
                                 </div>
-                                <?= hb_spacing_ui('title_', 'Spacing Judul', $hb) ?>
-                                <?= hb_spacing_ui('sub_', 'Spacing Subtitle', $hb) ?>
                             </div>
-                            <!-- Image center fields -->
+                            <!-- Image fields -->
                             <div id="hb-center-img-fields" style="display:<?= $hb['center_type'] === 'image' ? 'block' : 'none' ?>">
                                 <div class="ef-field" style="margin-bottom:12px">
                                     <label class="ef-label">URL Gambar Tengah</label>
                                     <input type="text" name="center_image" id="hb-cimg" class="ef-input ef-mono"
-                                        placeholder="https://..." value="<?= htmlspecialchars($hb['center_image'] ?? '') ?>" oninput="hbLive()" />
+                                        placeholder="https://..." value="<?= htmlspecialchars($hb['center_image'] ?? '') ?>"
+                                        oninput="hbLive()" />
                                 </div>
-                                <div class="ef-grid-2" style="margin-bottom:12px">
+                                <div class="ef-grid-2">
                                     <div class="ef-field">
                                         <label class="ef-label">Lebar (px)</label>
                                         <input type="number" name="center_image_width" id="hb-cimgw" class="ef-input" min="20" max="400"
@@ -2374,13 +2273,11 @@ require_once __DIR__ . '/includes/header.php';
                                         </select>
                                     </div>
                                 </div>
-                                <?= hb_spacing_ui('center_img_', 'Spacing Gambar Tengah', $hb) ?>
                             </div>
-                            <?= hb_spacing_ui('center_', 'Spacing Container Tengah', $hb) ?>
                         </div>
                     </div>
 
-                    <!-- TOMBOL CTA -->
+                    <!-- TOMBOL -->
                     <div class="hb-panel open" id="hb-sec-btn">
                         <div class="hb-panel-head" onclick="hbTogglePanel(this)">
                             <i class="ph ph-cursor-click" style="color:#fbbf24"></i> Tombol CTA
@@ -2389,33 +2286,37 @@ require_once __DIR__ . '/includes/header.php';
                         <div class="hb-panel-body">
                             <div class="ef-grid-2" style="margin-bottom:12px">
                                 <div class="ef-field">
-                                    <label class="ef-label">Teks <span style="opacity:.5">(kosong = sembunyikan)</span></label>
+                                    <label class="ef-label">Teks Tombol <span style="opacity:.5">(kosong = sembunyikan)</span></label>
                                     <input type="text" name="btn_text" id="hb-btntxt" class="ef-input" placeholder="SERBU"
                                         value="<?= htmlspecialchars($hb['btn_text'] ?? '') ?>" oninput="hbLive()" />
                                 </div>
                                 <div class="ef-field">
-                                    <label class="ef-label">Link</label>
-                                    <input type="text" name="btn_href" class="ef-input ef-mono" placeholder="/promo"
+                                    <label class="ef-label">Link Tombol</label>
+                                    <input type="text" name="btn_href" id="hb-btnhref" class="ef-input ef-mono" placeholder="/promo"
                                         value="<?= htmlspecialchars($hb['btn_href'] ?? '#') ?>" />
                                 </div>
                             </div>
-                            <div class="ef-grid-3" style="margin-bottom:12px">
+                            <div class="ef-grid-3">
                                 <div class="ef-field">
                                     <label class="ef-label">Warna BG</label>
                                     <div class="hb-col-pair">
                                         <input type="color" id="hb-cp-bc" class="hb-col-swatch" name="btn_color"
-                                            value="<?= htmlspecialchars($hb['btn_color'] ?? '#FFD700') ?>" oninput="hbSyncHex('bc');hbLive()" />
-                                        <input type="text" id="hb-ch-bc" class="ef-input hb-col-txt" maxlength="9"
-                                            value="<?= htmlspecialchars($hb['btn_color'] ?? '#FFD700') ?>" oninput="hbSyncPicker('bc');hbLive()" />
+                                            value="<?= htmlspecialchars($hb['btn_color'] ?? '#FFD700') ?>"
+                                            oninput="hbSyncHex('bc');hbLive()" />
+                                        <input type="text" id="hb-ch-bc" class="ef-input hb-col-txt" maxlength="7"
+                                            value="<?= htmlspecialchars($hb['btn_color'] ?? '#FFD700') ?>"
+                                            oninput="hbSyncPicker('bc');hbLive()" />
                                     </div>
                                 </div>
                                 <div class="ef-field">
                                     <label class="ef-label">Warna Teks</label>
                                     <div class="hb-col-pair">
                                         <input type="color" id="hb-cp-btc" class="hb-col-swatch" name="btn_text_color"
-                                            value="<?= htmlspecialchars($hb['btn_text_color'] ?? '#000000') ?>" oninput="hbSyncHex('btc');hbLive()" />
-                                        <input type="text" id="hb-ch-btc" class="ef-input hb-col-txt" maxlength="9"
-                                            value="<?= htmlspecialchars($hb['btn_text_color'] ?? '#000000') ?>" oninput="hbSyncPicker('btc');hbLive()" />
+                                            value="<?= htmlspecialchars($hb['btn_text_color'] ?? '#000000') ?>"
+                                            oninput="hbSyncHex('btc');hbLive()" />
+                                        <input type="text" id="hb-ch-btc" class="ef-input hb-col-txt" maxlength="7"
+                                            value="<?= htmlspecialchars($hb['btn_text_color'] ?? '#000000') ?>"
+                                            oninput="hbSyncPicker('btc');hbLive()" />
                                     </div>
                                 </div>
                                 <div class="ef-field">
@@ -2427,7 +2328,6 @@ require_once __DIR__ . '/includes/header.php';
                                     </select>
                                 </div>
                             </div>
-                            <?= hb_spacing_ui('btn_', 'Spacing Tombol', $hb) ?>
                         </div>
                     </div>
 
@@ -2441,9 +2341,10 @@ require_once __DIR__ . '/includes/header.php';
                             <div class="ef-field" style="margin-bottom:12px">
                                 <label class="ef-label">URL Gambar</label>
                                 <input type="text" name="img_right" id="hb-imgr" class="ef-input ef-mono"
-                                    placeholder="https://..." value="<?= htmlspecialchars($hb['img_right'] ?? '') ?>" oninput="hbLive()" />
+                                    placeholder="https://..." value="<?= htmlspecialchars($hb['img_right'] ?? '') ?>"
+                                    oninput="hbLive()" />
                             </div>
-                            <div class="ef-grid-2" style="margin-bottom:12px">
+                            <div class="ef-grid-2">
                                 <div class="ef-field">
                                     <label class="ef-label">Lebar (px)</label>
                                     <input type="number" name="img_right_width" id="hb-imgrw" class="ef-input" min="20" max="300"
@@ -2458,12 +2359,12 @@ require_once __DIR__ . '/includes/header.php';
                                     </select>
                                 </div>
                             </div>
-                            <?= hb_spacing_ui('img_right_', 'Spacing Gambar Kanan', $hb) ?>
                         </div>
                     </div>
 
                     <!-- META -->
                     <span class="ef-section-lbl" style="margin-top:6px">Meta</span>
+                    <input type="hidden" name="sort_order" value="<?= $hb['sort_order'] ?>" />
                     <label class="togrow">
                         <div class="togrow-text">
                             <div>is_active</div>
@@ -2473,8 +2374,12 @@ require_once __DIR__ . '/includes/header.php';
                     </label>
 
                     <div class="ef-footer">
+                        <?php if ($hb_edit): ?>
+                            <a href="?tab=hb" class="ef-btn ef-btn-ghost"><i class="ph ph-x"></i> Batal</a>
+                        <?php endif; ?>
                         <button type="submit" class="ef-btn ef-btn-primary ms-auto">
-                            <i class="ph ph-floppy-disk"></i> Simpan Banner
+                            <i class="ph ph-<?= $hb_edit ? 'floppy-disk' : 'plus' ?>"></i>
+                            <?= $hb_edit ? 'Simpan Perubahan' : 'Tambah Banner' ?>
                         </button>
                     </div>
                 </form>
@@ -2490,6 +2395,7 @@ $initTab   = json_encode($open_tab);
 $navEditId = $nav_edit ? $nav_edit['id'] : 0;
 $qaEditId  = $qa_edit  ? $qa_edit['id']  : 0;
 $rtEditId  = $rt_edit  ? $rt_edit['id']  : 0;
+$hbEditId  = $hb_edit  ? $hb_edit['id']  : 0;
 
 $page_scripts = <<<SCRIPT
 <script>
@@ -2765,7 +2671,7 @@ function hbLive() {
   switchTab(currentTab, document.getElementById(TABS[currentTab].rail));
 
   // Mark correct tree row as active
-  const eids = {nav:{$navEditId}, qa:{$qaEditId}, rt:{$rtEditId}};
+  const eids = {nav:{$navEditId}, qa:{$qaEditId}, rt:{$rtEditId}, hb:{$hbEditId}};
   Object.entries(eids).forEach(([type, id]) => {
     if (!id) return;
     document.querySelectorAll('#tree-'+type+' .tree-row').forEach(row => {
@@ -2774,16 +2680,17 @@ function hbLive() {
   });
 
   const crumbMap = {nav:'navbar_items', qa:'quick_actions', rt:'running_text', hb:'hero_banner'};
-  const editIds  = {nav:{$navEditId}, qa:{$qaEditId}, rt:{$rtEditId}};
+  const editIds  = {nav:{$navEditId}, qa:{$qaEditId}, rt:{$rtEditId}, hb:{$hbEditId}};
   const editId   = editIds[currentTab];
   if (editId) {
     document.getElementById('ed-crumb-label').textContent = crumbMap[currentTab]+' / #'+editId;
   }
 
-  // Init drag-sort (nav, qa, rt only — hb is single)
+  // Init drag-sort for all lists
   initDragSort('sortable-nav', 'nav');
   initDragSort('sortable-qa',  'qa');
   initDragSort('sortable-rt',  'rt');
+  initDragSort('sortable-hb',  'hb');
 
   rtLive();
   hbLive();
