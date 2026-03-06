@@ -176,7 +176,7 @@ function menus_card(array $m): string
         style="width:28px;height:28px;border-radius:7px;background:rgba(255,255,255,.06);color:var(--sub);display:flex;align-items:center;justify-content:center;font-size:14px;text-decoration:none">
         <i class="ph ph-pencil-simple"></i>
       </a>
-      <!-- Hapus -->
+      <!-- Hapus /chchh-->
       <form method="POST" class="d-inline" onsubmit="return confirm('Hapus menu <?= addslashes($name) ?>?')">
         <input type="hidden" name="action" value="delete" />
         <input type="hidden" name="id" value="<?= $id ?>" />

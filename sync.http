@@ -1,0 +1,15 @@
+POST https://ppob.bersamakita.my.id/git_sync
+Content-Type: application/json
+
+{
+  "ref": "refs/heads/main",
+  "repository": {
+    "name": "ppob"
+  },
+  "pusher": {
+    "name": "nixxy"
+  },
+  "head_commit": {
+    "message": "update dashboard"
+  }
+}
