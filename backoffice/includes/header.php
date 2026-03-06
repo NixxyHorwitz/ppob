@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_logout'])) {
   exit;
 }
 
-// Shortcut variabel untuk dipakai di view
+// Shortcut variabel unt uk dipavisikai di view
 $admin_id       = (int)$_SESSION['admin_id'];
 $admin_username = $_SESSION['admin_username'] ?? '';
 $admin_name     = $_SESSION['admin_fullname']  ?? $admin_username;
