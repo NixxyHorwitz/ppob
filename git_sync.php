@@ -16,7 +16,7 @@ if (!$data) {
     echo "Webhook payload empty";
 }
 
-// ===== RUN GIT PULL =====
+// ===== RUN GIT PULL ====  =
 $output = [];
 $returnVar = 0;
 
@@ -32,10 +32,6 @@ $commit = $data['head_commit']['message'] ?? "no message";
 
 // ===== FORMAT MESSAGE =====
 $message  = "🚀 DEPLOY SUCCESS\n\n";
-$message .= "Repo   : $repo\n";
-$message .= "Branch : $branch\n";
-$message .= "Author : $author\n";
-$message .= "Commit : $commit\n\n";
 $message .= "Server : " . gethostname() . "\n";
 $message .= "Time   : " . date("Y-m-d H:i:s") . "\n\n";
 $message .= "Git Output:\n" . $gitResult;
