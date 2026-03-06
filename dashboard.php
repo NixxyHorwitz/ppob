@@ -34,6 +34,12 @@ try {
     $runningTexts = [];
 }
 
+try {
+    $heroBanners = $pdo->query("SELECT * FROM hero_banner WHERE is_active=1 ORDER BY sort_order")->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    $heroBanners = [];
+}
+
 // ── Menu JSON untuk JS renderer ───────────────────────────────
 $menuMainClean  = array_values(array_filter($menusMain, fn($m) => $m['name'] !== 'View All'));
 $menuOtherClean = array_values($menusOther);
@@ -86,10 +92,9 @@ function timeAgo(string $ts): string
         <?php if (!empty($hero['hero_bg_image'])): ?>background: url('<?= htmlspecialchars($hero['hero_bg_image']) ?>') center/cover no-repeat;
         <?php else: ?>background: linear-gradient(<?= (int)($hero['hero_gradient_angle'] ?? 145) ?>deg,
                 var(--cpdd) 0%, var(--cpd) 40%, var(--cp) 80%, #02f0b0 100%);
-        <?php endif; ?>padding: 50px 18px 68px;
+        <?php endif; ?>padding: 28px 18px 54px;
         position: relative;
         overflow: hidden;
-        margin: 0px !important;
     }
 
     .hero-ov {
@@ -788,6 +793,213 @@ function timeAgo(string $ts): string
         color: #f59e0b;
         font-size: 10px
     }
+
+    /* ══ HERO BANNER ═════════════════════════════════════════════ */
+    .hb-wrap {
+        padding: 0 14px;
+        margin-top: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .hb {
+        border-radius: 18px;
+        overflow: hidden;
+        position: relative;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, .15);
+        -webkit-tap-highlight-color: transparent;
+        transition: transform .2s;
+    }
+
+    .hb:active {
+        transform: scale(.98);
+    }
+
+    /* Full image type */
+    .hb-img-only {
+        display: block;
+        width: 100%;
+        object-fit: cover;
+    }
+
+    /* Layout type: left | center | right */
+    .hb-layout {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .hb-side {
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        flex-shrink: 0;
+        z-index: 2;
+    }
+
+    .hb-side img {
+        object-fit: contain;
+        display: block;
+    }
+
+    .hb-center {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 14px 6px 16px;
+        z-index: 2;
+    }
+
+    .hb-title {
+        font-size: 15px;
+        font-weight: 900;
+        line-height: 1.2;
+        letter-spacing: -.3px;
+        margin-bottom: 2px;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, .2);
+    }
+
+    .hb-sub {
+        font-size: 10px;
+        font-weight: 700;
+        margin-bottom: 10px;
+        opacity: .88;
+    }
+
+    .hb-btn {
+        display: inline-block;
+        padding: 7px 22px;
+        border-radius: 99px;
+        font-size: 11.5px;
+        font-weight: 900;
+        letter-spacing: .3px;
+        text-decoration: none;
+        box-shadow: 0 3px 12px rgba(0, 0, 0, .20);
+        cursor: pointer;
+        border: none;
+        font-family: var(--f);
+        transition: transform .15s;
+    }
+
+    .hb-btn:active {
+        transform: scale(.93);
+    }
+
+    /* Center image type */
+    .hb-center-img {
+        width: 100%;
+        object-fit: contain;
+        display: block;
+    }
+
+    /* ── Animations ─────────────────────── */
+    @keyframes hb-float {
+
+        0%,
+        100% {
+            transform: translateY(0);
+        }
+
+        50% {
+            transform: translateY(-7px);
+        }
+    }
+
+    @keyframes hb-bounce {
+
+        0%,
+        100% {
+            transform: translateY(0);
+        }
+
+        40% {
+            transform: translateY(-10px);
+        }
+
+        60% {
+            transform: translateY(-5px);
+        }
+    }
+
+    @keyframes hb-slide-left {
+        from {
+            transform: translateX(-30px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes hb-slide-right {
+        from {
+            transform: translateX(30px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes hb-pulse {
+
+        0%,
+        100% {
+            transform: scale(1);
+            box-shadow: 0 3px 12px rgba(0, 0, 0, .20);
+        }
+
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, .28);
+        }
+    }
+
+    @keyframes hb-zoom-in {
+        from {
+            transform: scale(.85);
+            opacity: 0;
+        }
+
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    .anim-float {
+        animation: hb-float 3s ease-in-out infinite;
+    }
+
+    .anim-bounce {
+        animation: hb-bounce 2s ease-in-out infinite;
+    }
+
+    .anim-slide-left {
+        animation: hb-slide-left .6s ease forwards;
+    }
+
+    .anim-slide-right {
+        animation: hb-slide-right .6s ease forwards;
+    }
+
+    .anim-pulse {
+        animation: hb-pulse 2s ease-in-out infinite;
+    }
+
+    .anim-zoom-in {
+        animation: hb-zoom-in .5s ease forwards;
+    }
 </style>
 
 <!-- ═══ HERO ═══ -->
@@ -809,7 +1021,6 @@ function timeAgo(string $ts): string
                 </div>
                 <span class="b-name"><?= htmlspecialchars($brandName) ?></span>
             </div>
-            <!-- arehere -->
             <div class="hbtns">
                 <a href="pages/inbox" class="hbtn">
                     <i class="fas fa-bell"></i>
@@ -823,7 +1034,7 @@ function timeAgo(string $ts): string
             <div class="bal-greet">
                 <?php $h = (int)date('H');
                 echo $h < 12 ? 'Selamat pagi ☀️, ' : ($h < 17 ? 'Selamat siang ☀️, ' : ($h < 20 ? 'Selamat sore 🌤️, ' : 'Selamat malam 🌙, '));
-                ?><strong><?= htmlspecialchars(explode(' ', $user['name'] ?? $user['username'] ?? 'Pengguna')[0]) ?></strong>
+                ?><strong><?= htmlspecialchars(explode(' ', $user['fullname'] ?? $user['username'] ?? 'Pengguna')[0]) ?></strong>
             </div>
             <div class="bal-lbl">Saldo <?= htmlspecialchars($brandName) ?></div>
             <div class="bal-row">
@@ -849,6 +1060,101 @@ function timeAgo(string $ts): string
         <div class="mgrid" id="mgrid"></div>
     </div>
 </div>
+
+<!-- ═══ HERO BANNER ═══ -->
+<?php if (!empty($heroBanners)): ?>
+    <div class="hb-wrap">
+        <?php foreach ($heroBanners as $hb):
+            $bgStyle = !empty($hb['bg_image'])
+                ? "background:url('{$hb['bg_image']}') center/cover no-repeat"
+                : "background:linear-gradient({$hb['bg_gradient_angle']}deg,{$hb['bg_color_start']},{$hb['bg_color_end']})";
+            $h = (int)($hb['height'] ?? 160);
+
+            // animation class helper
+            $animClass = fn($a) => match (trim((string)$a)) {
+                'float'       => 'anim-float',
+                'bounce'      => 'anim-bounce',
+                'slide-left'  => 'anim-slide-left',
+                'slide-right' => 'anim-slide-right',
+                'pulse'       => 'anim-pulse',
+                'zoom-in'     => 'anim-zoom-in',
+                default       => '',
+            };
+        ?>
+
+            <?php if ($hb['type'] === 'image_only'): ?>
+                <!-- Type: full image -->
+                <a href="<?= htmlspecialchars($hb['btn_href'] ?? '#') ?>" class="hb">
+                    <img src="<?= htmlspecialchars($hb['bg_image']) ?>" class="hb-img-only"
+                        style="height:<?= $h ?>px" alt="">
+                </a>
+
+            <?php elseif ($hb['type'] === 'image_center'): ?>
+                <!-- Type: center image only -->
+                <a href="<?= htmlspecialchars($hb['btn_href'] ?? '#') ?>" class="hb" style="<?= $bgStyle ?>">
+                    <img src="<?= htmlspecialchars($hb['center_image'] ?? '') ?>"
+                        class="hb-center-img <?= $animClass($hb['center_image_anim'] ?? '') ?>"
+                        style="height:<?= $h ?>px;width:<?= (int)($hb['center_image_width'] ?? 160) ?>px;margin:0 auto"
+                        alt="">
+                </a>
+
+            <?php else: ?>
+                <!-- Type: layout (left | center | right) -->
+                <div class="hb hb-layout" style="<?= $bgStyle ?>;height:<?= $h ?>px">
+
+                    <!-- Left image -->
+                    <?php if (!empty($hb['img_left'])): ?>
+                        <div class="hb-side" style="width:<?= (int)($hb['img_left_width'] ?? 90) ?>px;height:<?= $h ?>px">
+                            <img src="<?= htmlspecialchars($hb['img_left']) ?>"
+                                class="<?= $animClass($hb['img_left_anim'] ?? '') ?>"
+                                style="width:100%;max-height:<?= $h ?>px;object-fit:contain" alt="">
+                        </div>
+                    <?php endif; ?>
+
+                    <!-- Center -->
+                    <div class="hb-center">
+                        <?php if (($hb['center_type'] ?? 'text') === 'image' && !empty($hb['center_image'])): ?>
+                            <img src="<?= htmlspecialchars($hb['center_image']) ?>"
+                                class="<?= $animClass($hb['center_image_anim'] ?? '') ?>"
+                                style="width:<?= (int)($hb['center_image_width'] ?? 160) ?>px;max-height:<?= $h - 20 ?>px;object-fit:contain"
+                                alt="">
+                        <?php else: ?>
+                            <?php if (!empty($hb['title'])): ?>
+                                <div class="hb-title" style="color:<?= htmlspecialchars($hb['title_color'] ?? '#fff') ?>">
+                                    <?= htmlspecialchars($hb['title']) ?>
+                                </div>
+                            <?php endif; ?>
+                            <?php if (!empty($hb['subtitle'])): ?>
+                                <div class="hb-sub" style="color:<?= htmlspecialchars($hb['subtitle_color'] ?? 'rgba(255,255,255,0.85)') ?>">
+                                    <?= htmlspecialchars($hb['subtitle']) ?>
+                                </div>
+                            <?php endif; ?>
+                        <?php endif; ?>
+
+                        <?php if (!empty($hb['btn_text'])): ?>
+                            <a href="<?= htmlspecialchars($hb['btn_href'] ?? '#') ?>"
+                                class="hb-btn <?= $animClass($hb['btn_anim'] ?? '') ?>"
+                                style="background:<?= htmlspecialchars($hb['btn_color'] ?? '#FFD700') ?>;color:<?= htmlspecialchars($hb['btn_text_color'] ?? '#000') ?>">
+                                <?= htmlspecialchars($hb['btn_text']) ?>
+                            </a>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- Right image -->
+                    <?php if (!empty($hb['img_right'])): ?>
+                        <div class="hb-side" style="width:<?= (int)($hb['img_right_width'] ?? 90) ?>px;height:<?= $h ?>px">
+                            <img src="<?= htmlspecialchars($hb['img_right']) ?>"
+                                class="<?= $animClass($hb['img_right_anim'] ?? '') ?>"
+                                style="width:100%;max-height:<?= $h ?>px;object-fit:contain" alt="">
+                        </div>
+                    <?php endif; ?>
+
+                </div>
+            <?php endif; ?>
+
+        <?php endforeach; ?>
+    </div>
+<?php endif; ?>
 
 <!-- ═══ RUNNING TEXT ═══ -->
 <?php if (!empty($runningTexts)):
