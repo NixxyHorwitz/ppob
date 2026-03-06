@@ -43,6 +43,7 @@ $_menus = [
   ]],
   ['section' => 'CMS', 'items' => [
     ['key' => 'promo_banners',  'label' => 'Banners',   'icon' => 'ph-slideshow',         'url' => 'promo_banners'],
+    ['key' => 'hero_banners',  'label' => 'Hero Banner',   'icon' => 'ph-textbox',         'url' => 'hero_banners'],
     ['key' => 'frontend',  'label' => 'Frontend',   'icon' => 'ph-app-window',        'url' => 'frontend'],
     ['key' => 'media',  'label' => 'Media', 'icon' => 'ph-folder-open',        'url' => 'media'],
     ['key' => 'menus',  'label' => 'Menus', 'icon' => 'ph-list',        'url' => 'menu'],
