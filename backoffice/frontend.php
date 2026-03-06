@@ -4,7 +4,7 @@ require_once __DIR__ . '/includes/session.php';
 require_once __DIR__ . '/../config/database.php';
 
 $page_title  = 'Frontend Manager';
-$active_menu = 'frontend_manager';
+$active_menu = 'frontend';
 
 $toast = '';
 $toast_e = '';
@@ -145,12 +145,40 @@ if ($act === 'rt_delete' && !empty($_POST['id'])) {
     $toast = 'Running text dihapus.';
 }
 
+/* ── GLOBAL SPEED ──────────────────────────────────────────── */
+if ($act === 'rt_speed_global' && isset($_POST['speed'])) {
+    $sp = max(5, min(120, (int)$_POST['speed']));
+    $pdo->exec("UPDATE running_text SET speed = {$sp}");
+    $toast = "Kecepatan semua running text diubah ke {$sp}s.";
+}
+
+/* ── REORDER ───────────────────────────────────────────────── */
+if ($act === 'nav_reorder' && !empty($_POST['ids'])) {
+    $ids = array_map('intval', explode(',', $_POST['ids']));
+    $s = $pdo->prepare("UPDATE navbar_items SET sort_order=? WHERE id=?");
+    foreach ($ids as $i => $id) $s->execute([$i + 1, $id]);
+    $toast = 'Urutan navbar disimpan.';
+}
+if ($act === 'qa_reorder' && !empty($_POST['ids'])) {
+    $ids = array_map('intval', explode(',', $_POST['ids']));
+    $s = $pdo->prepare("UPDATE quick_actions SET sort_order=? WHERE id=?");
+    foreach ($ids as $i => $id) $s->execute([$i + 1, $id]);
+    $toast = 'Urutan quick actions disimpan.';
+}
+if ($act === 'rt_reorder' && !empty($_POST['ids'])) {
+    $ids = array_map('intval', explode(',', $_POST['ids']));
+    $s = $pdo->prepare("UPDATE running_text SET sort_order=? WHERE id=?");
+    foreach ($ids as $i => $id) $s->execute([$i + 1, $id]);
+    $toast = 'Urutan running text disimpan.';
+}
+
 /* ═══════════════════════════════════════════════════
    FETCH
 ═══════════════════════════════════════════════════ */
 $navbars  = $pdo->query("SELECT * FROM navbar_items  ORDER BY sort_order, id")->fetchAll();
 $qactions = $pdo->query("SELECT * FROM quick_actions ORDER BY sort_order, id")->fetchAll();
 $rtexts   = $pdo->query("SELECT * FROM running_text  ORDER BY sort_order, id")->fetchAll();
+$global_speed = !empty($rtexts) ? (int)$rtexts[0]['speed'] : 35;
 
 // Edit targets from GET
 $nav_edit = $qa_edit = $rt_edit = null;
@@ -972,7 +1000,57 @@ require_once __DIR__ . '/includes/header.php';
         margin-top: 10px;
     }
 
-    /* ── Empty state ───────────────────────────────────────────── */
+    /* ── Drag handle in tree ───────────────────────────────────── */
+    .tree-drag-handle {
+        font-size: 14px;
+        color: rgba(255, 255, 255, .15);
+        cursor: grab;
+        flex-shrink: 0;
+        padding: 2px 0;
+        transition: color .12s;
+    }
+
+    .tree-row:hover .tree-drag-handle {
+        color: rgba(255, 255, 255, .4);
+    }
+
+    .tree-row.drag-over {
+        background: rgba(59, 130, 246, .12);
+        border-left-color: var(--accent, #3b82f6);
+    }
+
+    .tree-row.dragging-src {
+        opacity: .35;
+    }
+
+    /* ── Reorder save button ───────────────────────────────────── */
+    .tree-save-btn {
+        width: 22px;
+        height: 22px;
+        border-radius: 5px;
+        background: rgba(16, 185, 129, .15);
+        border: 1px solid rgba(16, 185, 129, .25);
+        color: #34d399;
+        font-size: 13px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: pulse-save 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse-save {
+
+        0%,
+        100% {
+            opacity: 1
+        }
+
+        50% {
+            opacity: .6
+        }
+    }
+
     .ef-empty {
         height: 100%;
         display: flex;
@@ -1073,16 +1151,20 @@ require_once __DIR__ . '/includes/header.php';
         <div id="tree-nav" style="display:flex;flex-direction:column;height:100%">
             <div class="tree-topbar">
                 <span class="tree-title">navbar_items</span>
-                <button class="tree-add-btn" onclick="openNew('nav')" title="Tambah item baru"><i class="ph ph-plus"></i></button>
+                <div style="display:flex;gap:4px;align-items:center">
+                    <button id="nav-save-order" class="tree-save-btn" style="display:none" onclick="submitReorder('nav')" title="Simpan urutan"><i class="ph ph-floppy-disk"></i></button>
+                    <button class="tree-add-btn" onclick="openNew('nav')" title="Tambah item baru"><i class="ph ph-plus"></i></button>
+                </div>
             </div>
-            <div class="tree-scroll">
+            <div class="tree-scroll" id="sortable-nav">
                 <?php foreach ($navbars as $n): ?>
                     <div class="tree-row <?= !$n['is_active'] ? 'dimmed' : '' ?> <?= ($nav_edit && $nav_edit['id'] === $n['id']) ? 'active' : '' ?>"
-                        onclick="gotoEdit('nav', <?= $n['id'] ?>)">
-                        <div class="tree-row-ico" style="background:<?= $n['is_active'] ? 'rgba(59,130,246,.12)' : 'rgba(255,255,255,.04)' ?>">
+                        data-id="<?= $n['id'] ?>" draggable="true" data-group="nav">
+                        <i class="ph ph-dots-six-vertical tree-drag-handle"></i>
+                        <div class="tree-row-ico" style="background:<?= $n['is_active'] ? 'rgba(59,130,246,.12)' : 'rgba(255,255,255,.04)' ?>" onclick="gotoEdit('nav', <?= $n['id'] ?>)">
                             <i class="<?= htmlspecialchars($n['icon_class']) ?>" style="color:<?= $n['is_active'] ? '#60a5fa' : 'rgba(255,255,255,.25)' ?>"></i>
                         </div>
-                        <div class="tree-row-body">
+                        <div class="tree-row-body" onclick="gotoEdit('nav', <?= $n['id'] ?>)">
                             <div class="tree-row-label"><?= htmlspecialchars($n['label']) ?></div>
                             <div class="tree-row-sub"><?= htmlspecialchars($n['href']) ?></div>
                         </div>
@@ -1099,22 +1181,30 @@ require_once __DIR__ . '/includes/header.php';
                     <div style="padding:20px 14px;text-align:center;font-size:11px;color:rgba(255,255,255,.18)">Belum ada item</div>
                 <?php endif; ?>
             </div>
+            <form method="POST" id="form-nav-reorder" style="display:none">
+                <input type="hidden" name="action" value="nav_reorder" />
+                <input type="hidden" name="ids" id="nav-reorder-ids" />
+            </form>
         </div>
 
         <!-- Quick actions tree -->
         <div id="tree-qa" style="display:none;flex-direction:column;height:100%">
             <div class="tree-topbar">
                 <span class="tree-title">quick_actions</span>
-                <button class="tree-add-btn" onclick="openNew('qa')" title="Tambah action baru"><i class="ph ph-plus"></i></button>
+                <div style="display:flex;gap:4px;align-items:center">
+                    <button id="qa-save-order" class="tree-save-btn" style="display:none" onclick="submitReorder('qa')" title="Simpan urutan"><i class="ph ph-floppy-disk"></i></button>
+                    <button class="tree-add-btn" onclick="openNew('qa')" title="Tambah action baru"><i class="ph ph-plus"></i></button>
+                </div>
             </div>
-            <div class="tree-scroll">
+            <div class="tree-scroll" id="sortable-qa">
                 <?php foreach ($qactions as $q): ?>
                     <div class="tree-row <?= !$q['is_active'] ? 'dimmed' : '' ?> <?= ($qa_edit && $qa_edit['id'] === $q['id']) ? 'active' : '' ?>"
-                        onclick="gotoEdit('qa', <?= $q['id'] ?>)">
-                        <div class="tree-row-ico" style="background:rgba(1,210,152,.1)">
+                        data-id="<?= $q['id'] ?>" draggable="true" data-group="qa">
+                        <i class="ph ph-dots-six-vertical tree-drag-handle"></i>
+                        <div class="tree-row-ico" style="background:rgba(1,210,152,.1)" onclick="gotoEdit('qa', <?= $q['id'] ?>)">
                             <i class="<?= htmlspecialchars($q['icon_class']) ?>" style="color:#34d399"></i>
                         </div>
-                        <div class="tree-row-body">
+                        <div class="tree-row-body" onclick="gotoEdit('qa', <?= $q['id'] ?>)">
                             <div class="tree-row-label"><?= htmlspecialchars($q['label']) ?></div>
                             <div class="tree-row-sub">#<?= $q['sort_order'] ?> · <?= htmlspecialchars(mb_substr($q['href'], 0, 22)) ?></div>
                         </div>
@@ -1130,24 +1220,50 @@ require_once __DIR__ . '/includes/header.php';
                     <div style="padding:20px 14px;text-align:center;font-size:11px;color:rgba(255,255,255,.18)">Belum ada action</div>
                 <?php endif; ?>
             </div>
+            <form method="POST" id="form-qa-reorder" style="display:none">
+                <input type="hidden" name="action" value="qa_reorder" />
+                <input type="hidden" name="ids" id="qa-reorder-ids" />
+            </form>
         </div>
 
         <!-- Running text tree -->
         <div id="tree-rt" style="display:none;flex-direction:column;height:100%">
             <div class="tree-topbar">
                 <span class="tree-title">running_text</span>
-                <button class="tree-add-btn" onclick="openNew('rt')" title="Tambah teks baru"><i class="ph ph-plus"></i></button>
+                <div style="display:flex;gap:4px;align-items:center">
+                    <button id="rt-save-order" class="tree-save-btn" style="display:none" onclick="submitReorder('rt')" title="Simpan urutan"><i class="ph ph-floppy-disk"></i></button>
+                    <button class="tree-add-btn" onclick="openNew('rt')" title="Tambah teks baru"><i class="ph ph-plus"></i></button>
+                </div>
             </div>
-            <div class="tree-scroll">
+            <!-- Global speed control -->
+            <div style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.05);flex-shrink:0">
+                <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.25);margin-bottom:7px;display:flex;align-items:center;justify-content:space-between">
+                    <span>⚡ Kecepatan Global</span>
+                    <span id="gspd-label" style="color:var(--accent,#3b82f6);font-family:'JetBrains Mono',monospace"><?= $global_speed ?>s</span>
+                </div>
+                <input type="range" id="global-speed-slider" min="5" max="120" step="5"
+                    value="<?= $global_speed ?>"
+                    style="width:100%;accent-color:var(--accent,#3b82f6);height:4px;cursor:pointer"
+                    oninput="document.getElementById('gspd-label').textContent=this.value+'s'" />
+                <form method="POST" id="form-global-speed" style="display:none">
+                    <input type="hidden" name="action" value="rt_speed_global" />
+                    <input type="hidden" name="speed" id="gspd-hidden" />
+                </form>
+                <button onclick="saveGlobalSpeed()" style="margin-top:7px;width:100%;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);color:#60a5fa;border-radius:6px;padding:5px;font-size:11px;font-weight:600;cursor:pointer">
+                    <i class="ph ph-floppy-disk" style="font-size:12px"></i> Terapkan ke semua
+                </button>
+            </div>
+            <div class="tree-scroll" id="sortable-rt">
                 <?php foreach ($rtexts as $r): ?>
                     <div class="tree-row <?= !$r['is_active'] ? 'dimmed' : '' ?> <?= ($rt_edit && $rt_edit['id'] === $r['id']) ? 'active' : '' ?>"
-                        onclick="gotoEdit('rt', <?= $r['id'] ?>)">
-                        <div class="tree-row-ico" style="background:rgba(239,68,68,.1)">
+                        data-id="<?= $r['id'] ?>" draggable="true" data-group="rt">
+                        <i class="ph ph-dots-six-vertical tree-drag-handle"></i>
+                        <div class="tree-row-ico" style="background:rgba(239,68,68,.1)" onclick="gotoEdit('rt', <?= $r['id'] ?>)">
                             <i class="<?= htmlspecialchars($r['icon_class']) ?>" style="color:<?= htmlspecialchars($r['icon_color']) ?>"></i>
                         </div>
-                        <div class="tree-row-body">
+                        <div class="tree-row-body" onclick="gotoEdit('rt', <?= $r['id'] ?>)">
                             <div class="tree-row-label"><?= htmlspecialchars(mb_substr($r['content'], 0, 28)) ?><?= mb_strlen($r['content']) > 28 ? '…' : '' ?></div>
-                            <div class="tree-row-sub">speed:<?= $r['speed'] ?>s · #<?= $r['sort_order'] ?></div>
+                            <div class="tree-row-sub"><?= $r['speed'] ?>s · #<?= $r['sort_order'] ?></div>
                         </div>
                         <span class="tree-pill <?= $r['is_active'] ? 'tp-on' : 'tp-off' ?>"><?= $r['is_active'] ? 'ON' : 'OFF' ?></span>
                         <form method="POST" style="display:contents" onsubmit="return confirm('Hapus running text ini?')">
@@ -1161,6 +1277,10 @@ require_once __DIR__ . '/includes/header.php';
                     <div style="padding:20px 14px;text-align:center;font-size:11px;color:rgba(255,255,255,.18)">Belum ada teks</div>
                 <?php endif; ?>
             </div>
+            <form method="POST" id="form-rt-reorder" style="display:none">
+                <input type="hidden" name="action" value="rt_reorder" />
+                <input type="hidden" name="ids" id="rt-reorder-ids" />
+            </form>
         </div>
 
     </aside>
@@ -1296,17 +1416,11 @@ require_once __DIR__ . '/includes/header.php';
                         </div>
                     </div>
 
-                    <div class="ef-grid-2">
-                        <div class="ef-field">
-                            <label class="ef-label">match_path</label>
-                            <input type="text" name="match_path" class="ef-input ef-mono" placeholder="dashboard"
-                                value="<?= htmlspecialchars($nav_edit['match_path'] ?? '') ?>" />
-                        </div>
-                        <div class="ef-field">
-                            <label class="ef-label">sort_order</label>
-                            <input type="number" name="sort_order" class="ef-input" min="0"
-                                value="<?= $nav_edit['sort_order'] ?? count($navbars) + 1 ?>" />
-                        </div>
+                    <input type="hidden" name="sort_order" value="<?= $nav_edit['sort_order'] ?? count($navbars) + 1 ?>" />
+                    <div class="ef-field" style="margin-bottom:14px">
+                        <label class="ef-label">match_path</label>
+                        <input type="text" name="match_path" class="ef-input ef-mono" placeholder="dashboard"
+                            value="<?= htmlspecialchars($nav_edit['match_path'] ?? '') ?>" />
                     </div>
 
                     <span class="ef-section-lbl" style="margin-top:6px">Options</span>
@@ -1381,11 +1495,7 @@ require_once __DIR__ . '/includes/header.php';
                         </div>
                     </div>
 
-                    <div class="ef-field" style="margin-bottom:14px;max-width:180px">
-                        <label class="ef-label">sort_order</label>
-                        <input type="number" name="sort_order" class="ef-input" min="0"
-                            value="<?= $qa_edit['sort_order'] ?? count($qactions) + 1 ?>" />
-                    </div>
+                    <input type="hidden" name="sort_order" value="<?= $qa_edit['sort_order'] ?? count($qactions) + 1 ?>" />
 
                     <span class="ef-section-lbl">Options</span>
                     <label class="togrow">
@@ -1440,35 +1550,26 @@ require_once __DIR__ . '/includes/header.php';
                             oninput="rtLive()" placeholder="🎉 Promo hari ini! Cashback 5%..."><?= htmlspecialchars($rt_edit['content'] ?? '') ?></textarea>
                     </div>
 
-                    <div class="ef-grid-2" style="align-items:end">
-                        <div class="ef-field">
-                            <label class="ef-label">icon_class</label>
-                            <div class="ico-row">
-                                <input type="text" name="icon_class" id="rt-ico-inp" class="ef-input ef-mono" style="flex:1"
-                                    placeholder="fas fa-bolt" oninput="liveIcoPreview('rt-ico-inp','rt-ico-prev');rtLive()"
-                                    value="<?= htmlspecialchars($rt_edit['icon_class'] ?? 'fas fa-bolt') ?>" />
-                                <div class="ico-preview" id="rt-ico-prev">
-                                    <i id="rt-ico-prev-i" class="<?= htmlspecialchars($rt_edit['icon_class'] ?? 'fas fa-bolt') ?>"
-                                        style="color:<?= htmlspecialchars($rt_edit['icon_color'] ?? '#01d298') ?>"></i>
-                                </div>
-                            </div>
-                            <div class="ico-chips">
-                                <?php foreach (array_slice($icon_pool, 0, 12) as $ico): ?>
-                                    <button type="button" class="ico-chip <?= ($rt_edit['icon_class'] ?? '') === $ico ? 'picked' : '' ?>"
-                                        onclick="pickIco('rt-ico-inp','rt-ico-prev',this,'<?= $ico ?>');rtLive()"><i class="<?= $ico ?>"></i></button>
-                                <?php endforeach; ?>
+                    <div class="ef-field" style="margin-bottom:14px">
+                        <label class="ef-label">icon_class</label>
+                        <div class="ico-row">
+                            <input type="text" name="icon_class" id="rt-ico-inp" class="ef-input ef-mono" style="flex:1"
+                                placeholder="fas fa-bolt" oninput="liveIcoPreview('rt-ico-inp','rt-ico-prev');rtLive()"
+                                value="<?= htmlspecialchars($rt_edit['icon_class'] ?? 'fas fa-bolt') ?>" />
+                            <div class="ico-preview" id="rt-ico-prev">
+                                <i id="rt-ico-prev-i" class="<?= htmlspecialchars($rt_edit['icon_class'] ?? 'fas fa-bolt') ?>"
+                                    style="color:<?= htmlspecialchars($rt_edit['icon_color'] ?? '#01d298') ?>"></i>
                             </div>
                         </div>
-                        <div class="ef-field">
-                            <label class="ef-label">speed <span style="font-weight:400;opacity:.6">(detik, kecil=cepat)</span></label>
-                            <div class="speed-row">
-                                <input type="range" name="speed" id="rt-speed" min="5" max="120" step="5"
-                                    value="<?= $rt_edit['speed'] ?? 35 ?>"
-                                    oninput="document.getElementById('rt-spd-val').textContent=this.value+'s';rtLive()" />
-                                <span id="rt-spd-val" class="speed-val"><?= $rt_edit['speed'] ?? 35 ?>s</span>
-                            </div>
+                        <div class="ico-chips">
+                            <?php foreach (array_slice($icon_pool, 0, 12) as $ico): ?>
+                                <button type="button" class="ico-chip <?= ($rt_edit['icon_class'] ?? '') === $ico ? 'picked' : '' ?>"
+                                    onclick="pickIco('rt-ico-inp','rt-ico-prev',this,'<?= $ico ?>');rtLive()"><i class="<?= $ico ?>"></i></button>
+                            <?php endforeach; ?>
                         </div>
                     </div>
+                    <!-- hidden speed – nilai diisi dari global speed saat submit -->
+                    <input type="hidden" name="speed" id="rt-speed-hidden" value="<?= $rt_edit['speed'] ?? $global_speed ?>" />
 
                     <span class="ef-section-lbl">Colors</span>
                     <div class="ef-grid-4">
@@ -1494,23 +1595,14 @@ require_once __DIR__ . '/includes/header.php';
                     </div>
 
                     <span class="ef-section-lbl">Meta</span>
-                    <div class="ef-grid-2">
-                        <div class="ef-field">
-                            <label class="ef-label">sort_order</label>
-                            <input type="number" name="sort_order" class="ef-input" min="0"
-                                value="<?= $rt_edit['sort_order'] ?? count($rtexts) + 1 ?>" />
+                    <input type="hidden" name="sort_order" value="<?= $rt_edit['sort_order'] ?? count($rtexts) + 1 ?>" />
+                    <label class="togrow">
+                        <div class="togrow-text">
+                            <div>is_active</div>
+                            <div>Tampilkan di beranda user</div>
                         </div>
-                        <div class="ef-field">
-                            <label class="ef-label">is_active</label>
-                            <label class="togrow" style="margin:0">
-                                <div class="togrow-text">
-                                    <div>Aktif</div>
-                                    <div>Tampilkan di beranda user</div>
-                                </div>
-                                <input type="checkbox" name="is_active" class="togswitch" <?= !isset($rt_edit) || !empty($rt_edit['is_active']) ? 'checked' : '' ?>>
-                            </label>
-                        </div>
-                    </div>
+                        <input type="checkbox" name="is_active" class="togswitch" <?= !isset($rt_edit) || !empty($rt_edit['is_active']) ? 'checked' : '' ?>>
+                    </label>
 
                     <div class="ef-footer">
                         <?php if ($rt_edit): ?>
@@ -1589,11 +1681,12 @@ function pickIco(inputId, previewId, chip, cls) {
 function rtLive() {
   const content     = document.getElementById('rt-content')?.value     || 'Preview...';
   const iconCls     = document.getElementById('rt-ico-inp')?.value     || 'fas fa-bolt';
-  const speed       = document.getElementById('rt-speed')?.value       || 35;
   const iconColor   = document.getElementById('cp-icon_color')?.value  || '#01d298';
   const textColor   = document.getElementById('cp-text_color')?.value  || '#0f172a';
   const bgColor     = document.getElementById('cp-bg_color')?.value    || '#ffffff';
   const borderColor = document.getElementById('cp-border_color')?.value|| '#e2e8f0';
+  // use global speed for preview
+  const speed = document.getElementById('global-speed-slider')?.value || 35;
 
   const bar  = document.getElementById('rt-live-bar');
   const icon = document.getElementById('rt-live-icon');
@@ -1616,6 +1709,64 @@ function syncPicker(nm) {
   document.getElementById('cp-'+nm)?.addEventListener('input', () => { syncHex(nm); rtLive(); });
 });
 
+/* ── Global speed ─────────────────────────────────────────── */
+function saveGlobalSpeed() {
+  const sp = document.getElementById('global-speed-slider')?.value;
+  if (!sp) return;
+  document.getElementById('gspd-hidden').value = sp;
+  document.getElementById('form-global-speed').submit();
+}
+
+/* ── Drag-sort for tree lists ─────────────────────────────── */
+function initDragSort(containerId, group) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  let dragSrc = null;
+
+  container.querySelectorAll('.tree-row[draggable="true"]').forEach(row => {
+    row.addEventListener('dragstart', function(e) {
+      dragSrc = this;
+      setTimeout(() => this.classList.add('dragging-src'), 0);
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', function() {
+      this.classList.remove('dragging-src');
+      container.querySelectorAll('.tree-row').forEach(r => r.classList.remove('drag-over'));
+      // Show save button
+      const btn = document.getElementById(group+'-save-order');
+      if (btn) btn.style.display = 'flex';
+    });
+    row.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      if (this === dragSrc) return;
+      container.querySelectorAll('.tree-row').forEach(r => r.classList.remove('drag-over'));
+      this.classList.add('drag-over');
+      const rect = this.getBoundingClientRect();
+      if (e.clientY < rect.top + rect.height / 2) {
+        container.insertBefore(dragSrc, this);
+      } else {
+        container.insertBefore(dragSrc, this.nextSibling);
+      }
+    });
+    row.addEventListener('dragleave', function() {
+      this.classList.remove('drag-over');
+    });
+    row.addEventListener('drop', function(e) {
+      e.preventDefault();
+      this.classList.remove('drag-over');
+    });
+  });
+}
+
+function submitReorder(group) {
+  const container = document.getElementById('sortable-'+group);
+  if (!container) return;
+  const ids = [...container.querySelectorAll('.tree-row[data-id]')]
+              .map(r => r.dataset.id).join(',');
+  document.getElementById(group+'-reorder-ids').value = ids;
+  document.getElementById('form-'+group+'-reorder').submit();
+}
+
 /* ── Phone preview toggle ─────────────────────────────────── */
 function togglePhonePreview() {
   const wrap = document.getElementById('phone-preview');
@@ -1626,27 +1777,28 @@ function togglePhonePreview() {
 
 /* ── Init on load ─────────────────────────────────────────── */
 (function(){
-  // Apply correct tab without re-navigating
   switchTab(currentTab, document.getElementById(TABS[currentTab].rail));
 
   // Mark correct tree row as active
   const eids = {nav:{$navEditId}, qa:{$qaEditId}, rt:{$rtEditId}};
   Object.entries(eids).forEach(([type, id]) => {
     if (!id) return;
-    document.querySelectorAll('#tree-'+type+' .tree-row').forEach((row, i) => {
-      if (row.getAttribute('onclick')?.includes(', '+id+')')) {
-        row.classList.add('active');
-      }
+    document.querySelectorAll('#tree-'+type+' .tree-row').forEach(row => {
+      if (row.getAttribute('data-id') === String(id)) row.classList.add('active');
     });
   });
 
-  // Update crumb for edit state
   const crumbMap = {nav:'navbar_items', qa:'quick_actions', rt:'running_text'};
   const editIds  = {nav:{$navEditId}, qa:{$qaEditId}, rt:{$rtEditId}};
   const editId   = editIds[currentTab];
   if (editId) {
     document.getElementById('ed-crumb-label').textContent = crumbMap[currentTab]+' / #'+editId;
   }
+
+  // Init drag-sort for all three lists
+  initDragSort('sortable-nav', 'nav');
+  initDragSort('sortable-qa',  'qa');
+  initDragSort('sortable-rt',  'rt');
 
   rtLive();
 })();

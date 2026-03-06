@@ -1,267 +1,352 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+
+/**
+ * includes/footer.php
+ * ─────────────────────────────────────────────
+ * Include di PALING BAWAH setiap halaman, sebelum </body>.
+ *
+ * Yang ditangani:
+ *  - Bottom navigation bar (dari tabel navbar_items)
+ *  - Footer desktop (dari site_settings)
+ *  - Bootstrap JS + jQuery
+ *  - Live chat widget
+ *
+ * Variabel yang dibutuhkan (sudah tersedia via header.php):
+ *  $pdo, $cfg, $brandName, $isAdmin
+ */
+
+// Pastikan $pdo & $cfg tersedia jika footer di-include tanpa header
+if (!isset($pdo)) {
+    require_once dirname(__DIR__) . '/config/database.php';
 }
-$current_page = $_SERVER['REQUEST_URI'];
+if (!isset($cfg)) {
+    if (!function_exists('loadSettings')) {
+        function loadSettings(PDO $pdo, string $table): array
+        {
+            try {
+                $s = $pdo->query("SELECT setting_key, setting_value FROM $table");
+                $r = [];
+                foreach ($s->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                    $r[$row['setting_key']] = $row['setting_value'];
+                }
+                return $r;
+            } catch (Exception $e) {
+                return [];
+            }
+        }
+    }
+    $cfg = loadSettings($pdo, 'site_settings');
+}
+if (!isset($brandName)) $brandName = $cfg['brand_name'] ?? 'UsahaPPOB';
+
+// ── Load navbar items ──────────────────────────────────────
+try {
+    $navItems = $pdo->query("SELECT * FROM navbar_items WHERE is_active=1 ORDER BY sort_order ASC")->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    $navItems = [];
+}
+
+// Support key lama (primary_color) dan key baru (color_primary)
+$cp  = $cfg['color_primary']      ?? $cfg['primary_color']      ?? '#01d298';
+$cpd = $cfg['color_primary_dark'] ?? $cfg['primary_dark_color'] ?? '#00b07e';
+$cur = $_SERVER['REQUEST_URI'];
+
+// Social media links
+$sosmed = [
+    'sosmed_instagram' => 'fab fa-instagram',
+    'sosmed_facebook'  => 'fab fa-facebook-f',
+    'sosmed_telegram'  => 'fab fa-telegram',
+    'sosmed_whatsapp'  => 'fab fa-whatsapp',
+];
 ?>
 
+<!-- ═══════════ BOTTOM NAV ═══════════ -->
+<nav class="ppob-bnav">
+    <?php foreach ($navItems as $nav):
+        $isCenter = (bool)($nav['is_center'] ?? 0);
+        $match    = trim($nav['match_path'] ?? '');
+        $isActive = $match !== '' && str_contains($cur, $match);
+    ?>
+        <?php if ($isCenter): ?>
+            <a href="<?= htmlspecialchars($nav['href']) ?>" class="ppob-ncen">
+                <div class="ppob-ncen-btn">
+                    <i class="<?= htmlspecialchars($nav['icon_class']) ?>"></i>
+                </div>
+                <span><?= htmlspecialchars($nav['label']) ?></span>
+            </a>
+        <?php else: ?>
+            <a href="<?= htmlspecialchars($nav['href']) ?>" class="ppob-ntab<?= $isActive ? ' active' : '' ?>">
+                <i class="<?= htmlspecialchars($nav['icon_class']) ?>"></i>
+                <span><?= htmlspecialchars($nav['label']) ?></span>
+            </a>
+        <?php endif; ?>
+    <?php endforeach; ?>
+</nav>
+
+<!-- ═══════════ FOOTER DESKTOP ═══════════ -->
+<footer class="ppob-footer">
+    <div class="ppob-footer-inner">
+        <div class="ppob-footer-brand">
+            <i class="fas fa-bolt"></i> <?= htmlspecialchars($brandName) ?>
+        </div>
+        <div class="ppob-footer-sm">
+            <?php foreach ($sosmed as $key => $icon):
+                $url = $cfg[$key] ?? '#';
+                if ($url && $url !== '#'): ?>
+                    <a href="<?= htmlspecialchars($url) ?>" class="ppob-sm-link" target="_blank" rel="noopener">
+                        <i class="<?= $icon ?>"></i>
+                    </a>
+            <?php endif;
+            endforeach; ?>
+        </div>
+        <p class="ppob-footer-copy"><?= htmlspecialchars($cfg['footer_copyright'] ?? '© 2026 ' . $brandName) ?></p>
+    </div>
+</footer>
+
+<!-- ═══════════ SCRIPTS ═══════════ -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
 <style>
-    /* ===================== BOTTOM NAV ===================== */
-    .bottom-nav-bar {
+    /* ── BOTTOM NAV ──────────────────────────────── */
+    .ppob-bnav {
         position: fixed;
-        bottom: 0; left: 0; right: 0;
-        background: #ffffff;
-        border-top: 1px solid #e9ecef;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100%;
+        max-width: 480px;
+        background: rgba(255, 255, 255, .97);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-top: 1px solid rgba(220, 228, 238, .9);
         display: flex;
         align-items: center;
         justify-content: space-around;
-        padding: 8px 0 20px;
-        z-index: 999;
-        box-shadow: 0 -4px 24px rgba(0,0,0,0.08);
+        padding: 8px 0 env(safe-area-inset-bottom, 16px);
+        z-index: 1000;
+        box-shadow: 0 -2px 20px rgba(0, 0, 0, .07);
     }
 
-    .nav-tab {
+    .ppob-ntab {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 3px;
-        text-decoration: none;
-        padding: 4px 14px;
+        gap: 2px;
+        padding: 3px 12px;
         border-radius: 10px;
-        transition: all 0.15s;
-        min-width: 52px;
+        min-width: 48px;
+        text-decoration: none;
+        -webkit-tap-highlight-color: transparent;
+        transition: opacity .15s;
     }
 
-    .nav-tab i {
-        font-size: 20px;
-        color: #adb5bd;
-        transition: color 0.15s;
+    .ppob-ntab i {
+        font-size: 19px;
+        color: #c4cdd9;
+        transition: color .15s;
     }
 
-    .nav-tab span {
-        font-size: 10px;
-        font-weight: 700;
-        color: #adb5bd;
-        font-family: 'Nunito', sans-serif;
-        transition: color 0.15s;
+    .ppob-ntab span {
+        font-size: 9.5px;
+        font-weight: 800;
+        color: #c4cdd9;
+        font-family: 'Plus Jakarta Sans', sans-serif;
     }
 
-    .nav-tab.active i,
-    .nav-tab.active span {
-        color: #01d298;
+    .ppob-ntab.active i,
+    .ppob-ntab.active span {
+        color: <?= htmlspecialchars($cpd) ?>;
     }
 
-    .nav-tab:active i,
-    .nav-tab:active span {
-        color: #01d298;
+    .ppob-ntab:active {
+        opacity: .7;
     }
 
-    /* Center PAY / Top Up button */
-    .nav-center-wrapper {
+    /* Center floating button */
+    .ppob-ncen {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 3px;
-        text-decoration: none;
+        gap: 2px;
         margin-top: -26px;
+        text-decoration: none;
+        -webkit-tap-highlight-color: transparent;
     }
 
-    .nav-center-btn {
-        width: 58px; height: 58px;
-        background: linear-gradient(135deg, #01d298, #00b07e);
-        border-radius: 18px;
+    .ppob-ncen-btn {
+        width: 54px;
+        height: 54px;
+        background: linear-gradient(135deg, <?= htmlspecialchars($cp) ?>, <?= htmlspecialchars($cpd) ?>);
+        border-radius: 17px;
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 6px 20px rgba(1, 210, 152, 0.45);
-        transition: transform 0.15s, box-shadow 0.15s;
+        box-shadow: 0 6px 22px <?= htmlspecialchars($cp) ?>55;
+        transition: transform .15s, box-shadow .15s;
     }
 
-    .nav-center-wrapper:active .nav-center-btn {
-        transform: scale(0.92);
-        box-shadow: 0 3px 12px rgba(1, 210, 152, 0.3);
+    .ppob-ncen:active .ppob-ncen-btn {
+        transform: scale(.90);
+        box-shadow: 0 3px 10px <?= htmlspecialchars($cp) ?>33;
     }
 
-    .nav-center-btn i {
-        color: white;
-        font-size: 22px;
+    .ppob-ncen-btn i {
+        color: #fff;
+        font-size: 21px;
     }
 
-    .nav-center-wrapper span {
-        font-size: 10px;
-        font-weight: 700;
-        color: #01d298;
-        font-family: 'Nunito', sans-serif;
+    .ppob-ncen span {
+        font-size: 9.5px;
+        font-weight: 800;
+        color: <?= htmlspecialchars($cpd) ?>;
+        font-family: 'Plus Jakarta Sans', sans-serif;
     }
 
-    /* Footer desktop (hidden on mobile) */
-    .footer-desktop {
+    /* ── FOOTER DESKTOP ──────────────────────────── */
+    .ppob-footer {
         display: none;
-        background: linear-gradient(135deg, #01d298, #00b07e);
-        color: white;
-        padding: 16px 0;
+        background: linear-gradient(135deg, <?= htmlspecialchars($cpd) ?>, <?= htmlspecialchars($cp) ?>);
         margin-top: 40px;
     }
 
-    @media (min-width: 992px) {
-        .footer-desktop { display: block; }
-        .bottom-nav-bar { display: none; }
-        body { padding-bottom: 0 !important; }
+    .ppob-footer-inner {
+        max-width: 480px;
+        margin: 0 auto;
+        padding: 16px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
     }
 
-    .sosmed-link {
-        width: 34px; height: 34px;
-        background: rgba(255,255,255,0.2);
+    .ppob-footer-brand {
+        color: #fff;
+        font-size: 14px;
+        font-weight: 900;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .ppob-footer-sm {
+        display: flex;
+        gap: 7px;
+    }
+
+    .ppob-sm-link {
+        width: 30px;
+        height: 30px;
+        background: rgba(255, 255, 255, .2);
         border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        color: white;
-        text-decoration: none;
-        transition: background 0.2s;
-    }
-    .sosmed-link:hover { background: rgba(255,255,255,0.35); color: white; }
-    .sosmed-link i { font-size: 14px; }
-
-    .copyright-text {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
         font-size: 13px;
-        font-family: 'Nunito', sans-serif;
-        color: rgba(255,255,255,0.85);
+        transition: background .2s;
+    }
+
+    .ppob-sm-link:hover {
+        background: rgba(255, 255, 255, .35);
+        color: #fff;
+    }
+
+    .ppob-footer-copy {
+        color: rgba(255, 255, 255, .75);
+        font-size: 11.5px;
+        font-weight: 500;
+        margin: 0;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    /* Desktop: show footer, hide bottom nav */
+    @media (min-width: 992px) {
+        .ppob-footer {
+            display: block;
+        }
+
+        .ppob-bnav {
+            display: none !important;
+        }
+
+        body {
+            padding-bottom: 0 !important;
+        }
     }
 </style>
 
-<!-- ===================== BOTTOM NAV (Mobile) ===================== -->
-<div class="bottom-nav-bar">
-    <a href="/demo/dashboard.php"
-       class="nav-tab <?= (strpos($current_page, 'dashboard') !== false) ? 'active' : '' ?>">
-        <i class="fas fa-home"></i>
-        <span>Beranda</span>
-    </a>
-
-    <a href="/demo/modules/user/riwayat.php"
-       class="nav-tab <?= (strpos($current_page, 'riwayat') !== false) ? 'active' : '' ?>">
-        <i class="fas fa-receipt"></i>
-        <span>Aktivitas</span>
-    </a>
-
-    <!-- Center Button -->
-    <a href="/demo/modules/user/topup.php" class="nav-center-wrapper">
-        <div class="nav-center-btn">
-            <i class="fas fa-qrcode"></i>
-        </div>
-        <span>Top Up</span>
-    </a>
-
-    <a href="#" class="nav-tab">
-        <i class="fas fa-wallet"></i>
-        <span>Dompet</span>
-    </a>
-
-    <a href="/demo/modules/user/profil.php"
-       class="nav-tab <?= (strpos($current_page, 'profil') !== false) ? 'active' : '' ?>">
-        <i class="fas fa-user-circle"></i>
-        <span>Saya</span>
-    </a>
-</div>
-
-<!-- ===================== FOOTER DESKTOP ===================== -->
-<footer class="footer-desktop">
-    <div class="container">
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
-            <div class="d-flex align-items-center gap-3">
-                <div class="d-flex gap-2">
-                    <a href="#" class="sosmed-link"><i class="fab fa-instagram"></i></a>
-                    <a href="#" class="sosmed-link"><i class="fab fa-facebook-f"></i></a>
-                    <a href="#" class="sosmed-link"><i class="fab fa-telegram"></i></a>
-                    <a href="#" class="sosmed-link"><i class="fab fa-whatsapp"></i></a>
-                </div>
-            </div>
-            <p class="mb-0 copyright-text">
-                © 2026 <strong>UsahaPPOB</strong> — Revolusi Digital PPOB
-            </p>
-        </div>
-    </div>
-</footer>
-
-<!-- ===================== LIVE CHAT WIDGET ===================== -->
+<!-- ═══════════ LIVE CHAT WIDGET ═══════════ -->
 <script>
-$(document).ready(function () {
-    const isAdmin = <?php echo json_encode(isset($_SESSION['role']) && $_SESSION['role'] === 'admin'); ?>;
-    let activeTargetId = new URLSearchParams(window.location.search).get('user_id') || 0;
+    $(function() {
+        const isAdmin = <?= json_encode(isset($_SESSION['role']) && $_SESSION['role'] === 'admin') ?>;
+        let tid = parseInt(new URLSearchParams(location.search).get('user_id')) || 0;
+        if (!isAdmin && tid === 0) tid = 1;
 
-    if (!isAdmin && activeTargetId == 0) {
-        activeTargetId = 1;
-    }
+        window.showTab = function(type) {
+            if (type === 'list') {
+                $('#tab-list').addClass('active bg-info');
+                $('#tab-chat').removeClass('active bg-info');
+                $('#user-list-container').removeClass('d-none');
+                $('#message-container, #input-container').addClass('d-none');
+                loadList();
+            } else {
+                $('#tab-chat').addClass('active bg-info');
+                $('#tab-list').removeClass('active bg-info');
+                $('#user-list-container').addClass('d-none');
+                $('#message-container, #input-container').removeClass('d-none');
+            }
+        };
+        window.selectUser = function(id) {
+            tid = id;
+            showTab('message');
+            loadMsgs();
+        };
 
-    window.showTab = function (type) {
-        if (type === 'list') {
-            $('#tab-list').addClass('active bg-info');
-            $('#tab-chat').removeClass('active bg-info');
-            $('#user-list-container').removeClass('d-none');
-            $('#message-container, #input-container').addClass('d-none');
-            loadUserList();
-        } else {
-            $('#tab-chat').addClass('active bg-info');
-            $('#tab-list').removeClass('active bg-info');
-            $('#user-list-container').addClass('d-none');
-            $('#message-container, #input-container').removeClass('d-none');
+        function loadList() {
+            if (!$('#user-list-container').hasClass('d-none'))
+                $('#user-list').load('/core/chat_handler.php?action=get_users');
         }
-    };
 
-    window.selectUser = function (id, name) {
-        activeTargetId = id;
-        showTab('message');
-        loadMessages();
-    };
-
-    function loadUserList() {
-        if ($('#user-list-container').length && !$('#user-list-container').hasClass('d-none')) {
-            $('#user-list').load('/demo/core/chat_handler.php?action=get_users');
-        }
-    }
-
-    function loadMessages() {
-        if (!$('#chat-box').hasClass('d-none') && (isAdmin ? !$('#message-container').hasClass('d-none') : true)) {
-            $.get('/demo/core/chat_handler.php', {
+        function loadMsgs() {
+            if ($('#chat-box').hasClass('d-none')) return;
+            if (isAdmin && $('#message-container').hasClass('d-none')) return;
+            $.get('/core/chat_handler.php', {
                 action: 'fetch',
-                user_id: activeTargetId
-            }, function (data) {
-                $('#chat-messages').html(data);
-                let obj = document.getElementById('chat-messages');
-                if (obj) obj.scrollTop = obj.scrollHeight;
+                user_id: tid
+            }, function(d) {
+                $('#chat-messages').html(d);
+                const o = document.getElementById('chat-messages');
+                if (o) o.scrollTop = o.scrollHeight;
             });
         }
-    }
 
-    function sendMessage() {
-        let msg = $('#chat-input').val().trim();
-        if (msg === '' || activeTargetId == 0) return;
-        $.post('/demo/core/chat_handler.php?action=send&user_id=' + activeTargetId, {
-            message: msg
-        }, function () {
-            $('#chat-input').val('');
-            loadMessages();
-        });
-    }
-
-    $('#btn-send').click(sendMessage);
-    $('#chat-input').keypress(e => { if (e.which == 13) sendMessage(); });
-
-    $('#chat-icon').click(() => {
-        $('#chat-box').toggleClass('d-none');
-        if (!$('#chat-box').hasClass('d-none')) {
-            if (isAdmin && activeTargetId == 0) {
-                showTab('list');
-            } else {
-                loadMessages();
-            }
+        function sendMsg() {
+            const m = $('#chat-input').val().trim();
+            if (!m || tid === 0) return;
+            $.post('/core/chat_handler.php?action=send&user_id=' + tid, {
+                message: m
+            }, function() {
+                $('#chat-input').val('');
+                loadMsgs();
+            });
         }
+
+        $('#btn-send').on('click', sendMsg);
+        $('#chat-input').on('keypress', e => {
+            if (e.which === 13) sendMsg();
+        });
+        $('#chat-icon').on('click', function() {
+            $('#chat-box').toggleClass('d-none');
+            if (!$('#chat-box').hasClass('d-none')) {
+                isAdmin && tid === 0 ? showTab('list') : loadMsgs();
+            }
+        });
+        $('#close-chat').on('click', () => $('#chat-box').addClass('d-none'));
+
+        setInterval(loadMsgs, 3000);
+        if (isAdmin) setInterval(loadList, 5000);
     });
-
-    $('#close-chat').click(() => $('#chat-box').addClass('d-none'));
-
-    setInterval(loadMessages, 3000);
-    if (isAdmin) setInterval(loadUserList, 5000);
-});
 </script>
