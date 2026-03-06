@@ -92,7 +92,7 @@ function timeAgo(string $ts): string
         <?php if (!empty($hero['hero_bg_image'])): ?>background: url('<?= htmlspecialchars($hero['hero_bg_image']) ?>') center/cover no-repeat;
         <?php else: ?>background: linear-gradient(<?= (int)($hero['hero_gradient_angle'] ?? 145) ?>deg,
                 var(--cpdd) 0%, var(--cpd) 40%, var(--cp) 80%, #02f0b0 100%);
-        <?php endif; ?>padding: 28px 18px 54px;
+        <?php endif; ?>padding: 28px 18px 0;
         position: relative;
         overflow: hidden;
     }
@@ -124,7 +124,7 @@ function timeAgo(string $ts): string
         width: 130px;
         height: 130px;
         background: rgba(255, 255, 255, .05);
-        bottom: 20px;
+        bottom: 60px;
         left: -40px
     }
 
@@ -324,6 +324,90 @@ function timeAgo(string $ts): string
         text-align: center
     }
 
+    /* ══ HERO DECORATION STRIP ══════════════════════════════════ */
+    /* Hiasan di dalam hero, bagian bawah, gambar kiri-tengah-kanan */
+    .hd-strip {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        margin-top: 14px;
+        padding-bottom: 44px;
+        /* ruang untuk menu card overlap */
+        pointer-events: none;
+        /* klik diteruskan ke elemen di bawah */
+    }
+
+    /* kalau ada tombol di tengah, aktifkan pointer events */
+    .hd-strip a,
+    .hd-strip button {
+        pointer-events: auto;
+    }
+
+    .hd-side {
+        display: flex;
+        align-items: flex-end;
+        flex-shrink: 0;
+    }
+
+    .hd-side img {
+        object-fit: contain;
+        display: block;
+    }
+
+    .hd-center {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-end;
+        text-align: center;
+        padding: 0 4px 6px;
+    }
+
+    .hd-title {
+        font-size: 16px;
+        font-weight: 900;
+        line-height: 1.15;
+        letter-spacing: -.3px;
+        text-shadow: 0 1px 6px rgba(0, 0, 0, .25);
+        margin-bottom: 2px;
+    }
+
+    .hd-sub {
+        font-size: 10.5px;
+        font-weight: 700;
+        margin-bottom: 10px;
+        opacity: .88;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, .2);
+    }
+
+    .hd-center-img {
+        max-width: 100%;
+        object-fit: contain;
+        margin-bottom: 10px;
+    }
+
+    .hd-btn {
+        display: inline-block;
+        padding: 7px 26px;
+        border-radius: 99px;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: .4px;
+        text-decoration: none;
+        cursor: pointer;
+        border: none;
+        font-family: var(--f);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, .22);
+        transition: transform .15s;
+    }
+
+    .hd-btn:active {
+        transform: scale(.93);
+    }
+
     /* ══ MENU CARD ══════════════════════════════════════════════ */
     .fw {
         padding: 0 14px;
@@ -335,12 +419,12 @@ function timeAgo(string $ts): string
         margin-top: -40px;
     }
 
-    /* pakai kalau TIDAK ada hero_banner */
+    /* pakai kalau TIDAK ada hero decoration */
     .fw-normal {
-        margin-top: 10px;
+        margin-top: -40px;
     }
 
-    /* pakai kalau ada hero_banner */
+    /* sama — overlap tetap, karena strip sudah kasih padding-bottom */
     .mcard {
         background: var(--cc);
         border-radius: 20px;
@@ -1070,74 +1154,47 @@ function timeAgo(string $ts): string
                 </a>
             <?php endforeach; ?>
         </div>
-    </div>
-</div>
 
-<!-- ═══ HERO BANNER ═══ -->
-<?php if (!empty($heroBanners)): ?>
-    <div class="hb-wrap">
-        <?php foreach ($heroBanners as $hb):
-            $bgStyle = !empty($hb['bg_image'])
-                ? "background:url('{$hb['bg_image']}') center/cover no-repeat"
-                : "background:linear-gradient({$hb['bg_gradient_angle']}deg,{$hb['bg_color_start']},{$hb['bg_color_end']})";
-            $h = (int)($hb['height'] ?? 160);
+        <?php if (!empty($heroBanners)): ?>
+            <?php foreach ($heroBanners as $hb):
+                $bgStyle = '';  // strip di dalam hero, tidak pakai bg sendiri
+                $h = (int)($hb['height'] ?? 160);
+                $animClass = fn($a) => match (trim((string)$a)) {
+                    'float'       => 'anim-float',
+                    'bounce'      => 'anim-bounce',
+                    'slide-left'  => 'anim-slide-left',
+                    'slide-right' => 'anim-slide-right',
+                    'pulse'       => 'anim-pulse',
+                    'zoom-in'     => 'anim-zoom-in',
+                    default       => '',
+                };
+            ?>
+                <div class="hd-strip">
 
-            // animation class helper
-            $animClass = fn($a) => match (trim((string)$a)) {
-                'float'       => 'anim-float',
-                'bounce'      => 'anim-bounce',
-                'slide-left'  => 'anim-slide-left',
-                'slide-right' => 'anim-slide-right',
-                'pulse'       => 'anim-pulse',
-                'zoom-in'     => 'anim-zoom-in',
-                default       => '',
-            };
-        ?>
-
-            <?php if ($hb['type'] === 'image_only'): ?>
-                <!-- Type: full image -->
-                <a href="<?= htmlspecialchars($hb['btn_href'] ?? '#') ?>" class="hb">
-                    <img src="<?= htmlspecialchars($hb['bg_image']) ?>" class="hb-img-only"
-                        style="height:<?= $h ?>px" alt="">
-                </a>
-
-            <?php elseif ($hb['type'] === 'image_center'): ?>
-                <!-- Type: center image only -->
-                <a href="<?= htmlspecialchars($hb['btn_href'] ?? '#') ?>" class="hb" style="<?= $bgStyle ?>">
-                    <img src="<?= htmlspecialchars($hb['center_image'] ?? '') ?>"
-                        class="hb-center-img <?= $animClass($hb['center_image_anim'] ?? '') ?>"
-                        style="height:<?= $h ?>px;width:<?= (int)($hb['center_image_width'] ?? 160) ?>px;margin:0 auto"
-                        alt="">
-                </a>
-
-            <?php else: ?>
-                <!-- Type: layout (left | center | right) -->
-                <div class="hb hb-layout" style="<?= $bgStyle ?>;height:<?= $h ?>px">
-
-                    <!-- Left image -->
+                    <!-- Gambar Kiri -->
                     <?php if (!empty($hb['img_left'])): ?>
-                        <div class="hb-side" style="width:<?= (int)($hb['img_left_width'] ?? 90) ?>px;height:<?= $h ?>px">
+                        <div class="hd-side" style="width:<?= (int)($hb['img_left_width'] ?? 90) ?>px;height:<?= $h ?>px">
                             <img src="<?= htmlspecialchars($hb['img_left']) ?>"
                                 class="<?= $animClass($hb['img_left_anim'] ?? '') ?>"
                                 style="width:100%;max-height:<?= $h ?>px;object-fit:contain" alt="">
                         </div>
                     <?php endif; ?>
 
-                    <!-- Center -->
-                    <div class="hb-center">
+                    <!-- Tengah -->
+                    <div class="hd-center" style="min-height:<?= $h ?>px">
                         <?php if (($hb['center_type'] ?? 'text') === 'image' && !empty($hb['center_image'])): ?>
                             <img src="<?= htmlspecialchars($hb['center_image']) ?>"
-                                class="<?= $animClass($hb['center_image_anim'] ?? '') ?>"
-                                style="width:<?= (int)($hb['center_image_width'] ?? 160) ?>px;max-height:<?= $h - 20 ?>px;object-fit:contain"
+                                class="hd-center-img <?= $animClass($hb['center_image_anim'] ?? '') ?>"
+                                style="width:<?= (int)($hb['center_image_width'] ?? 160) ?>px;max-height:<?= $h - 20 ?>px"
                                 alt="">
                         <?php else: ?>
                             <?php if (!empty($hb['title'])): ?>
-                                <div class="hb-title" style="color:<?= htmlspecialchars($hb['title_color'] ?? '#fff') ?>">
+                                <div class="hd-title" style="color:<?= htmlspecialchars($hb['title_color'] ?? '#fff') ?>">
                                     <?= htmlspecialchars($hb['title']) ?>
                                 </div>
                             <?php endif; ?>
                             <?php if (!empty($hb['subtitle'])): ?>
-                                <div class="hb-sub" style="color:<?= htmlspecialchars($hb['subtitle_color'] ?? 'rgba(255,255,255,0.85)') ?>">
+                                <div class="hd-sub" style="color:<?= htmlspecialchars($hb['subtitle_color'] ?? '#fff') ?>">
                                     <?= htmlspecialchars($hb['subtitle']) ?>
                                 </div>
                             <?php endif; ?>
@@ -1145,16 +1202,16 @@ function timeAgo(string $ts): string
 
                         <?php if (!empty($hb['btn_text'])): ?>
                             <a href="<?= htmlspecialchars($hb['btn_href'] ?? '#') ?>"
-                                class="hb-btn <?= $animClass($hb['btn_anim'] ?? '') ?>"
+                                class="hd-btn <?= $animClass($hb['btn_anim'] ?? '') ?>"
                                 style="background:<?= htmlspecialchars($hb['btn_color'] ?? '#FFD700') ?>;color:<?= htmlspecialchars($hb['btn_text_color'] ?? '#000') ?>">
                                 <?= htmlspecialchars($hb['btn_text']) ?>
                             </a>
                         <?php endif; ?>
                     </div>
 
-                    <!-- Right image -->
+                    <!-- Gambar Kanan -->
                     <?php if (!empty($hb['img_right'])): ?>
-                        <div class="hb-side" style="width:<?= (int)($hb['img_right_width'] ?? 90) ?>px;height:<?= $h ?>px">
+                        <div class="hd-side" style="width:<?= (int)($hb['img_right_width'] ?? 90) ?>px;height:<?= $h ?>px">
                             <img src="<?= htmlspecialchars($hb['img_right']) ?>"
                                 class="<?= $animClass($hb['img_right_anim'] ?? '') ?>"
                                 style="width:100%;max-height:<?= $h ?>px;object-fit:contain" alt="">
@@ -1162,14 +1219,13 @@ function timeAgo(string $ts): string
                     <?php endif; ?>
 
                 </div>
-            <?php endif; ?>
-
-        <?php endforeach; ?>
+            <?php endforeach; ?>
+        <?php endif; ?>
     </div>
-<?php endif; ?>
+</div>
 
 <!-- ═══ MENU CARD ═══ -->
-<div class="fw <?= !empty($heroBanners) ? 'fw-normal' : 'fw-overlap' ?>">
+<div class="fw fw-overlap">
     <div class="mcard">
         <div class="mgrid" id="mgrid"></div>
     </div>
