@@ -49,7 +49,7 @@ $_menus = [
   ]],
   ['section' => 'Management', 'items' => [
     ['key' => 'users',      'label' => 'Users',       'icon' => 'ph-users-three',          'url' => 'users.php'],
-    ['key' => 'transaksi',  'label' => 'Transaksi',   'icon' => 'ph-swap',                 'url' => 'transaksi.php'],
+    ['key' => 'transaksi',  'label' => 'Transaksi',   'icon' => 'ph-swap',                 'url' => 'transactions'],
     ['key' => 'bank',      'label' => 'Bank',       'icon' => 'ph-bank',      'url' => 'bank'],
     ['key' => 'topups',      'label' => 'Topup',       'icon' => 'ph-currency-dollar',      'url' => 'topups'],
     ['key' => 'products',     'label' => 'Produk PPOB', 'icon' => 'ph-storefront',           'url' => 'products'],
