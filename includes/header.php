@@ -1,381 +1,260 @@
 <?php
+
+/**
+ * includes/header.php
+ * ─────────────────────────────────────────────
+ * Include di PALING ATAS setiap halaman.
+ *
+ * Yang ditangani file ini:
+ *  - Session start & auth check (redirect ke index jika belum login)
+ *  - Load config/database.php
+ *  - Load $cfg (site_settings) & $hero (hero_settings)
+ *  - Load $user & $unreadCount
+ *  - Output <!DOCTYPE html> ... <head> ... CSS global ... </head> <body>
+ *
+ * Variabel yang tersedia untuk halaman setelah include:
+ *  $pdo, $userId, $isAdmin, $user, $unreadCount, $cfg, $hero, $brandName
+ *
+ * Cara pakai di setiap halaman:
+ *  <?php
+ *    $pageTitle = 'Nama Halaman'; // opsional, default = $brandName
+ *    require_once 'includes/header.php';
+ *  ?>
+ *  ... konten halaman ...
+ *  <?php require_once 'includes/footer.php'; ?>
+ */
+
+// ── Session ────────────────────────────────────────────────
 if (session_status() === PHP_SESSION_NONE) {
+    $timeout = 86400;
+    ini_set('session.gc_maxlifetime', $timeout);
+    session_set_cookie_params($timeout);
     session_start();
 }
-require_once __DIR__ . '/../config/database.php';
 
-$user = null;
-if (isset($_SESSION['user_id'])) {
-    $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-    $stmt->execute([$_SESSION['user_id']]);
-    $user = $stmt->fetch();
+if (!isset($_SESSION['user_id'])) {
+    header('Location: ' . str_repeat('../', substr_count($_SERVER['PHP_SELF'], '/') - 1) . 'index');
+    exit();
 }
+
+// ── Database ───────────────────────────────────────────────
+if (!isset($pdo)) {
+    // Naik ke root dari includes/
+    require_once dirname(__DIR__) . '/config/database.php';
+}
+
+$userId  = $_SESSION['user_id'];
+$isAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+
+// ── Settings loader helper ─────────────────────────────────
+if (!function_exists('loadSettings')) {
+    function loadSettings(PDO $pdo, string $table): array
+    {
+        try {
+            $s = $pdo->query("SELECT setting_key, setting_value FROM $table");
+            $r = [];
+            foreach ($s->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $r[$row['setting_key']] = $row['setting_value'];
+            }
+            return $r;
+        } catch (Exception $e) {
+            return [];
+        }
+    }
+}
+
+// ── Load global settings ───────────────────────────────────
+$cfg  = loadSettings($pdo, 'site_settings');
+$hero = loadSettings($pdo, 'hero_settings');
+$brandName = $cfg['brand_name'] ?? 'UsahaPPOB';
+
+// ── User data ──────────────────────────────────────────────
+$stmtUser = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+$stmtUser->execute([$userId]);
+$user = $stmtUser->fetch();
+
+// ── Unread notification count ──────────────────────────────
+try {
+    if ($isAdmin) {
+        $sC = $pdo->prepare("SELECT COUNT(*) FROM notifications WHERE is_read=0 AND (user_id=? OR (SELECT role FROM users WHERE id=notifications.user_id)='user')");
+    } else {
+        $sC = $pdo->prepare("SELECT COUNT(*) FROM notifications WHERE is_read=0 AND user_id=?");
+    }
+    $sC->execute([$userId]);
+    $unreadCount = (int)$sC->fetchColumn();
+} catch (Exception $e) {
+    $unreadCount = 0;
+}
+
+// ── Page title ─────────────────────────────────────────────
+// Halaman bisa set $pageTitle sebelum include ini
+if (!isset($pageTitle)) $pageTitle = $brandName;
 ?>
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UsahaPPOB</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <meta name="theme-color" content="<?= htmlspecialchars($cfg['color_primary'] ?? '#01d298') ?>">
+    <title><?= htmlspecialchars($pageTitle) ?> — <?= htmlspecialchars($brandName) ?></title>
 
-    <!-- Bootstrap -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts -->
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <!-- NProgress -->
-    <link rel="stylesheet" href="https://unpkg.com/nprogress@0.2.0/nprogress.css">
-    <script src="https://unpkg.com/nprogress@0.2.0/nprogress.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
 
     <style>
+        /* ═══════════════════════════════════════════════════
+   CSS VARIABLES — diambil dari site_settings di DB
+   Ubah warna cukup dari tabel site_settings
+═══════════════════════════════════════════════════ */
         :root {
-            --primary: #01d298;
-            --primary-dark: #00b07e;
-            --primary-darker: #009068;
-            --primary-light: #e6fff9;
-            --primary-soft: #f0fdf8;
+            --cp: <?= htmlspecialchars($cfg['color_primary']        ?? $cfg['primary_color']      ?? '#01d298') ?>;
+            --cpd: <?= htmlspecialchars($cfg['color_primary_dark']   ?? $cfg['primary_dark_color'] ?? '#00b07e') ?>;
+            --cpdd: <?= htmlspecialchars($cfg['color_primary_darker'] ?? '#009068') ?>;
+            --cpl: <?= htmlspecialchars($cfg['color_primary_light']  ?? '#e6fff9') ?>;
+            --ca: <?= htmlspecialchars($cfg['color_accent']         ?? '#f97316') ?>;
+            --ct: <?= htmlspecialchars($cfg['color_text_main']      ?? '#0f172a') ?>;
+            --cm: <?= htmlspecialchars($cfg['color_text_muted']     ?? '#64748b') ?>;
+            --cbg: <?= htmlspecialchars($cfg['color_bg']             ?? '#f0f4f8') ?>;
+            --cc: <?= htmlspecialchars($cfg['color_card']           ?? '#ffffff') ?>;
+            --f: 'Plus Jakarta Sans', sans-serif;
+            --r: 16px;
+            --rsm: 10px;
+            --sh: 0 2px 12px rgba(0, 0, 0, .06);
+            --shm: 0 6px 28px rgba(0, 0, 0, .10);
         }
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
-        body {
-            font-family: 'Nunito', sans-serif;
-            background: #f1f5f9;
+        /* ── RESET & BASE ───────────────────────────── */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
         }
 
-        /* NProgress bar */
-        #nprogress .bar {
-            background: #01d298 !important;
-            height: 3px !important;
+        html {
+            -webkit-text-size-adjust: 100%;
         }
 
-        #nprogress .peg {
-            box-shadow: 0 0 10px #01d298, 0 0 5px #01d298 !important;
+        body {
+            font-family: var(--f);
+            background: var(--cbg);
+            color: var(--ct);
+            padding-bottom: 84px;
+            /* ruang untuk bottom nav, di-override di 992px oleh footer.php */
+            max-width: 480px;
+            /* layout mobile-centered */
+            margin: 0 auto;
+            -webkit-font-smoothing: antialiased;
         }
 
-        /* ===================== NAVBAR ===================== */
-        .main-navbar {
-            background: linear-gradient(135deg, #01d298 0%, #009068 100%);
-            padding: 0;
-            position: sticky;
-            top: 0;
-            z-index: 990;
-            box-shadow: 0 2px 20px rgba(1,210,152,0.3);
-        }
-
-        .navbar-inner {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 14px 24px;
-        }
-
-        /* Brand */
-        .nav-brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        a {
             text-decoration: none;
+            color: inherit;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        .nav-brand-icon {
-            width: 38px; height: 38px;
-            background: rgba(255,255,255,0.25);
-            border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            backdrop-filter: blur(5px);
+        img {
+            display: block;
+            max-width: 100%;
         }
 
-        .nav-brand-icon i { color: white; font-size: 18px; }
-
-        .nav-brand-name {
-            font-size: 20px;
-            font-weight: 900;
-            color: white;
-            letter-spacing: -0.8px;
-        }
-
-        /* Nav Links */
-        .nav-links {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .nav-link-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 16px;
-            color: rgba(255,255,255,0.85);
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 700;
-            border-radius: 50px;
-            transition: all 0.2s;
-            font-family: 'Nunito', sans-serif;
-        }
-
-        .nav-link-item:hover {
-            background: rgba(255,255,255,0.18);
-            color: white;
-        }
-
-        .nav-link-item i { font-size: 14px; }
-
-        /* CTA Button */
-        .nav-cta-btn {
-            background: white;
-            color: var(--primary) !important;
-            font-weight: 800 !important;
-            border-radius: 50px !important;
-            padding: 9px 22px !important;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.12);
-            transition: transform 0.15s, box-shadow 0.15s !important;
-        }
-
-        .nav-cta-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 18px rgba(0,0,0,0.15) !important;
-            color: var(--primary-dark) !important;
-        }
-
-        /* Auth buttons */
-        .btn-nav-outline {
-            background: transparent;
-            color: white !important;
-            border: 2px solid rgba(255,255,255,0.55);
-            border-radius: 50px !important;
-            padding: 7px 20px !important;
-            font-weight: 700 !important;
-            font-size: 13px !important;
-            transition: all 0.2s;
-            font-family: 'Nunito', sans-serif;
-        }
-
-        .btn-nav-outline:hover {
-            background: rgba(255,255,255,0.18);
-            border-color: white;
-            color: white !important;
-        }
-
-        .btn-nav-solid {
-            background: white;
-            color: var(--primary) !important;
-            border: 2px solid white;
-            border-radius: 50px !important;
-            padding: 7px 20px !important;
-            font-weight: 800 !important;
-            font-size: 13px !important;
-            font-family: 'Nunito', sans-serif;
-            transition: all 0.2s;
-        }
-
-        .btn-nav-solid:hover {
-            background: rgba(255,255,255,0.88);
-            color: var(--primary-dark) !important;
-        }
-
-        /* User pill */
-        .nav-user-pill {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(255,255,255,0.18);
-            border-radius: 50px;
-            padding: 6px 14px 6px 6px;
-            text-decoration: none;
-            transition: background 0.2s;
-        }
-
-        .nav-user-pill:hover { background: rgba(255,255,255,0.28); }
-
-        .nav-user-avatar {
-            width: 28px; height: 28px;
-            background: rgba(255,255,255,0.35);
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-        }
-
-        .nav-user-avatar i { color: white; font-size: 13px; }
-
-        .nav-user-name {
-            font-size: 13px;
-            font-weight: 700;
-            color: white;
-            max-width: 120px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        /* Logout btn */
-        .btn-nav-logout {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            background: rgba(255,255,255,0.12);
-            color: white !important;
-            border-radius: 50px;
-            padding: 8px 16px;
-            font-size: 13px;
-            font-weight: 700;
-            text-decoration: none;
-            transition: background 0.2s;
-            font-family: 'Nunito', sans-serif;
-        }
-
-        .btn-nav-logout:hover { background: rgba(255,255,255,0.22); }
-        .btn-nav-logout i { font-size: 13px; }
-
-        /* Mobile hamburger (only on mobile) */
-        .nav-hamburger {
-            display: none;
-            flex-direction: column;
-            gap: 5px;
+        button {
+            font-family: var(--f);
             cursor: pointer;
-            padding: 4px;
-            background: rgba(255,255,255,0.2);
             border: none;
-            border-radius: 10px;
-            width: 40px; height: 40px;
-            align-items: center; justify-content: center;
+            background: none;
         }
 
-        .nav-hamburger span {
-            display: block;
-            width: 20px; height: 2px;
-            background: white;
-            border-radius: 2px;
-            transition: all 0.25s;
+        /* ── UTILITY ────────────────────────────────── */
+        .g8 {
+            height: 8px;
         }
 
-        /* Collapsible nav (mobile) */
-        .nav-collapse {
-            display: none;
-            background: rgba(0,0,0,0.15);
-            backdrop-filter: blur(5px);
-            padding: 12px 20px 20px;
+        .g12 {
+            height: 12px;
         }
 
-        .nav-collapse.show { display: block; }
-
-        .nav-collapse .nav-link-item {
-            display: block;
-            padding: 10px 16px;
-            margin-bottom: 4px;
+        .g16 {
+            height: 16px;
         }
 
-        .nav-collapse .nav-cta-btn,
-        .nav-collapse .btn-nav-solid,
-        .nav-collapse .btn-nav-outline,
-        .nav-collapse .btn-nav-logout,
-        .nav-collapse .nav-user-pill {
-            display: block;
-            width: 100%;
-            text-align: center;
-            margin-bottom: 8px;
+        .g20 {
+            height: 20px;
         }
 
-        @media (max-width: 991px) {
-            .nav-links { display: none; }
-            .nav-hamburger { display: flex; }
+        /* ── SECTION ────────────────────────────────── */
+        .sec {
+            padding: 12px 14px 0;
         }
+
+        .sechd {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 9px;
+        }
+
+        .sectit {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--ct);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .sectit i {
+            font-size: 11px;
+        }
+
+        .secmore {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--cpd);
+        }
+
+        /* ── CARD BASE ──────────────────────────────── */
+        .card-base {
+            background: var(--cc);
+            border-radius: var(--r);
+            border: 1px solid rgba(0, 0, 0, .045);
+            box-shadow: var(--sh);
+        }
+
+        /* ── MAINTENANCE NOTICE ─────────────────────── */
+        .mnt {
+            margin: 10px 14px 0;
+            background: #fff1f2;
+            border: 1px solid #fecdd3;
+            border-radius: 11px;
+            padding: 9px 12px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #be123c;
+        }
+
+        .mnt i {
+            color: #f43f5e;
+            font-size: 13px;
+        }
+
+        /* ── PAGE-LEVEL STYLES halaman bisa override ── */
+        <?php if (isset($extraCSS)) echo $extraCSS; ?>
     </style>
+    <?php if (isset($extraHead)) echo $extraHead; ?>
 </head>
+
 <body>
-
-<!-- ===================== NAVBAR ===================== -->
-<nav class="main-navbar">
-    <div class="navbar-inner container-fluid px-3 px-lg-4">
-        <!-- Brand -->
-        <a href="/" class="nav-brand">
-            <div class="nav-brand-icon">
-                <i class="fas fa-bolt"></i>
-            </div>
-            <span class="nav-brand-name">UsahaPPOB</span>
-        </a>
-
-        <!-- Desktop Nav Links -->
-        <div class="nav-links">
-            <?php if (!$user): ?>
-                <a href="#product" class="nav-link-item">
-                    <i class="fas fa-th-large"></i> Produk
-                </a>
-                <a href="#promo" class="nav-link-item">
-                    <i class="fas fa-percentage"></i> Promo
-                </a>
-                <a href="#" class="nav-link-item nav-cta-btn">
-                    <i class="fas fa-mobile-alt"></i> Download App
-                </a>
-                <a href="#" class="btn-nav-outline" data-bs-toggle="modal" data-bs-target="#loginModal">
-                    Masuk
-                </a>
-                <a href="#" class="btn-nav-solid" data-bs-toggle="modal" data-bs-target="#registerModal">
-                    Daftar
-                </a>
-            <?php else: ?>
-                <a href="#" class="nav-link-item nav-cta-btn">
-                    <i class="fas fa-mobile-alt"></i> Download App
-                </a>
-                <a href="/dashboard.php" class="nav-user-pill">
-                    <div class="nav-user-avatar"><i class="fas fa-user"></i></div>
-                    <span class="nav-user-name"><?= htmlspecialchars($user['username']) ?></span>
-                </a>
-                <a href="/logout.php" class="btn-nav-logout">
-                    <i class="fas fa-power-off"></i> Keluar
-                </a>
-            <?php endif; ?>
-        </div>
-
-        <!-- Mobile Hamburger -->
-        <button class="nav-hamburger" onclick="toggleMobileNav(this)" aria-label="Menu">
-            <span></span>
-            <span></span>
-            <span></span>
-        </button>
-    </div>
-
-    <!-- Mobile Collapse Menu -->
-    <div class="nav-collapse" id="mobileNav">
-        <?php if (!$user): ?>
-            <a href="#product" class="nav-link-item"><i class="fas fa-th-large me-2"></i>Produk</a>
-            <a href="#promo"   class="nav-link-item"><i class="fas fa-percentage me-2"></i>Promo</a>
-            <a href="#"        class="nav-cta-btn nav-link-item"><i class="fas fa-mobile-alt me-2"></i>Download App</a>
-            <a href="#" class="btn-nav-outline text-center py-2 d-block rounded-pill mb-2"
-               data-bs-toggle="modal" data-bs-target="#loginModal">Masuk</a>
-            <a href="#" class="btn-nav-solid text-center py-2 d-block rounded-pill"
-               data-bs-toggle="modal" data-bs-target="#registerModal">Daftar</a>
-        <?php else: ?>
-            <a href="/dashboard.php" class="nav-link-item"><i class="fas fa-home me-2"></i>Dashboard</a>
-            <a href="/logout.php"    class="btn-nav-logout mt-2"><i class="fas fa-power-off me-2"></i>Keluar</a>
-        <?php endif; ?>
-    </div>
-</nav>
-
-<script>
-    // NProgress
-    NProgress.start();
-    window.addEventListener('load', function () { NProgress.done(); });
-
-    // Mobile nav toggle
-    function toggleMobileNav(btn) {
-        const nav = document.getElementById('mobileNav');
-        nav.classList.toggle('show');
-        // Animate hamburger
-        const spans = btn.querySelectorAll('span');
-        if (nav.classList.contains('show')) {
-            spans[0].style.transform = 'translateY(7px) rotate(45deg)';
-            spans[1].style.opacity = '0';
-            spans[2].style.transform = 'translateY(-7px) rotate(-45deg)';
-        } else {
-            spans[0].style.transform = '';
-            spans[1].style.opacity = '';
-            spans[2].style.transform = '';
-        }
-    }
-</script>
+    <?php if (!empty($cfg['maintenance_notice'])): ?>
+        <div class="mnt"><i class="fas fa-triangle-exclamation"></i> <?= htmlspecialchars($cfg['maintenance_notice']) ?></div>
+    <?php endif; ?>

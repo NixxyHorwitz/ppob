@@ -4,3 +4,5 @@ RewriteBase /
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME}\.php -f
 RewriteRule ^(.*)$ $1.php [L]
+
+RewriteRule ^cms/([0-9]+)\.([a-zA-Z0-9]+)$ /modules/cms.php?id=$1&ext=$2 [L,QSA]
