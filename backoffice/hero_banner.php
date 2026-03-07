@@ -535,7 +535,18 @@ select.st-select{
             <div class="st-col"><span class="st-lbl">W×H</span>
               <div class="st-sz">
                 <div class="st-sz-f"><input type="number" name="<?=$fnw?>" id="f_<?=$fnw?>" class="st-inp" min="10" max="400" value="<?=(int)($b[$fnw]??90)?>" oninput="livePreview();markDirty()"/><span class="st-sz-u">W</span></div>
-                <div class="st-sz-f"><input type="number" name="<?=$fnh?>" id="f_<?=$fnh?>" class="st-inp" min="0" max="400" placeholder="auto" value="<?=(int)($b[$fnh]??0)?0:'':''?>" oninput="livePreview();markDirty()"/><span class="st-sz-u">H</span></div>
+              <div class="st-sz-f">
+    <input type="number"
+           name="<?=$fnh?>"
+           id="f_<?=$fnh?>"
+           class="st-inp"
+           min="0"
+           max="400"
+           placeholder="auto"
+           value="<?= (int)($b[$fnh] ?? 0) ? (int)$b[$fnh] : '' ?>"
+           oninput="livePreview();markDirty()"/>
+    <span class="st-sz-u">H</span>
+</div>
               </div>
             </div>
             <div class="st-col"><span class="st-lbl">Anim</span><?=anim_sel($fna,$b[$fna]??'','st-select')?></div>
