@@ -498,7 +498,18 @@ select.st-select{
             <div class="st-col"><span class="st-lbl">W×H</span>
               <div class="st-sz">
                 <div class="st-sz-f"><input type="number" name="center_image_width" id="f_center_image_width" class="st-inp" min="10" max="600" value="<?=(int)($b['center_image_width']??160)?>" oninput="livePreview();markDirty()"/><span class="st-sz-u">W</span></div>
-                <div class="st-sz-f"><input type="number" name="center_image_height" id="f_center_image_height" class="st-inp" min="0" max="600" placeholder="auto" value="<?=(int)($b['center_image_height']??0)?0:'':''?>" oninput="livePreview();markDirty()"/><span class="st-sz-u">H</span></div>
+             <div class="st-sz-f">
+<input type="number" 
+       name="center_image_height" 
+       id="f_center_image_height" 
+       class="st-inp" 
+       min="0" 
+       max="600" 
+       placeholder="auto"
+       value="<?= ((int)($b['center_image_height'] ?? 0)) ? (int)$b['center_image_height'] : '' ?>"
+       oninput="livePreview();markDirty()"/>
+<span class="st-sz-u">H</span>
+</div>
               </div>
             </div>
             <div class="st-col"><span class="st-lbl">Anim</span><?=anim_sel('center_image_anim',$b['center_image_anim']??'','st-select')?></div>
