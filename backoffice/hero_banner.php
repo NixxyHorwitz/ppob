@@ -920,6 +920,412 @@ require_once __DIR__ . '/includes/header.php';
     }
 </style>
 
+<?php
+// Only pass fields JS needs — avoids any non-ASCII chars breaking the JS literal
+$b_safe = [];
+$b_safe_keys = [
+    'type',
+    'bg_image',
+    'bg_color_start',
+    'bg_color_end',
+    'bg_gradient_angle',
+    'height',
+    'img_left',
+    'img_left_width',
+    'img_left_height',
+    'img_left_anim',
+    'center_type',
+    'title',
+    'title_color',
+    'subtitle',
+    'subtitle_color',
+    'center_image',
+    'center_image_width',
+    'center_image_height',
+    'center_image_anim',
+    'btn_text',
+    'btn_href',
+    'btn_color',
+    'btn_text_color',
+    'btn_anim',
+    'img_right',
+    'img_right_width',
+    'img_right_height',
+    'img_right_anim',
+    'is_active',
+];
+foreach (['strip_', 'img_left_', 'center_', 'title_', 'sub_', 'center_img_', 'btn_', 'img_right_'] as $pfx)
+    foreach (['pt', 'pr', 'pb', 'pl', 'mt', 'mr', 'mb', 'ml', 'top', 'right', 'bottom', 'left'] as $sfx)
+        $b_safe_keys[] = $pfx . $sfx;
+foreach ($b_safe_keys as $k) $b_safe[$k] = $b[$k] ?? null;
+// JSON_HEX_* ensures ALL non-ASCII and special chars are \uXXXX escaped — 100% safe in JS
+$b_json = json_encode($b_safe, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_HEX_SLASH);
+$page_scripts = '';
+?>
+<script>
+    const HB = <?php echo $b_json; ?>;
+
+    // ─── Tabs ──────────────────────────────────────────────────
+    function hbeTab(btn, id) {
+        document.querySelectorAll('.hbe-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        ['tabBg', 'tabContent', 'tabImages', 'tabOffsets', 'tabSettings'].forEach(t => {
+            const el = document.getElementById(t);
+            if (el) el.style.display = t === id ? '' : 'none';
+        });
+    }
+
+    // ─── Type / center-type pills ──────────────────────────────
+    function hbeSetType(v) {
+        document.querySelectorAll('input[name="type"]').forEach(r => r.checked = r.value === v);
+        document.querySelectorAll('.hbe-pill').forEach(p => {
+            const r = p.querySelector('input[name="type"]');
+            if (r) p.classList.toggle('on', r.checked);
+        });
+        const isL = v === 'layout';
+        ['sideImgSec'].forEach(id => {
+            const e = document.getElementById(id);
+            if (e) e.style.display = isL ? '' : 'none';
+        });
+        ['noSideNote'].forEach(id => {
+            const e = document.getElementById(id);
+            if (e) e.style.display = isL ? 'none' : '';
+        });
+        document.querySelectorAll('.sideOffEl').forEach(e => e.style.display = isL ? '' : 'none');
+        markUnsaved();
+        livePreview();
+    }
+
+    function hbeSetCT(v) {
+        document.querySelectorAll('input[name="center_type"]').forEach(r => r.checked = r.value === v);
+        document.querySelectorAll('#tabContent .hbe-pill').forEach(p => {
+            const r = p.querySelector('input[name="center_type"]');
+            if (r) p.classList.toggle('on', r.checked);
+        });
+        document.getElementById('ctText').style.display = v === 'text' ? '' : 'none';
+        document.getElementById('ctImg').style.display = v === 'image' ? '' : 'none';
+        markUnsaved();
+        livePreview();
+    }
+
+    // ─── Color helpers ─────────────────────────────────────────
+    function syncHex(p, hId) {
+        const e = document.getElementById(hId);
+        if (e) e.value = p.value;
+    }
+
+    function syncPic(h, pId) {
+        if (/^#[0-9a-fA-F]{6}$/.test(h.value)) {
+            const e = document.getElementById(pId);
+            if (e) e.value = h.value;
+        }
+    }
+
+    function setClr(pId, hId, c) {
+        const p = document.getElementById(pId),
+            h = document.getElementById(hId);
+        if (p) p.value = c;
+        if (h) h.value = c;
+        markUnsaved();
+        livePreview();
+        updateGradBar();
+    }
+
+    function updateGradBar() {
+        const bar = document.getElementById('gradBar');
+        if (!bar) return;
+        const s = document.getElementById('gc_s')?.value || '#005bb5';
+        const e = document.getElementById('gc_e')?.value || '#0099ff';
+        const a = document.querySelector('input[name="bg_gradient_angle"]')?.value || 135;
+        bar.style.background = \`linear-gradient(\${a}deg,\${s},\${e})\`;
+}
+function hbeThumb(inp,id){const i=document.getElementById(id);if(!i)return;i.src=inp.value.trim();i.style.display=inp.value.trim()?'block':'none';}
+function hbeSwitch(inp){
+  const t=document.getElementById('isActiveTrack');if(!t)return;
+  const d=t.querySelector('.hbe-sw-dot');
+  t.style.background=inp.checked?'#3b82f6':'rgba(255,255,255,.12)';
+  if(d)d.style.left=inp.checked?'19px':'3px';
+}
+
+// ─── Unsaved ───────────────────────────────────────────────
+let _dirty=false;
+function markUnsaved(){
+  _dirty=true;
+  ['unsavedDot','unsavedDot2'].forEach(id=>document.getElementById(id)?.classList.add('show'));
+  const t=document.getElementById('saveTxt'),i=document.getElementById('saveIco');
+  if(t)t.textContent='Belum tersimpan';
+  if(i){i.className='ph ph-warning';i.style.color='#f59e0b';}
+}
+document.getElementById('hbeForm').addEventListener('input',markUnsaved);
+document.getElementById('hbeForm').addEventListener('submit',()=>{_dirty=false;});
+window.addEventListener('beforeunload',e=>{if(_dirty){e.preventDefault();e.returnValue='';}});
+
+// ─── Form value getter ─────────────────────────────────────
+function gv(name){
+  const el=document.querySelector(\`[name="\${name}"]\`);
+  if(!el)return'';if(el.type==='checkbox')return el.checked;return el.value??'';
+}
+function sv(name,val){
+  const el=document.querySelector(\`[name="\${name}"]\`);if(el)el.value=val;
+  const fEl=document.getElementById('f_'+name);if(fEl)fEl.value=val;
+}
+
+// ─── JS _hbStyle mirror ────────────────────────────────────
+function hbStyle(pfx,extra={}){
+  const parts=[];let hasPos=false;
+  const P=[['pt','padding-top'],['pr','padding-right'],['pb','padding-bottom'],['pl','padding-left'],
+           ['mt','margin-top'], ['mr','margin-right'], ['mb','margin-bottom'],['ml','margin-left']];
+  const POS=[['top','top'],['right','right'],['bottom','bottom'],['left','left']];
+  for(const[s,css] of P){const v=gv(pfx+s);if(v)parts.push(\`\${css}:\${v}\`);}
+  for(const[s,css] of POS){const v=gv(pfx+s);if(v){parts.push(\`\${css}:\${v}\`);hasPos=true;}}
+  if(hasPos)parts.push('position:relative');
+  for(const[k,v] of Object.entries(extra))if(v!=null&&v!=='')parts.push(\`\${k}:\${v}\`);
+  return parts.join(';');
+}
+
+// ─── Anim CSS ─────────────────────────────────────────────
+const ANIM={
+  'float':      'animation:anim-float 3s ease-in-out infinite',
+  'bounce':     'animation:anim-bounce 1.2s ease-in-out infinite',
+  'slide-left': 'animation:anim-sliL .5s ease-out both',
+  'slide-right':'animation:anim-sliR .5s ease-out both',
+  'pulse':      'animation:anim-pulse 1.5s ease-in-out infinite',
+  'zoom-in':    'animation:anim-zoom .4s ease-out both',
+};
+const animCSS=a=>ANIM[a]||'';
+const escH=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+// ─── LIVE PREVIEW ──────────────────────────────────────────
+function livePreview(){
+  const type   =gv('type')||'layout';
+  const bgImg  =gv('bg_image');
+  const bgS    =gv('bg_color_start')||'#005bb5';
+  const bgE    =gv('bg_color_end')||'#0099ff';
+  const bgA    =gv('bg_gradient_angle')||135;
+  const bh     =Math.max(60,parseInt(gv('height'))||160);
+  const imgL   =gv('img_left'), ilW=parseInt(gv('img_left_width'))||90, ilH=parseInt(gv('img_left_height'))||0, ilA=gv('img_left_anim');
+  const imgR   =gv('img_right'),irW=parseInt(gv('img_right_width'))||90,irH=parseInt(gv('img_right_height'))||0,irA=gv('img_right_anim');
+  const cType  =gv('center_type')||'text';
+  const title  =gv('title'),   titClr=gv('title_color')||'#fff';
+  const sub    =gv('subtitle'),subClr=gv('subtitle_color')||'#ffffffd9';
+  const ci     =gv('center_image'),ciW=parseInt(gv('center_image_width'))||160,ciH=parseInt(gv('center_image_height'))||0,ciA=gv('center_image_anim');
+  const btnTxt =gv('btn_text'),btnBg=gv('btn_color')||'#FFD700',btnClr=gv('btn_text_color')||'#000',btnHref=gv('btn_href')||'#',btnA=gv('btn_anim');
+  const active =gv('is_active');
+
+  // 1. Canvas BG
+  const cv=document.getElementById('prevCanvas');
+  if(cv)cv.style.background=bgImg?\`url('\${bgImg}') center/cover no-repeat\`:\`linear-gradient(\${bgA}deg,\${bgS},\${bgE})\`;
+
+  // 2. Inactive overlay
+  const ov=document.getElementById('prevInactiveOv');
+  if(ov)ov.style.display=active?'none':'';
+
+  // 3. Ruler
+  const rH=document.getElementById('rH'),rT=document.getElementById('rT'),
+        rC=document.getElementById('rC'),rS=document.getElementById('rS');
+  if(rH)rH.textContent=bh+'px';if(rT)rT.textContent=type;if(rC)rC.textContent=cType;
+  if(rS){rS.style.color=active?'#10b981':'#ef4444';
+    rS.innerHTML=\`<i class="ph ph-circle-fill" style="font-size:6px;margin-right:3px"></i>\${active?'Aktif':'Nonaktif'}\`;}
+
+  // 4. Strip
+  const strip=document.getElementById('prevStrip');
+  if(strip)strip.style.cssText=hbStyle('strip_',{'padding-bottom':gv('strip_pb')||'44px'});
+
+  // 5. Left image
+  const drgL=document.getElementById('drgLeft');
+  const pL=document.getElementById('prevLeft');
+  const showL=!!(imgL&&type==='layout');
+  if(drgL)drgL.style.display=showL?'flex':'none';
+  if(pL&&showL){
+    pL.style.cssText=hbStyle('img_left_',{width:ilW+'px',height:bh+'px'});
+    pL.innerHTML=\`<img src="\${imgL}" style="width:\${ilW}px;\${ilH>0?'height:'+ilH+'px;':'max-height:'+bh+'px;'}object-fit:contain;\${animCSS(ilA)}"/>\`;
+  }else if(pL){pL.innerHTML='';}
+
+  // 6. Center
+  const pC=document.getElementById('prevCenter');
+  if(pC){
+    pC.style.cssText=hbStyle('center_',{'min-height':bh+'px'});
+    let html='';
+    if(cType==='image'&&ci){
+      const imgStyle=hbStyle('center_img_')+';'+animCSS(ciA);
+      html=\`<div class="hbe-dragger" id="drgCenterImg" data-lbl="Gambar Tengah" data-pfx="center_img_" data-axis="xy" style="display:inline-block;pointer-events:auto">
+        <img id="prevCenterImg" src="\${ci}" style="width:\${ciW}px;\${ciH>0?'height:'+ciH+'px;':'max-height:'+bh+'px;'}object-fit:contain;\${imgStyle}"/>
+        <div class="hbe-rhandle" id="rszCenterImg" data-target="center_image"></div>
+      </div>\`;
+    }else{
+      if(title)html+=\`<div id="prevTitle" style="color:\${escH(titClr)};\${hbStyle('title_')}">\${escH(title)}</div>\`;
+      if(sub)  html+=\`<div id="prevSub"   style="color:\${escH(subClr)};\${hbStyle('sub_')}">\${escH(sub)}</div>\`;
+    }
+    if(btnTxt){
+      html+=\`<div class="hbe-dragger" id="drgBtn" data-lbl="Tombol" data-pfx="btn_" data-axis="xy" style="display:inline-block;pointer-events:auto">
+        <a id="prevBtn" href="\${escH(btnHref)}" style="background:\${escH(btnBg)};color:\${escH(btnClr)};\${hbStyle('btn_')};\${animCSS(btnA)}">\${escH(btnTxt)}</a>
+      </div>\`;
+    }
+    pC.innerHTML=html;
+    // Re-init dragger for dynamically injected elements
+    initDraggers(pC);
+  }
+
+  // 7. Right image
+  const drgR=document.getElementById('drgRight');
+  const pR=document.getElementById('prevRight');
+  const showR=!!(imgR&&type==='layout');
+  if(drgR)drgR.style.display=showR?'flex':'none';
+  if(pR&&showR){
+    pR.style.cssText=hbStyle('img_right_',{width:irW+'px',height:bh+'px'});
+    pR.innerHTML=\`<img src="\${imgR}" style="width:\${irW}px;\${irH>0?'height:'+irH+'px;':'max-height:'+bh+'px;'}object-fit:contain;\${animCSS(irA)}"/>\`;
+  }else if(pR){pR.innerHTML='';}
+
+  // Re-attach drag on static draggers that may have been reset
+  initDraggers(document.getElementById('prevStrip'));
+}
+
+// ══════════════════════════════════════════════════════════
+// ─── CANVA-STYLE DRAG & RESIZE SYSTEM ─────────────────────
+// ══════════════════════════════════════════════════════════
+
+let activeDrg=null, dragMode='margin', popupEl=null;
+let _dragStartX=0,_dragStartY=0,_dragStartMT=0,_dragStartML=0,_dragStartTop=0,_dragStartLeft=0;
+let _resizeTarget='',_resizeStartX=0,_resizeStartY=0,_resizeStartW=0,_resizeStartH=0;
+
+// ─── Popup ────────────────────────────────────────────────
+function showDragPopup(drg,x,y){
+  const popup=document.getElementById('dragPopup');
+  const lbl=drg.dataset.lbl||'Elemen';
+  document.getElementById('dpTitle').textContent=lbl;
+  document.getElementById('dpMargin').classList.toggle('on',dragMode==='margin');
+  document.getElementById('dpPosition').classList.toggle('on',dragMode==='position');
+  updateDpHint();
+  popup.style.display='block';
+  popup.style.left=(x+12)+'px';
+  popup.style.top=(y+12)+'px';
+}
+function hideDragPopup(){document.getElementById('dragPopup').style.display='none';}
+function setDragMode(m){
+  dragMode=m;
+  document.getElementById('dpMargin').classList.toggle('on',m==='margin');
+  document.getElementById('dpPosition').classList.toggle('on',m==='position');
+  updateDpHint();
+}
+function updateDpHint(){
+  const h=document.getElementById('dpHint');if(!h)return;
+  h.textContent=dragMode==='margin'
+    ?'Menggeser dengan margin-top / margin-left. Mempengaruhi layout di sekitarnya.'
+    :'Menggeser dengan top / left. Visual saja, layout tidak terganggu.';
+}
+
+// ─── Select dragger ───────────────────────────────────────
+function selectDrg(drg,e){
+  if(activeDrg&&activeDrg!==drg)activeDrg.classList.remove('hbe-sel');
+  activeDrg=drg;
+  drg.classList.add('hbe-sel');
+  showDragPopup(drg,e.clientX,e.clientY);
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.hbe-dragger')&&!e.target.closest('#dragPopup')){
+    if(activeDrg){activeDrg.classList.remove('hbe-sel');activeDrg=null;}
+    hideDragPopup();
+  }
+});
+
+// ─── Init draggers ────────────────────────────────────────
+function initDraggers(container){
+  (container||document).querySelectorAll('.hbe-dragger').forEach(drg=>{
+    if(drg._dragInited)return; drg._dragInited=true;
+
+    drg.addEventListener('mousedown',e=>{
+      if(e.target.classList.contains('hbe-rhandle'))return; // handled by resize
+      e.preventDefault();e.stopPropagation();
+      selectDrg(drg,e);
+
+      const pfx=drg.dataset.pfx||'';
+      _dragStartX=e.clientX; _dragStartY=e.clientY;
+
+      if(dragMode==='margin'){
+        _dragStartMT=parsePx(gv(pfx+'mt')||'0');
+        _dragStartML=parsePx(gv(pfx+'ml')||'0');
+      }else{
+        _dragStartTop=parsePx(gv(pfx+'top')||'0');
+        _dragStartLeft=parsePx(gv(pfx+'left')||'0');
+      }
+
+      function onMove(ev){
+        const dx=ev.clientX-_dragStartX, dy=ev.clientY-_dragStartY;
+        if(dragMode==='margin'){
+          const newMT=Math.round(_dragStartMT+dy), newML=Math.round(_dragStartML+dx);
+          setOffsetField(pfx+'mt',newMT+'px');
+          setOffsetField(pfx+'ml',newML+'px');
+        }else{
+          const newTop=Math.round(_dragStartTop+dy), newLeft=Math.round(_dragStartLeft+dx);
+          setOffsetField(pfx+'top',newTop+'px');
+          setOffsetField(pfx+'left',newLeft+'px');
+        }
+        livePreview(); markUnsaved();
+      }
+      function onUp(){
+        document.removeEventListener('mousemove',onMove);
+        document.removeEventListener('mouseup',onUp);
+      }
+      document.addEventListener('mousemove',onMove);
+      document.addEventListener('mouseup',onUp);
+    });
+  });
+
+  // Resize handles
+  (container||document).querySelectorAll('.hbe-rhandle').forEach(rh=>{
+    if(rh._resizeInited)return; rh._resizeInited=true;
+    rh.addEventListener('mousedown',e=>{
+      e.preventDefault();e.stopPropagation();
+      _resizeTarget=rh.dataset.target||'';
+      _resizeStartX=e.clientX; _resizeStartY=e.clientY;
+      _resizeStartW=parseInt(gv(_resizeTarget+'_width'))||90;
+      _resizeStartH=parseInt(gv(_resizeTarget+'_height'))||0;
+
+      function onMove(ev){
+        const dx=ev.clientX-_resizeStartX, dy=ev.clientY-_resizeStartY;
+        const newW=Math.max(10,Math.round(_resizeStartW+dx));
+        const newH=Math.max(0,Math.round(_resizeStartH+dy));
+        sv(_resizeTarget+'_width', newW);
+        sv(_resizeTarget+'_height', newH>4?newH:0);
+        livePreview(); markUnsaved();
+      }
+      function onUp(){
+        document.removeEventListener('mousemove',onMove);
+        document.removeEventListener('mouseup',onUp);
+      }
+      document.addEventListener('mousemove',onMove);
+      document.addEventListener('mouseup',onUp);
+    });
+  });
+}
+
+// ─── Helper: parse px string to int ──────────────────────
+function parsePx(s){return parseInt(String(s).replace('px',''))||0;}
+
+// ─── Write to both offset input + form field ──────────────
+function setOffsetField(name,val){
+  // offset inp (in tab Offset)
+  const offEl=document.getElementById('f_'+name);
+  if(offEl)offEl.value=val;
+  // also write via generic form field
+  const formEl=document.querySelector(\`[name="\${name}"]\`);
+  if(formEl&&formEl!==offEl)formEl.value=val;
+}
+
+// ─── Init ─────────────────────────────────────────────────
+window.addEventListener('load',()=>{
+  updateGradBar();
+  livePreview();
+  const t=document.querySelector('input[name="type"]:checked')?.value||'layout';
+  hbeSetType(t);
+  initDraggers();
+  document.querySelectorAll('.toast-item').forEach(t=>{
+    setTimeout(()=>t.style.opacity='0',3500);
+    setTimeout(()=>t.remove(),4000);
+  });
+});
+</script>
+
 <!-- Page header -->
 <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
     <div>
@@ -1346,7 +1752,6 @@ require_once __DIR__ . '/includes/header.php';
         </div><!-- /hbe-preview -->
     </div><!-- /hbe-wrap -->
 </form>
-
 <!-- ─── Drag Popup ─────────────────────────────────────────── -->
 <div id="dragPopup">
     <div class="dp-title"><i class="ph ph-arrows-out-cardinal" style="color:#3b82f6"></i><span id="dpTitle">Elemen</span></div>
@@ -1358,375 +1763,6 @@ require_once __DIR__ . '/includes/header.php';
     <div class="dp-hint" id="dpHint"></div>
 </div>
 
-
-<?php
-$b_json = json_encode($b, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
-$page_scripts = '';
-?>
-<script>
-    <?php echo 'const HB=' . $b_json . ';'; ?>
-
-
-    // ─── Tabs ──────────────────────────────────────────────────
-    function hbeTab(btn, id) {
-        document.querySelectorAll('.hbe-tab').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        ['tabBg', 'tabContent', 'tabImages', 'tabOffsets', 'tabSettings'].forEach(t => {
-            const el = document.getElementById(t);
-            if (el) el.style.display = t === id ? '' : 'none';
-        });
-    }
-
-    // ─── Type / center-type pills ──────────────────────────────
-    function hbeSetType(v) {
-        document.querySelectorAll('input[name="type"]').forEach(r => r.checked = r.value === v);
-        document.querySelectorAll('.hbe-pill').forEach(p => {
-            const r = p.querySelector('input[name="type"]');
-            if (r) p.classList.toggle('on', r.checked);
-        });
-        const isL = v === 'layout';
-        ['sideImgSec'].forEach(id => {
-            const e = document.getElementById(id);
-            if (e) e.style.display = isL ? '' : 'none';
-        });
-        ['noSideNote'].forEach(id => {
-            const e = document.getElementById(id);
-            if (e) e.style.display = isL ? 'none' : '';
-        });
-        document.querySelectorAll('.sideOffEl').forEach(e => e.style.display = isL ? '' : 'none');
-        markUnsaved();
-        livePreview();
-    }
-
-    function hbeSetCT(v) {
-        document.querySelectorAll('input[name="center_type"]').forEach(r => r.checked = r.value === v);
-        document.querySelectorAll('#tabContent .hbe-pill').forEach(p => {
-            const r = p.querySelector('input[name="center_type"]');
-            if (r) p.classList.toggle('on', r.checked);
-        });
-        document.getElementById('ctText').style.display = v === 'text' ? '' : 'none';
-        document.getElementById('ctImg').style.display = v === 'image' ? '' : 'none';
-        markUnsaved();
-        livePreview();
-    }
-
-    // ─── Color helpers ─────────────────────────────────────────
-    function syncHex(p, hId) {
-        const e = document.getElementById(hId);
-        if (e) e.value = p.value;
-    }
-
-    function syncPic(h, pId) {
-        if (/^#[0-9a-fA-F]{6}$/.test(h.value)) {
-            const e = document.getElementById(pId);
-            if (e) e.value = h.value;
-        }
-    }
-
-    function setClr(pId, hId, c) {
-        const p = document.getElementById(pId),
-            h = document.getElementById(hId);
-        if (p) p.value = c;
-        if (h) h.value = c;
-        markUnsaved();
-        livePreview();
-        updateGradBar();
-    }
-
-    function updateGradBar() {
-        const bar = document.getElementById('gradBar');
-        if (!bar) return;
-        const s = document.getElementById('gc_s')?.value || '#005bb5';
-        const e = document.getElementById('gc_e')?.value || '#0099ff';
-        const a = document.querySelector('input[name="bg_gradient_angle"]')?.value || 135;
-        bar.style.background = \`linear-gradient(\${a}deg,\${s},\${e})\`;
-}
-function hbeThumb(inp,id){const i=document.getElementById(id);if(!i)return;i.src=inp.value.trim();i.style.display=inp.value.trim()?'block':'none';}
-function hbeSwitch(inp){
-  const t=document.getElementById('isActiveTrack');if(!t)return;
-  const d=t.querySelector('.hbe-sw-dot');
-  t.style.background=inp.checked?'#3b82f6':'rgba(255,255,255,.12)';
-  if(d)d.style.left=inp.checked?'19px':'3px';
-}
-
-// ─── Unsaved ───────────────────────────────────────────────
-let _dirty=false;
-function markUnsaved(){
-  _dirty=true;
-  ['unsavedDot','unsavedDot2'].forEach(id=>document.getElementById(id)?.classList.add('show'));
-  const t=document.getElementById('saveTxt'),i=document.getElementById('saveIco');
-  if(t)t.textContent='Belum tersimpan';
-  if(i){i.className='ph ph-warning';i.style.color='#f59e0b';}
-}
-document.getElementById('hbeForm').addEventListener('input',markUnsaved);
-document.getElementById('hbeForm').addEventListener('submit',()=>{_dirty=false;});
-window.addEventListener('beforeunload',e=>{if(_dirty){e.preventDefault();e.returnValue='';}});
-
-// ─── Form value getter ─────────────────────────────────────
-function gv(name){
-  const el=document.querySelector(\`[name="\${name}"]\`);
-  if(!el)return'';if(el.type==='checkbox')return el.checked;return el.value??'';
-}
-function sv(name,val){
-  const el=document.querySelector(\`[name="\${name}"]\`);if(el)el.value=val;
-  const fEl=document.getElementById('f_'+name);if(fEl)fEl.value=val;
-}
-
-// ─── JS _hbStyle mirror ────────────────────────────────────
-function hbStyle(pfx,extra={}){
-  const parts=[];let hasPos=false;
-  const P=[['pt','padding-top'],['pr','padding-right'],['pb','padding-bottom'],['pl','padding-left'],
-           ['mt','margin-top'], ['mr','margin-right'], ['mb','margin-bottom'],['ml','margin-left']];
-  const POS=[['top','top'],['right','right'],['bottom','bottom'],['left','left']];
-  for(const[s,css] of P){const v=gv(pfx+s);if(v)parts.push(\`\${css}:\${v}\`);}
-  for(const[s,css] of POS){const v=gv(pfx+s);if(v){parts.push(\`\${css}:\${v}\`);hasPos=true;}}
-  if(hasPos)parts.push('position:relative');
-  for(const[k,v] of Object.entries(extra))if(v!=null&&v!=='')parts.push(\`\${k}:\${v}\`);
-  return parts.join(';');
-}
-
-// ─── Anim CSS ─────────────────────────────────────────────
-const ANIM={
-  'float':      'animation:anim-float 3s ease-in-out infinite',
-  'bounce':     'animation:anim-bounce 1.2s ease-in-out infinite',
-  'slide-left': 'animation:anim-sliL .5s ease-out both',
-  'slide-right':'animation:anim-sliR .5s ease-out both',
-  'pulse':      'animation:anim-pulse 1.5s ease-in-out infinite',
-  'zoom-in':    'animation:anim-zoom .4s ease-out both',
-};
-const animCSS=a=>ANIM[a]||'';
-const escH=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-
-// ─── LIVE PREVIEW ──────────────────────────────────────────
-function livePreview(){
-  const type   =gv('type')||'layout';
-  const bgImg  =gv('bg_image');
-  const bgS    =gv('bg_color_start')||'#005bb5';
-  const bgE    =gv('bg_color_end')||'#0099ff';
-  const bgA    =gv('bg_gradient_angle')||135;
-  const bh     =Math.max(60,parseInt(gv('height'))||160);
-  const imgL   =gv('img_left'), ilW=parseInt(gv('img_left_width'))||90, ilH=parseInt(gv('img_left_height'))||0, ilA=gv('img_left_anim');
-  const imgR   =gv('img_right'),irW=parseInt(gv('img_right_width'))||90,irH=parseInt(gv('img_right_height'))||0,irA=gv('img_right_anim');
-  const cType  =gv('center_type')||'text';
-  const title  =gv('title'),   titClr=gv('title_color')||'#fff';
-  const sub    =gv('subtitle'),subClr=gv('subtitle_color')||'#ffffffd9';
-  const ci     =gv('center_image'),ciW=parseInt(gv('center_image_width'))||160,ciH=parseInt(gv('center_image_height'))||0,ciA=gv('center_image_anim');
-  const btnTxt =gv('btn_text'),btnBg=gv('btn_color')||'#FFD700',btnClr=gv('btn_text_color')||'#000',btnHref=gv('btn_href')||'#',btnA=gv('btn_anim');
-  const active =gv('is_active');
-
-  // 1. Canvas BG
-  const cv=document.getElementById('prevCanvas');
-  if(cv)cv.style.background=bgImg?\`url('\${bgImg}') center/cover no-repeat\`:\`linear-gradient(\${bgA}deg,\${bgS},\${bgE})\`;
-
-  // 2. Inactive overlay
-  const ov=document.getElementById('prevInactiveOv');
-  if(ov)ov.style.display=active?'none':'';
-
-  // 3. Ruler
-  const rH=document.getElementById('rH'),rT=document.getElementById('rT'),
-        rC=document.getElementById('rC'),rS=document.getElementById('rS');
-  if(rH)rH.textContent=bh+'px';if(rT)rT.textContent=type;if(rC)rC.textContent=cType;
-  if(rS){rS.style.color=active?'#10b981':'#ef4444';
-    rS.innerHTML=\`<i class="ph ph-circle-fill" style="font-size:6px;margin-right:3px"></i>\${active?'Aktif':'Nonaktif'}\`;}
-
-  // 4. Strip
-  const strip=document.getElementById('prevStrip');
-  if(strip)strip.style.cssText=hbStyle('strip_',{'padding-bottom':gv('strip_pb')||'44px'});
-
-  // 5. Left image
-  const drgL=document.getElementById('drgLeft');
-  const pL=document.getElementById('prevLeft');
-  const showL=!!(imgL&&type==='layout');
-  if(drgL)drgL.style.display=showL?'flex':'none';
-  if(pL&&showL){
-    pL.style.cssText=hbStyle('img_left_',{width:ilW+'px',height:bh+'px'});
-    pL.innerHTML=\`<img src="\${imgL}" style="width:\${ilW}px;\${ilH>0?'height:'+ilH+'px;':'max-height:'+bh+'px;'}object-fit:contain;\${animCSS(ilA)}"/>\`;
-  }else if(pL){pL.innerHTML='';}
-
-  // 6. Center
-  const pC=document.getElementById('prevCenter');
-  if(pC){
-    pC.style.cssText=hbStyle('center_',{'min-height':bh+'px'});
-    let html='';
-    if(cType==='image'&&ci){
-      const imgStyle=hbStyle('center_img_')+';'+animCSS(ciA);
-      html=\`<div class="hbe-dragger" id="drgCenterImg" data-lbl="Gambar Tengah" data-pfx="center_img_" data-axis="xy" style="display:inline-block;pointer-events:auto">
-        <img id="prevCenterImg" src="\${ci}" style="width:\${ciW}px;\${ciH>0?'height:'+ciH+'px;':'max-height:'+bh+'px;'}object-fit:contain;\${imgStyle}"/>
-        <div class="hbe-rhandle" id="rszCenterImg" data-target="center_image"></div>
-      </div>\`;
-    }else{
-      if(title)html+=\`<div id="prevTitle" style="color:\${escH(titClr)};\${hbStyle('title_')}">\${escH(title)}</div>\`;
-      if(sub)  html+=\`<div id="prevSub"   style="color:\${escH(subClr)};\${hbStyle('sub_')}">\${escH(sub)}</div>\`;
-    }
-    if(btnTxt){
-      html+=\`<div class="hbe-dragger" id="drgBtn" data-lbl="Tombol" data-pfx="btn_" data-axis="xy" style="display:inline-block;pointer-events:auto">
-        <a id="prevBtn" href="\${escH(btnHref)}" style="background:\${escH(btnBg)};color:\${escH(btnClr)};\${hbStyle('btn_')};\${animCSS(btnA)}">\${escH(btnTxt)}</a>
-      </div>\`;
-    }
-    pC.innerHTML=html;
-    // Re-init dragger for dynamically injected elements
-    initDraggers(pC);
-  }
-
-  // 7. Right image
-  const drgR=document.getElementById('drgRight');
-  const pR=document.getElementById('prevRight');
-  const showR=!!(imgR&&type==='layout');
-  if(drgR)drgR.style.display=showR?'flex':'none';
-  if(pR&&showR){
-    pR.style.cssText=hbStyle('img_right_',{width:irW+'px',height:bh+'px'});
-    pR.innerHTML=\`<img src="\${imgR}" style="width:\${irW}px;\${irH>0?'height:'+irH+'px;':'max-height:'+bh+'px;'}object-fit:contain;\${animCSS(irA)}"/>\`;
-  }else if(pR){pR.innerHTML='';}
-
-  // Re-attach drag on static draggers that may have been reset
-  initDraggers(document.getElementById('prevStrip'));
-}
-
-// ══════════════════════════════════════════════════════════
-// ─── CANVA-STYLE DRAG & RESIZE SYSTEM ─────────────────────
-// ══════════════════════════════════════════════════════════
-
-let activeDrg=null, dragMode='margin', popupEl=null;
-let _dragStartX=0,_dragStartY=0,_dragStartMT=0,_dragStartML=0,_dragStartTop=0,_dragStartLeft=0;
-let _resizeTarget='',_resizeStartX=0,_resizeStartY=0,_resizeStartW=0,_resizeStartH=0;
-
-// ─── Popup ────────────────────────────────────────────────
-function showDragPopup(drg,x,y){
-  const popup=document.getElementById('dragPopup');
-  const lbl=drg.dataset.lbl||'Elemen';
-  document.getElementById('dpTitle').textContent=lbl;
-  document.getElementById('dpMargin').classList.toggle('on',dragMode==='margin');
-  document.getElementById('dpPosition').classList.toggle('on',dragMode==='position');
-  updateDpHint();
-  popup.style.display='block';
-  popup.style.left=(x+12)+'px';
-  popup.style.top=(y+12)+'px';
-}
-function hideDragPopup(){document.getElementById('dragPopup').style.display='none';}
-function setDragMode(m){
-  dragMode=m;
-  document.getElementById('dpMargin').classList.toggle('on',m==='margin');
-  document.getElementById('dpPosition').classList.toggle('on',m==='position');
-  updateDpHint();
-}
-function updateDpHint(){
-  const h=document.getElementById('dpHint');if(!h)return;
-  h.textContent=dragMode==='margin'
-    ?'Menggeser dengan margin-top / margin-left. Mempengaruhi layout di sekitarnya.'
-    :'Menggeser dengan top / left. Visual saja, layout tidak terganggu.';
-}
-
-// ─── Select dragger ───────────────────────────────────────
-function selectDrg(drg,e){
-  if(activeDrg&&activeDrg!==drg)activeDrg.classList.remove('hbe-sel');
-  activeDrg=drg;
-  drg.classList.add('hbe-sel');
-  showDragPopup(drg,e.clientX,e.clientY);
-}
-document.addEventListener('click',e=>{
-  if(!e.target.closest('.hbe-dragger')&&!e.target.closest('#dragPopup')){
-    if(activeDrg){activeDrg.classList.remove('hbe-sel');activeDrg=null;}
-    hideDragPopup();
-  }
-});
-
-// ─── Init draggers ────────────────────────────────────────
-function initDraggers(container){
-  (container||document).querySelectorAll('.hbe-dragger').forEach(drg=>{
-    if(drg._dragInited)return; drg._dragInited=true;
-
-    drg.addEventListener('mousedown',e=>{
-      if(e.target.classList.contains('hbe-rhandle'))return; // handled by resize
-      e.preventDefault();e.stopPropagation();
-      selectDrg(drg,e);
-
-      const pfx=drg.dataset.pfx||'';
-      _dragStartX=e.clientX; _dragStartY=e.clientY;
-
-      if(dragMode==='margin'){
-        _dragStartMT=parsePx(gv(pfx+'mt')||'0');
-        _dragStartML=parsePx(gv(pfx+'ml')||'0');
-      }else{
-        _dragStartTop=parsePx(gv(pfx+'top')||'0');
-        _dragStartLeft=parsePx(gv(pfx+'left')||'0');
-      }
-
-      function onMove(ev){
-        const dx=ev.clientX-_dragStartX, dy=ev.clientY-_dragStartY;
-        if(dragMode==='margin'){
-          const newMT=Math.round(_dragStartMT+dy), newML=Math.round(_dragStartML+dx);
-          setOffsetField(pfx+'mt',newMT+'px');
-          setOffsetField(pfx+'ml',newML+'px');
-        }else{
-          const newTop=Math.round(_dragStartTop+dy), newLeft=Math.round(_dragStartLeft+dx);
-          setOffsetField(pfx+'top',newTop+'px');
-          setOffsetField(pfx+'left',newLeft+'px');
-        }
-        livePreview(); markUnsaved();
-      }
-      function onUp(){
-        document.removeEventListener('mousemove',onMove);
-        document.removeEventListener('mouseup',onUp);
-      }
-      document.addEventListener('mousemove',onMove);
-      document.addEventListener('mouseup',onUp);
-    });
-  });
-
-  // Resize handles
-  (container||document).querySelectorAll('.hbe-rhandle').forEach(rh=>{
-    if(rh._resizeInited)return; rh._resizeInited=true;
-    rh.addEventListener('mousedown',e=>{
-      e.preventDefault();e.stopPropagation();
-      _resizeTarget=rh.dataset.target||'';
-      _resizeStartX=e.clientX; _resizeStartY=e.clientY;
-      _resizeStartW=parseInt(gv(_resizeTarget+'_width'))||90;
-      _resizeStartH=parseInt(gv(_resizeTarget+'_height'))||0;
-
-      function onMove(ev){
-        const dx=ev.clientX-_resizeStartX, dy=ev.clientY-_resizeStartY;
-        const newW=Math.max(10,Math.round(_resizeStartW+dx));
-        const newH=Math.max(0,Math.round(_resizeStartH+dy));
-        sv(_resizeTarget+'_width', newW);
-        sv(_resizeTarget+'_height', newH>4?newH:0);
-        livePreview(); markUnsaved();
-      }
-      function onUp(){
-        document.removeEventListener('mousemove',onMove);
-        document.removeEventListener('mouseup',onUp);
-      }
-      document.addEventListener('mousemove',onMove);
-      document.addEventListener('mouseup',onUp);
-    });
-  });
-}
-
-// ─── Helper: parse px string to int ──────────────────────
-function parsePx(s){return parseInt(String(s).replace('px',''))||0;}
-
-// ─── Write to both offset input + form field ──────────────
-function setOffsetField(name,val){
-  // offset inp (in tab Offset)
-  const offEl=document.getElementById('f_'+name);
-  if(offEl)offEl.value=val;
-  // also write via generic form field
-  const formEl=document.querySelector(\`[name="\${name}"]\`);
-  if(formEl&&formEl!==offEl)formEl.value=val;
-}
-
-// ─── Init ─────────────────────────────────────────────────
-window.addEventListener('load',()=>{
-  updateGradBar();
-  livePreview();
-  const t=document.querySelector('input[name="type"]:checked')?.value||'layout';
-  hbeSetType(t);
-  initDraggers();
-  document.querySelectorAll('.toast-item').forEach(t=>{
-    setTimeout(()=>t.style.opacity='0',3500);
-    setTimeout(()=>t.remove(),4000);
-  });
-});
-</script>
 
 <?php
 require_once __DIR__ . '/includes/footer.php';
