@@ -1,393 +1,801 @@
 <?php
-// ============================================================
-// Admin: IDE Hero Banner
-// Path: /htdocs/admin/hero_banner.php
-// ============================================================
-$pageTitle = 'IDE Hero Banner';
-require_once __DIR__ . '/../includes/header.php';
+// backoffice/dashboard_hero_banner.php
+require_once __DIR__ . '/includes/session.php';
+require_once __DIR__ . '/../config/database.php';
 
-if (!$isAdmin) {
-    header('Location: /');
-    exit;
+$page_title  = 'Hero Banner Studio';
+$active_menu = 'hero_banner';
+$toast = $toast_e = '';
+$action = $_POST['action'] ?? '';
+
+// ── Auto-insert default row jika tabel kosong ────────────────
+if ((int)$pdo->query("SELECT COUNT(*) FROM hero_banner")->fetchColumn() === 0) {
+    $pdo->exec("INSERT INTO hero_banner
+        (height, sort_order, is_active,
+         title_color, title_size, title_weight, title_mb,
+         subtitle_color, subtitle_size, subtitle_mb,
+         btn_color, btn_text_color, btn_pt, btn_pr, btn_pb, btn_pl,
+         btn_radius, btn_size, btn_weight, btn_anim,
+         img_left_w, img_left_x, img_left_y, img_left_z,
+         img_right_w, img_right_x, img_right_y, img_right_z,
+         center_y, center_z)
+        VALUES
+        (160, 1, 1,
+         '#ffffff','15px','900','2px',
+         '#ffffffd9','10.5px','10px',
+         '#FFD700','#000000','7px','26px','7px','26px',
+         '99px','12px','900','pulse',
+         90,'0','0',1,
+         90,'0','0',1,
+         '0',2)");
 }
+$banner = $pdo->query("SELECT * FROM hero_banner ORDER BY id ASC LIMIT 1")->fetch();
 
-$pdo = $pdo; // from header.php
-$msg = '';
-$err = '';
-
-// ── Helper sanitize CSS ──────────────────────────────────────
-function cssSan(?string $v): string
+// ── Save ─────────────────────────────────────────────────────
+function cssSan($v): ?string
 {
-    return preg_replace('/[^a-zA-Z0-9.\-% ]/', '', trim((string)$v));
-}
-function intSan(?string $v): ?int
-{
-    $v = trim((string)$v);
-    return $v === '' || $v === 'NULL' ? null : (int)$v;
-}
-function strSan(?string $v, int $max = 600): string
-{
-    return mb_substr(trim((string)$v), 0, $max);
+    $v = preg_replace('/[^a-zA-Z0-9.\-% ]/', '', trim((string)$v));
+    return $v === '' ? null : $v;
 }
 
-// ── Handle POST (save) ───────────────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+if ($action === 'save') {
+    $f = $_POST;
+    $so = fn($v) => cssSan($v);
 
-    $action = $_POST['action'];
+    $cols = [
+        'height'          => max(60, min(400, (int)($f['height']  ?? 160))),
+        'sort_order'      => (int)($f['sort_order'] ?? 0),
+        'is_active'       => isset($f['is_active']) ? 1 : 0,
 
-    if ($action === 'save' || $action === 'add') {
-        $fields = [
-            'height'          => (int)($_POST['height'] ?? 160),
-            'img_left'        => strSan($_POST['img_left'] ?? ''),
-            'img_left_w'      => (int)($_POST['img_left_w'] ?? 90),
-            'img_left_h'      => intSan($_POST['img_left_h'] ?? ''),
-            'img_left_x'      => cssSan($_POST['img_left_x'] ?? '0'),
-            'img_left_y'      => cssSan($_POST['img_left_y'] ?? '0'),
-            'img_left_z'      => (int)($_POST['img_left_z'] ?? 1),
-            'img_left_anim'   => strSan($_POST['img_left_anim'] ?? '', 50),
-            'img_right'       => strSan($_POST['img_right'] ?? ''),
-            'img_right_w'     => (int)($_POST['img_right_w'] ?? 90),
-            'img_right_h'     => intSan($_POST['img_right_h'] ?? ''),
-            'img_right_x'     => cssSan($_POST['img_right_x'] ?? '0'),
-            'img_right_y'     => cssSan($_POST['img_right_y'] ?? '0'),
-            'img_right_z'     => (int)($_POST['img_right_z'] ?? 1),
-            'img_right_anim'  => strSan($_POST['img_right_anim'] ?? '', 50),
-            'center_y'        => cssSan($_POST['center_y'] ?? '0'),
-            'center_w'        => intSan($_POST['center_w'] ?? ''),
-            'center_z'        => (int)($_POST['center_z'] ?? 2),
-            'title'           => strSan($_POST['title'] ?? '', 200),
-            'title_color'     => strSan($_POST['title_color'] ?? '#ffffff', 40),
-            'title_size'      => cssSan($_POST['title_size'] ?? '15px'),
-            'title_weight'    => cssSan($_POST['title_weight'] ?? '900'),
-            'title_mb'        => cssSan($_POST['title_mb'] ?? '2px'),
-            'subtitle'        => strSan($_POST['subtitle'] ?? '', 300),
-            'subtitle_color'  => strSan($_POST['subtitle_color'] ?? '#ffffffd9', 40),
-            'subtitle_size'   => cssSan($_POST['subtitle_size'] ?? '10.5px'),
-            'subtitle_mb'     => cssSan($_POST['subtitle_mb'] ?? '10px'),
-            'center_type'     => in_array($_POST['center_type'] ?? '', ['text', 'image']) ? $_POST['center_type'] : 'text',
-            'center_image'    => strSan($_POST['center_image'] ?? ''),
-            'center_img_w'    => (int)($_POST['center_img_w'] ?? 160),
-            'center_img_h'    => intSan($_POST['center_img_h'] ?? ''),
-            'center_img_mb'   => cssSan($_POST['center_img_mb'] ?? '0'),
-            'center_img_anim' => strSan($_POST['center_img_anim'] ?? '', 50),
-            'btn_text'        => strSan($_POST['btn_text'] ?? '', 80),
-            'btn_href'        => strSan($_POST['btn_href'] ?? '#', 255),
-            'btn_color'       => strSan($_POST['btn_color'] ?? '#FFD700', 40),
-            'btn_text_color'  => strSan($_POST['btn_text_color'] ?? '#000000', 40),
-            'btn_pt'          => cssSan($_POST['btn_pt'] ?? '7px'),
-            'btn_pb'          => cssSan($_POST['btn_pb'] ?? '7px'),
-            'btn_pl'          => cssSan($_POST['btn_pl'] ?? '26px'),
-            'btn_pr'          => cssSan($_POST['btn_pr'] ?? '26px'),
-            'btn_radius'      => cssSan($_POST['btn_radius'] ?? '99px'),
-            'btn_size'        => cssSan($_POST['btn_size'] ?? '12px'),
-            'btn_weight'      => cssSan($_POST['btn_weight'] ?? '900'),
-            'btn_anim'        => strSan($_POST['btn_anim'] ?? 'pulse', 50),
-            'sort_order'      => (int)($_POST['sort_order'] ?? 0),
-            'is_active'       => isset($_POST['is_active']) ? 1 : 0,
-        ];
+        // Gambar Kiri
+        'img_left'        => trim($f['img_left']       ?? '') ?: null,
+        'img_left_w'      => max(10, (int)($f['img_left_w'] ?? 90)),
+        'img_left_h'      => ($h = (int)($f['img_left_h'] ?? 0)) > 0 ? $h : null,
+        'img_left_x'      => $so($f['img_left_x'] ?? '0') ?? '0',
+        'img_left_y'      => $so($f['img_left_y'] ?? '0') ?? '0',
+        'img_left_z'      => (int)($f['img_left_z']    ?? 1),
+        'img_left_anim'   => trim($f['img_left_anim']  ?? '') ?: null,
 
-        try {
-            if ($action === 'add') {
-                $cols = implode(', ', array_map(fn($k) => "`$k`", array_keys($fields)));
-                $placeholders = implode(', ', array_map(fn($k) => ":$k", array_keys($fields)));
-                $stmt = $pdo->prepare("INSERT INTO hero_banner ($cols) VALUES ($placeholders)");
-            } else {
-                $id = (int)$_POST['id'];
-                $sets = implode(', ', array_map(fn($k) => "`$k`=:$k", array_keys($fields)));
-                $stmt = $pdo->prepare("UPDATE hero_banner SET $sets WHERE id=:id");
-                $fields['id'] = $id;
-            }
-            $stmt->execute($fields);
-            $msg = $action === 'add' ? 'Banner baru berhasil ditambahkan.' : 'Banner berhasil disimpan.';
-        } catch (PDOException $e) {
-            $err = 'DB Error: ' . $e->getMessage();
-        }
-    }
+        // Gambar Kanan
+        'img_right'       => trim($f['img_right']      ?? '') ?: null,
+        'img_right_w'     => max(10, (int)($f['img_right_w'] ?? 90)),
+        'img_right_h'     => ($h = (int)($f['img_right_h'] ?? 0)) > 0 ? $h : null,
+        'img_right_x'     => $so($f['img_right_x'] ?? '0') ?? '0',
+        'img_right_y'     => $so($f['img_right_y'] ?? '0') ?? '0',
+        'img_right_z'     => (int)($f['img_right_z']   ?? 1),
+        'img_right_anim'  => trim($f['img_right_anim'] ?? '') ?: null,
 
-    if ($action === 'delete') {
-        $id = (int)$_POST['id'];
-        $pdo->prepare("DELETE FROM hero_banner WHERE id=?")->execute([$id]);
-        $msg = 'Banner dihapus.';
-    }
+        // Center
+        'center_y'        => $so($f['center_y'] ?? '0') ?? '0',
+        'center_w'        => ($cw = (int)($f['center_w'] ?? 0)) > 0 ? $cw : null,
+        'center_z'        => (int)($f['center_z'] ?? 2),
 
-    if ($action === 'toggle') {
-        $id = (int)$_POST['id'];
-        $pdo->prepare("UPDATE hero_banner SET is_active = 1 - is_active WHERE id=?")->execute([$id]);
-    }
+        // Title
+        'title'           => trim($f['title']          ?? '') ?: null,
+        'title_color'     => trim($f['title_color']    ?? '#ffffff'),
+        'title_size'      => $so($f['title_size']      ?? '15px')   ?? '15px',
+        'title_weight'    => $so($f['title_weight']    ?? '900')    ?? '900',
+        'title_mb'        => $so($f['title_mb']        ?? '2px')    ?? '2px',
 
-    if ($action === 'reorder') {
-        $orders = json_decode($_POST['orders'] ?? '[]', true);
-        if (is_array($orders)) {
-            $stmt = $pdo->prepare("UPDATE hero_banner SET sort_order=? WHERE id=?");
-            foreach ($orders as $i => $id) $stmt->execute([$i, (int)$id]);
-        }
-        echo json_encode(['ok' => true]);
-        exit;
-    }
+        // Subtitle
+        'subtitle'        => trim($f['subtitle']       ?? '') ?: null,
+        'subtitle_color'  => trim($f['subtitle_color'] ?? '#ffffffd9'),
+        'subtitle_size'   => $so($f['subtitle_size']   ?? '10.5px') ?? '10.5px',
+        'subtitle_mb'     => $so($f['subtitle_mb']     ?? '10px')   ?? '10px',
+
+        // Center image
+        'center_type'     => in_array($f['center_type'] ?? '', ['text', 'image']) ? $f['center_type'] : 'text',
+        'center_image'    => trim($f['center_image']   ?? '') ?: null,
+        'center_img_w'    => max(10, (int)($f['center_img_w'] ?? 160)),
+        'center_img_h'    => ($h = (int)($f['center_img_h'] ?? 0)) > 0 ? $h : null,
+        'center_img_mb'   => $so($f['center_img_mb']  ?? '0') ?? '0',
+        'center_img_anim' => trim($f['center_img_anim'] ?? '') ?: null,
+
+        // Tombol
+        'btn_text'        => trim($f['btn_text']       ?? '') ?: null,
+        'btn_href'        => trim($f['btn_href']       ?? '#'),
+        'btn_color'       => trim($f['btn_color']      ?? '#FFD700'),
+        'btn_text_color'  => trim($f['btn_text_color'] ?? '#000000'),
+        'btn_pt'          => $so($f['btn_pt'] ?? '7px')   ?? '7px',
+        'btn_pb'          => $so($f['btn_pb'] ?? '7px')   ?? '7px',
+        'btn_pl'          => $so($f['btn_pl'] ?? '26px')  ?? '26px',
+        'btn_pr'          => $so($f['btn_pr'] ?? '26px')  ?? '26px',
+        'btn_radius'      => $so($f['btn_radius'] ?? '99px') ?? '99px',
+        'btn_size'        => $so($f['btn_size']   ?? '12px') ?? '12px',
+        'btn_weight'      => $so($f['btn_weight'] ?? '900')  ?? '900',
+        'btn_anim'        => trim($f['btn_anim']       ?? 'pulse'),
+    ];
+
+    $set = implode(',', array_map(fn($k) => "$k=?", array_keys($cols)));
+    $pdo->prepare("UPDATE hero_banner SET $set WHERE id=?")
+        ->execute([...array_values($cols), (int)$banner['id']]);
+
+    $toast  = 'Tersimpan!';
+    $banner = $pdo->query("SELECT * FROM hero_banner ORDER BY id ASC LIMIT 1")->fetch();
 }
 
-// ── Fetch all banners ────────────────────────────────────────
-$banners = $pdo->query("SELECT * FROM hero_banner ORDER BY sort_order ASC, id ASC")->fetchAll(PDO::FETCH_ASSOC);
-
-// ── Fetch one for editing ────────────────────────────────────
-$editRow = null;
-if (isset($_GET['edit'])) {
-    $stmt = $pdo->prepare("SELECT * FROM hero_banner WHERE id=?");
-    $stmt->execute([(int)$_GET['edit']]);
-    $editRow = $stmt->fetch(PDO::FETCH_ASSOC);
-}
-
-// default blank row for "add" mode
-$d = $editRow ?? [
-    'id' => '',
-    'height' => 160,
-    'img_left' => '',
-    'img_left_w' => 90,
-    'img_left_h' => '',
-    'img_left_x' => '0',
-    'img_left_y' => '0',
-    'img_left_z' => 1,
-    'img_left_anim' => '',
-    'img_right' => '',
-    'img_right_w' => 90,
-    'img_right_h' => '',
-    'img_right_x' => '0',
-    'img_right_y' => '0',
-    'img_right_z' => 1,
-    'img_right_anim' => '',
-    'center_y' => '0',
-    'center_w' => '',
-    'center_z' => 2,
-    'title' => '',
-    'title_color' => '#ffffff',
-    'title_size' => '15px',
-    'title_weight' => '900',
-    'title_mb' => '2px',
-    'subtitle' => '',
-    'subtitle_color' => '#ffffffd9',
-    'subtitle_size' => '10.5px',
-    'subtitle_mb' => '10px',
-    'center_type' => 'text',
-    'center_image' => '',
-    'center_img_w' => 160,
-    'center_img_h' => '',
-    'center_img_mb' => '0',
-    'center_img_anim' => '',
-    'btn_text' => '',
-    'btn_href' => '#',
-    'btn_color' => '#FFD700',
-    'btn_text_color' => '#000000',
-    'btn_pt' => '7px',
-    'btn_pb' => '7px',
-    'btn_pl' => '26px',
-    'btn_pr' => '26px',
-    'btn_radius' => '99px',
-    'btn_size' => '12px',
-    'btn_weight' => '900',
-    'btn_anim' => 'pulse',
-    'sort_order' => 0,
-    'is_active' => 1,
+// ── Helpers ──────────────────────────────────────────────────
+$ANIM = [
+    ''           => 'Tidak Ada',
+    'float'      => 'Float',
+    'bounce'     => 'Bounce',
+    'slide-left' => 'Slide Kiri',
+    'slide-right' => 'Slide Kanan',
+    'pulse'      => 'Pulse',
+    'zoom-in'    => 'Zoom In',
 ];
 
-$isEdit = !empty($editRow);
-
-// helper: echo field value safely
-function fv($d, $k, $default = ''): string
+function anim_sel(string $name, string $cur, string $cls = 'st-select'): string
 {
-    return htmlspecialchars((string)($d[$k] ?? $default));
+    global $ANIM;
+    $o = "<select name=\"$name\" class=\"$cls\" onchange=\"livePreview();markDirty()\">";
+    foreach ($ANIM as $v => $l) {
+        $o .= "<option value=\"$v\"" . ($cur === $v ? ' selected' : '') . ">$l</option>";
+    }
+    return $o . "</select>";
 }
+
+function animCSS_php(string $a): string
+{
+    return match ($a) {
+        'float'       => 'animation:hb-float 3s ease-in-out infinite',
+        'bounce'      => 'animation:hb-bounce 1.2s ease-in-out infinite',
+        'slide-left'  => 'animation:hb-sliL .5s ease-out both',
+        'slide-right' => 'animation:hb-sliR .5s ease-out both',
+        'pulse'       => 'animation:hb-pulse 1.5s ease-in-out infinite',
+        'zoom-in'     => 'animation:hb-zoom .4s ease-out both',
+        default       => '',
+    };
+}
+
+$b = $banner;
+
+// Safe JSON for JS
+$js_keys = [
+    'height',
+    'is_active',
+    'sort_order',
+    'img_left',
+    'img_left_w',
+    'img_left_h',
+    'img_left_x',
+    'img_left_y',
+    'img_left_z',
+    'img_left_anim',
+    'img_right',
+    'img_right_w',
+    'img_right_h',
+    'img_right_x',
+    'img_right_y',
+    'img_right_z',
+    'img_right_anim',
+    'center_y',
+    'center_w',
+    'center_z',
+    'center_type',
+    'title',
+    'title_color',
+    'title_size',
+    'title_weight',
+    'title_mb',
+    'subtitle',
+    'subtitle_color',
+    'subtitle_size',
+    'subtitle_mb',
+    'center_image',
+    'center_img_w',
+    'center_img_h',
+    'center_img_mb',
+    'center_img_anim',
+    'btn_text',
+    'btn_href',
+    'btn_color',
+    'btn_text_color',
+    'btn_pt',
+    'btn_pb',
+    'btn_pl',
+    'btn_pr',
+    'btn_radius',
+    'btn_size',
+    'btn_weight',
+    'btn_anim',
+];
+$js_data = [];
+foreach ($js_keys as $k) $js_data[$k] = $b[$k] ?? null;
+$b_json = json_encode($js_data, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
+
+require_once __DIR__ . '/includes/header.php';
 ?>
+<script>
+    const HB = <?php echo $b_json; ?>;
+</script>
+
+<!-- Toast -->
+<div class="st-toast-wrap">
+    <?php if ($toast):  ?><div class="st-toast st-toast-ok"><i class="ph ph-check-circle"></i><?= htmlspecialchars($toast)  ?></div><?php endif; ?>
+    <?php if ($toast_e): ?><div class="st-toast st-toast-err"><i class="ph ph-warning-circle"></i><?= htmlspecialchars($toast_e) ?></div><?php endif; ?>
+</div>
 
 <style>
-    /* ── IDE Hero Banner Admin ─────────────────────────────────── */
-    :root {
-        --ide-bg: #0d0f14;
-        --ide-surface: #161920;
-        --ide-border: #252932;
-        --ide-accent: #01d298;
-        --ide-accent2: #0099ff;
-        --ide-muted: #4a5165;
-        --ide-text: #c8cdd8;
-        --ide-label: #7a8196;
-        --ide-danger: #ff4d6a;
-        --ide-warn: #ffb830;
-        --ide-radius: 10px;
-        --f: 'Plus Jakarta Sans', sans-serif;
-    }
-
-    * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-    }
-
-    body {
-        background: var(--ide-bg);
-        color: var(--ide-text);
-        font-family: var(--f);
-        font-size: 13px;
-    }
-
-    /* ── Layout ─── */
-    .ide-wrap {
-        display: grid;
-        grid-template-columns: 320px 1fr;
-        grid-template-rows: auto 1fr;
-        min-height: 100vh;
-        gap: 0;
-    }
-
-    .ide-topbar {
-        grid-column: 1 / -1;
-        background: var(--ide-surface);
-        border-bottom: 1px solid var(--ide-border);
-        padding: 12px 20px;
+    /* ════════════════════════════════════════════════════
+   HERO BANNER STUDIO — Dark editor + bright canvas
+════════════════════════════════════════════════════ */
+    .st-root {
         display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .ide-topbar h1 {
-        font-size: 14px;
-        font-weight: 700;
-        color: #fff;
-        letter-spacing: .3px;
-    }
-
-    .ide-topbar .badge-ide {
-        background: linear-gradient(135deg, var(--ide-accent), var(--ide-accent2));
-        color: #000;
-        font-size: 9px;
-        font-weight: 800;
-        padding: 2px 8px;
-        border-radius: 99px;
-        letter-spacing: .8px;
-        text-transform: uppercase;
-    }
-
-    /* ── Left panel (list + form) ─── */
-    .ide-left {
-        background: var(--ide-surface);
-        border-right: 1px solid var(--ide-border);
-        display: flex;
-        flex-direction: column;
-        overflow-y: auto;
-        max-height: calc(100vh - 49px);
-    }
-
-    /* ── Right panel (preview) ─── */
-    .ide-right {
-        background: var(--ide-bg);
-        display: flex;
-        flex-direction: column;
+        height: calc(100vh - 56px);
+        min-height: 600px;
         overflow: hidden;
+        background: #0d0d14;
     }
 
-    .ide-preview-bar {
-        background: var(--ide-surface);
-        border-bottom: 1px solid var(--ide-border);
-        padding: 8px 16px;
+    /* ── Tool strip (far left) ── */
+    .st-strip {
+        width: 48px;
+        flex-shrink: 0;
+        background: #111118;
+        border-right: 1px solid #1e1e2c;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 10px 0;
+        gap: 3px;
+    }
+
+    .st-tb {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
         display: flex;
         align-items: center;
-        gap: 10px;
-        font-size: 11px;
-        color: var(--ide-label);
-    }
-
-    .ide-preview-bar span {
-        color: var(--ide-accent);
-        font-weight: 700;
-    }
-
-    .preview-dots {
-        display: flex;
-        gap: 5px;
-    }
-
-    .preview-dots i {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        display: block;
-    }
-
-    .preview-dots i:nth-child(1) {
-        background: #ff5f57;
-    }
-
-    .preview-dots i:nth-child(2) {
-        background: #ffbd2e;
-    }
-
-    .preview-dots i:nth-child(3) {
-        background: #28ca41;
-    }
-
-    .ide-preview-area {
-        flex: 1;
-        display: flex;
-        align-items: flex-start;
         justify-content: center;
-        padding: 32px 20px;
-        overflow-y: auto;
+        cursor: pointer;
+        color: #44445a;
+        font-size: 17px;
+        border: none;
+        background: transparent;
+        transition: all .14s;
+        position: relative;
     }
 
-    /* ── Phone mockup ─── */
-    .phone-mock {
-        width: 320px;
-        min-height: 560px;
-        background: #1a1e28;
-        border-radius: 36px;
-        border: 2px solid #2e3347;
-        box-shadow: 0 0 0 6px #111419, 0 40px 80px rgba(0, 0, 0, .6);
+    .st-tb:hover {
+        background: #1a1a28;
+        color: #8080a0;
+    }
+
+    .st-tb.on {
+        background: #1e3a8a;
+        color: #93c5fd;
+    }
+
+    .st-tb-sep {
+        width: 20px;
+        height: 1px;
+        background: #1e1e2c;
+        margin: 3px 0;
+    }
+
+    /* ── Inspector (left panel) ── */
+    .st-insp {
+        width: 264px;
+        flex-shrink: 0;
+        background: #111118;
+        border-right: 1px solid #1e1e2c;
+        display: flex;
+        flex-direction: column;
         overflow: hidden;
-        position: relative;
+    }
+
+    .st-savebar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 12px;
+        background: #0d0d14;
+        border-bottom: 1px solid #1e1e2c;
         flex-shrink: 0;
     }
 
-    .phone-mock::before {
-        content: '';
-        display: block;
-        width: 80px;
+    .st-dirty {
+        width: 6px;
         height: 6px;
-        background: #2e3347;
-        border-radius: 99px;
-        margin: 10px auto 0;
+        border-radius: 50%;
+        background: #f59e0b;
+        display: none;
+        flex-shrink: 0;
     }
 
-    .phone-hero {
-        /* gradient diset JS dari form */
-        padding: 14px 14px 0;
+    .st-dirty.on {
+        display: block;
+    }
+
+    .st-save-txt {
+        font-size: 10px;
+        color: #44445a;
+        flex: 1;
+    }
+
+    .st-save-btn {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        background: #1e40af;
+        color: #bfdbfe;
+        border: none;
+        padding: 5px 12px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all .14s;
+        font-family: inherit;
+    }
+
+    .st-save-btn:hover {
+        background: #2563eb;
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, .4);
+    }
+
+    /* Nav tabs */
+    .st-tabs {
+        display: flex;
+        background: #0d0d14;
+        border-bottom: 1px solid #1e1e2c;
+        flex-shrink: 0;
+    }
+
+    .st-tab {
+        flex: 1;
+        padding: 8px 2px;
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        cursor: pointer;
+        color: #3a3a52;
+        border-bottom: 2px solid transparent;
+        border: none;
+        background: transparent;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        transition: all .14s;
+        font-family: inherit;
+    }
+
+    .st-tab i {
+        font-size: 14px;
+    }
+
+    .st-tab.on {
+        color: #60a5fa;
+        border-bottom-color: #2563eb;
+    }
+
+    .st-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px;
+        scrollbar-width: thin;
+        scrollbar-color: #1e1e2c transparent;
+    }
+
+    .st-body::-webkit-scrollbar {
+        width: 3px;
+    }
+
+    .st-body::-webkit-scrollbar-thumb {
+        background: #1e1e2c;
+        border-radius: 2px;
+    }
+
+    /* Form atoms */
+    .st-sec {
+        margin-bottom: 14px;
+    }
+
+    .st-sh {
+        font-size: 9px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .8px;
+        color: #3a3a52;
+        margin-bottom: 7px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .st-sh i {
+        font-size: 12px;
+    }
+
+    .st-row {
+        display: flex;
+        gap: 5px;
+        margin-bottom: 6px;
+    }
+
+    .st-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .st-col {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .st-lbl {
+        font-size: 9.5px;
+        font-weight: 600;
+        color: #44445a;
+        display: block;
+        margin-bottom: 3px;
+    }
+
+    .st-inp {
+        width: 100%;
+        background: #0a0a12;
+        border: 1px solid #1e1e2c;
+        border-radius: 5px;
+        padding: 5px 7px;
+        color: #b0b0cc;
+        font-size: 11px;
+        font-family: 'JetBrains Mono', ui-monospace, monospace;
+        outline: none;
+        transition: border-color .14s;
+    }
+
+    .st-inp:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, .15);
+    }
+
+    .st-inp::placeholder {
+        color: #282838;
+    }
+
+    .st-sel {
+        width: 100%;
+        background: #0a0a12;
+        border: 1px solid #1e1e2c;
+        border-radius: 5px;
+        padding: 5px 7px;
+        color: #b0b0cc;
+        font-size: 11px;
+        font-family: inherit;
+        outline: none;
+        cursor: pointer;
+    }
+
+    select.st-select {
+        width: 100%;
+        background: #0a0a12;
+        border: 1px solid #1e1e2c;
+        border-radius: 5px;
+        padding: 5px 7px;
+        color: #b0b0cc;
+        font-size: 11px;
+        font-family: inherit;
+        outline: none;
+        cursor: pointer;
+    }
+
+    .st-pills {
+        display: flex;
+        gap: 4px;
+    }
+
+    .st-pill {
+        flex: 1;
+        padding: 6px 3px;
+        border-radius: 6px;
+        font-size: 9px;
+        font-weight: 700;
+        cursor: pointer;
+        border: 1.5px solid #1e1e2c;
+        background: #0a0a12;
+        color: #44445a;
+        text-align: center;
+        transition: all .14s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+    }
+
+    .st-pill.on {
+        border-color: #2563eb;
+        background: rgba(37, 99, 235, .14);
+        color: #60a5fa;
+    }
+
+    .st-clr-row {
+        display: flex;
+        gap: 5px;
+        align-items: center;
+    }
+
+    .st-sw-inp {
+        width: 26px;
+        height: 26px;
+        border-radius: 5px;
+        border: 1px solid #1e1e2c;
+        padding: 2px;
+        cursor: pointer;
+        flex-shrink: 0;
+        background: none;
+    }
+
+    .st-hex {
+        flex: 1;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        background: #0a0a12;
+        border: 1px solid #1e1e2c;
+        border-radius: 5px;
+        padding: 4px 6px;
+        color: #b0b0cc;
+        outline: none;
+    }
+
+    .st-hex:focus {
+        border-color: #2563eb;
+    }
+
+    .st-sld-row {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+    }
+
+    .st-sld-row input[type=range] {
+        flex: 1;
+        accent-color: #2563eb;
+        cursor: pointer;
+    }
+
+    .st-sld-val {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        color: #44445a;
+        min-width: 32px;
+        text-align: right;
+    }
+
+    .st-tog-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 3px 0;
+    }
+
+    .st-tog-lbl {
+        font-size: 11px;
+        font-weight: 500;
+        color: #8080a0;
+    }
+
+    .st-sw {
         position: relative;
-        transition: all .3s;
+        width: 34px;
+        height: 19px;
+        cursor: pointer;
+        display: inline-block;
+        flex-shrink: 0;
     }
 
-    .phone-hero-inner {
-        /* hd-strip simulasi */
+    .st-sw input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+        position: absolute;
+    }
+
+    .st-sw-tr {
+        position: absolute;
+        inset: 0;
+        border-radius: 99px;
+        background: #1e1e2c;
+        transition: background .18s;
+    }
+
+    .st-sw input:checked~.st-sw-tr {
+        background: #2563eb;
+    }
+
+    .st-sw-th {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        background: #fff;
+        transition: left .18s;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, .4);
+    }
+
+    .st-sw input:checked~.st-sw-th {
+        left: 17px;
+    }
+
+    .st-div {
+        height: 1px;
+        background: #1e1e2c;
+        margin: 10px 0;
+    }
+
+    .st-thumb {
+        width: 100%;
+        height: 30px;
+        object-fit: cover;
+        border-radius: 4px;
+        border: 1px solid #1e1e2c;
+        margin-top: 4px;
+        display: none;
+    }
+
+    .st-sz {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+    }
+
+    .st-sz-f {
+        position: relative;
+    }
+
+    .st-sz-f .st-inp {
+        padding-right: 18px;
+    }
+
+    .st-sz-u {
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 8px;
+        font-weight: 700;
+        color: #282838;
+        pointer-events: none;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* XY position inputs — 2 side by side with unit label */
+    .st-xy {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+    }
+
+    .st-xy-f {
+        position: relative;
+    }
+
+    .st-xy-f .st-inp {
+        padding-right: 14px;
+    }
+
+    .st-xy-u {
+        position: absolute;
+        right: 5px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 7.5px;
+        font-weight: 800;
+        color: #282838;
+        pointer-events: none;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── Canvas ── */
+    .st-canvas {
+        flex: 1;
+        overflow: auto;
+        background: #0d0d14;
+        background-image:
+            linear-gradient(rgba(255, 255, 255, .012) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, .012) 1px, transparent 1px);
+        background-size: 20px 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 28px 20px;
+        gap: 14px;
+    }
+
+    .st-canvas-lbl {
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .9px;
+        color: #282838;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        max-width: 480px;
+    }
+
+    .st-canvas-lbl::before,
+    .st-canvas-lbl::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #1a1a26;
+    }
+
+    .st-pw {
+        width: 100%;
+        max-width: 480px;
+        border-radius: 16px;
+        overflow: hidden;
+        flex-shrink: 0;
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, .05), 0 24px 64px rgba(0, 0, 0, .6);
+    }
+
+    /* ── Banner preview — exact replica of hd-strip system ── */
+    #prevCanvas {
+        position: relative;
+        overflow: hidden;
+        padding: 28px 18px 0;
+        width: 100%;
+    }
+
+    #prevCanvas::before,
+    #prevCanvas::after {
+        content: '';
+        position: absolute;
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    #prevCanvas::before {
+        width: 240px;
+        height: 240px;
+        background: rgba(255, 255, 255, .07);
+        top: -80px;
+        right: -60px;
+    }
+
+    #prevCanvas::after {
+        width: 130px;
+        height: 130px;
+        background: rgba(255, 255, 255, .05);
+        bottom: 60px;
+        left: -40px;
+    }
+
+    /* hd-strip exact replica */
+    #prevStrip {
         position: relative;
         width: 100%;
         overflow: visible;
-        margin-top: 8px;
-        transition: height .3s;
+        margin-top: 12px;
     }
 
-    .phone-img-left {
+    /* gambar kiri — absolute anchor LEFT+BOTTOM */
+    #prevImgLeft {
         position: absolute;
         object-fit: contain;
+        display: block;
         left: 0;
         bottom: 0;
-        transition: all .3s;
     }
 
-    .phone-img-right {
+    /* gambar kanan — absolute anchor RIGHT+BOTTOM */
+    #prevImgRight {
         position: absolute;
         object-fit: contain;
+        display: block;
         right: 0;
         bottom: 0;
-        transition: all .3s;
     }
 
-    .phone-center {
+    /* center — absolute, horizontal center */
+    #prevCenter {
         position: absolute;
         left: 50%;
         transform: translateX(-50%);
@@ -395,480 +803,255 @@ function fv($d, $k, $default = ''): string
         flex-direction: column;
         align-items: center;
         text-align: center;
-        transition: all .3s;
-        white-space: nowrap;
+        bottom: 0;
     }
 
-    .phone-title {
-        font-family: var(--f);
+    #prevTitle {
         line-height: 1.15;
         letter-spacing: -.3px;
-        text-shadow: 0 1px 4px rgba(0, 0, 0, .3);
-        transition: all .3s;
+        text-shadow: 0 1px 6px rgba(0, 0, 0, .25);
     }
 
-    .phone-sub {
+    #prevSub {
+        opacity: .92;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, .2);
         line-height: 1.3;
-        font-family: var(--f);
-        text-shadow: 0 1px 2px rgba(0, 0, 0, .2);
-        transition: all .3s;
     }
 
-    .phone-btn {
-        display: inline-block;
-        text-decoration: none;
-        font-family: var(--f);
-        letter-spacing: .3px;
-        cursor: default;
-        box-shadow: 0 3px 10px rgba(0, 0, 0, .3);
-        transition: all .3s;
-    }
-
-    .phone-center-img {
+    #prevCenterImg {
         object-fit: contain;
         display: block;
-        transition: all .3s;
     }
 
-    /* menu card overlap */
-    .phone-menucard {
-        background: #fff;
-        border-radius: 16px 16px 0 0;
-        margin-top: -20px;
-        padding: 12px;
-        position: relative;
-        z-index: 10;
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 6px;
-    }
-
-    .phone-menuitem {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 3px;
-    }
-
-    .phone-menuitem .ic {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
-        background: #f0f2f8;
-    }
-
-    .phone-menuitem .lb {
-        width: 28px;
-        height: 5px;
-        border-radius: 3px;
-        background: #e4e6ed;
-    }
-
-    /* ── Sections ─── */
-    .ide-section {
-        border-bottom: 1px solid var(--ide-border);
-    }
-
-    .ide-section-head {
-        padding: 10px 16px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
+    #prevBtn {
+        display: inline-block;
+        letter-spacing: .4px;
+        text-decoration: none;
         cursor: pointer;
-        user-select: none;
-        background: rgba(255, 255, 255, .02);
-        transition: background .15s;
+        border: none;
+        font-family: inherit;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, .22);
+        transition: transform .15s;
+        white-space: nowrap;
     }
 
-    .ide-section-head:hover {
-        background: rgba(255, 255, 255, .04);
-    }
-
-    .ide-section-head .sh-left {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: .6px;
-        text-transform: uppercase;
-        color: var(--ide-label);
-    }
-
-    .ide-section-head .sh-left .dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-    }
-
-    .ide-section-head .sh-arrow {
-        font-size: 10px;
-        color: var(--ide-muted);
-        transition: transform .2s;
-    }
-
-    .ide-section-head.open .sh-arrow {
-        transform: rotate(180deg);
-    }
-
-    .ide-section-body {
-        padding: 12px 16px;
-        display: none;
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .ide-section-body.open {
-        display: flex;
-    }
-
-    /* ── Field ─── */
-    .field {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
-
-    .field label {
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: .5px;
-        text-transform: uppercase;
-        color: var(--ide-label);
-    }
-
-    .field input,
-    .field select,
-    .field textarea {
-        background: #0d0f14;
-        border: 1px solid var(--ide-border);
-        border-radius: 6px;
-        color: var(--ide-text);
-        font-family: var(--f);
-        font-size: 12px;
-        padding: 6px 9px;
-        outline: none;
-        transition: border-color .15s;
-        width: 100%;
-    }
-
-    .field input:focus,
-    .field select:focus,
-    .field textarea:focus {
-        border-color: var(--ide-accent);
-    }
-
-    .field input[type="color"] {
-        padding: 2px 4px;
-        height: 32px;
-        cursor: pointer;
-    }
-
-    .field textarea {
-        resize: vertical;
-        min-height: 52px;
-    }
-
-    .field .hint {
-        font-size: 10px;
-        color: var(--ide-muted);
-        line-height: 1.4;
-    }
-
-    /* 2-col grid inside section */
-    .g2 {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
-    }
-
-    .g3 {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 8px;
-    }
-
-    /* ── Inline color+text row ─── */
-    .color-row {
-        display: grid;
-        grid-template-columns: 36px 1fr;
-        gap: 6px;
-        align-items: end;
-    }
-
-    /* ── Toggle ─── */
-    .toggle-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 6px 0;
-    }
-
-    .toggle-row label {
-        color: var(--ide-text);
-        font-size: 12px;
-        font-weight: 600;
-        text-transform: none;
-        letter-spacing: 0;
-    }
-
-    .sw {
-        position: relative;
-        width: 36px;
-        height: 20px;
-    }
-
-    .sw input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-    }
-
-    .sw-track {
+    #prevInactiveOv {
         position: absolute;
         inset: 0;
-        background: var(--ide-border);
-        border-radius: 99px;
-        cursor: pointer;
-        transition: background .2s;
+        background: rgba(0, 0, 0, .65);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 20;
+        pointer-events: none;
     }
 
-    .sw-track::after {
-        content: '';
-        position: absolute;
-        top: 3px;
-        left: 3px;
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        background: #fff;
-        transition: transform .2s;
-    }
-
-    .sw input:checked+.sw-track {
-        background: var(--ide-accent);
-    }
-
-    .sw input:checked+.sw-track::after {
-        transform: translateX(16px);
-    }
-
-    /* ── Buttons ─── */
-    .btn-ide {
-        border: none;
-        border-radius: 7px;
-        font-family: var(--f);
-        font-size: 12px;
+    .st-ib {
+        background: rgba(220, 38, 38, .15);
+        border: 1px solid #dc2626;
+        color: #f87171;
+        font-size: 11px;
         font-weight: 700;
-        cursor: pointer;
-        padding: 8px 16px;
-        transition: opacity .15s, transform .1s;
-        letter-spacing: .3px;
-    }
-
-    .btn-ide:active {
-        transform: scale(.97);
-    }
-
-    .btn-primary {
-        background: var(--ide-accent);
-        color: #000;
-    }
-
-    .btn-primary:hover {
-        opacity: .88;
-    }
-
-    .btn-danger {
-        background: var(--ide-danger);
-        color: #fff;
-    }
-
-    .btn-danger:hover {
-        opacity: .85;
-    }
-
-    .btn-ghost {
-        background: transparent;
-        color: var(--ide-label);
-        border: 1px solid var(--ide-border);
-    }
-
-    .btn-ghost:hover {
-        color: var(--ide-text);
-        border-color: var(--ide-muted);
-    }
-
-    .btn-warn {
-        background: var(--ide-warn);
-        color: #000;
-    }
-
-    .btn-row {
+        padding: 5px 12px;
+        border-radius: 6px;
         display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        padding: 14px 16px;
-        border-top: 1px solid var(--ide-border);
-    }
-
-    /* ── Banner list ─── */
-    .banner-list {
-        padding: 12px 16px;
-        display: flex;
-        flex-direction: column;
+        align-items: center;
         gap: 6px;
     }
 
-    .banner-list-title {
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: .6px;
-        text-transform: uppercase;
-        color: var(--ide-label);
-        margin-bottom: 4px;
+    /* Drag handles on canvas */
+    .drg {
+        position: relative;
+        display: inline-block;
+        outline: 2px solid transparent;
+        outline-offset: 3px;
+        border-radius: 4px;
+        cursor: grab;
+        transition: outline-color .12s;
+        user-select: none;
     }
 
-    .banner-card {
-        background: #0d0f14;
-        border: 1px solid var(--ide-border);
+    .drg:hover {
+        outline-color: rgba(96, 165, 250, .5);
+    }
+
+    .drg.sel {
+        outline-color: #60a5fa;
+    }
+
+    .drg.dragging {
+        cursor: grabbing;
+    }
+
+    .drg.sel::after {
+        content: attr(data-lbl);
+        position: absolute;
+        top: -20px;
+        left: 0;
+        background: #2563eb;
+        color: #fff;
+        font-size: 8.5px;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 4px 4px 0 0;
+        white-space: nowrap;
+        pointer-events: none;
+        z-index: 100;
+        font-family: system-ui, sans-serif;
+    }
+
+    .rsz {
+        position: absolute;
+        bottom: -5px;
+        right: -5px;
+        width: 11px;
+        height: 11px;
+        background: #2563eb;
+        border: 2px solid #0d0d14;
+        border-radius: 3px;
+        cursor: se-resize;
+        z-index: 50;
+        display: none;
+    }
+
+    .drg.sel .rsz {
+        display: block;
+    }
+
+    /* Ruler */
+    .st-ruler {
+        width: 100%;
+        max-width: 480px;
+        background: #111118;
+        border: 1px solid #1e1e2c;
         border-radius: 8px;
-        padding: 9px 12px;
+        padding: 6px 12px;
         display: flex;
         align-items: center;
-        gap: 10px;
-        cursor: pointer;
-        transition: border-color .15s;
+        gap: 12px;
+        flex-wrap: wrap;
+        font-size: 9.5px;
+        color: #3a3a52;
+        flex-shrink: 0;
     }
 
-    .banner-card:hover {
-        border-color: var(--ide-accent);
+    .st-ruler strong {
+        color: #5a5a78;
+        font-family: 'JetBrains Mono', monospace;
     }
 
-    .banner-card.active {
-        border-color: var(--ide-accent);
-        background: rgba(1, 210, 152, .06);
-    }
-
-    .banner-card .bc-info {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .banner-card .bc-title {
-        font-size: 12px;
-        font-weight: 700;
-        color: #fff;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .banner-card .bc-meta {
-        font-size: 10px;
-        color: var(--ide-muted);
-        margin-top: 1px;
-    }
-
-    .banner-card .bc-status {
-        width: 8px;
-        height: 8px;
+    .st-rdot {
+        width: 5px;
+        height: 5px;
         border-radius: 50%;
         flex-shrink: 0;
     }
 
-    .banner-card .bc-status.on {
-        background: var(--ide-accent);
-    }
-
-    .banner-card .bc-status.off {
-        background: var(--ide-muted);
-    }
-
-    .bc-actions {
+    /* ── Right props panel ── */
+    .st-props {
+        width: 220px;
+        flex-shrink: 0;
+        background: #111118;
+        border-left: 1px solid #1e1e2c;
         display: flex;
-        gap: 4px;
+        flex-direction: column;
+        overflow: hidden;
     }
 
-    .bc-btn {
-        border: none;
-        background: transparent;
-        color: var(--ide-muted);
-        cursor: pointer;
-        padding: 3px 5px;
-        border-radius: 4px;
-        font-size: 12px;
-        transition: color .15s, background .15s;
+    .st-ph {
+        padding: 10px 12px;
+        border-bottom: 1px solid #1e1e2c;
+        flex-shrink: 0;
     }
 
-    .bc-btn:hover {
-        color: #fff;
-        background: rgba(255, 255, 255, .08);
+    .st-ph-t {
+        font-size: 9px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .7px;
+        color: #3a3a52;
     }
 
-    .bc-btn.del:hover {
-        color: var(--ide-danger);
-    }
-
-    /* ── Toast ─── */
-    .toast {
-        position: fixed;
-        bottom: 24px;
-        right: 24px;
-        background: var(--ide-accent);
-        color: #000;
+    .st-ph-el {
+        font-size: 10.5px;
         font-weight: 700;
-        font-size: 12px;
-        padding: 10px 18px;
-        border-radius: 8px;
-        z-index: 9999;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, .4);
-        opacity: 0;
-        transform: translateY(10px);
-        transition: opacity .3s, transform .3s;
-        pointer-events: none;
+        color: #5a5a78;
+        margin-top: 2px;
     }
 
-    .toast.show {
-        opacity: 1;
-        transform: translateY(0);
+    .st-pb {
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px;
+        scrollbar-width: thin;
+        scrollbar-color: #1e1e2c transparent;
     }
 
-    .toast.err {
-        background: var(--ide-danger);
-        color: #fff;
+    .st-pb::-webkit-scrollbar {
+        width: 3px;
     }
 
-    /* ── Resize handle ─── */
-    .resize-hint {
-        font-size: 10px;
-        color: var(--ide-muted);
+    .st-empty {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 16px;
         text-align: center;
-        padding: 6px;
-        border-top: 1px solid var(--ide-border);
     }
 
-    /* ── Add new banner button ─── */
-    .btn-addnew {
-        margin: 12px 16px;
-        width: calc(100% - 32px);
-        background: rgba(1, 210, 152, .1);
-        border: 1px dashed var(--ide-accent);
-        color: var(--ide-accent);
+    .st-empty i {
+        font-size: 26px;
+        color: #1e1e2c;
+    }
+
+    .st-empty p {
+        font-size: 10px;
+        color: #2a2a3a;
+        line-height: 1.6;
+    }
+
+    /* Toast */
+    .st-toast-wrap {
+        position: fixed;
+        top: 14px;
+        right: 14px;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .st-toast {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 8px 14px;
         border-radius: 8px;
-        padding: 9px;
-        font-family: var(--f);
         font-size: 12px;
-        font-weight: 700;
-        cursor: pointer;
-        transition: background .15s;
+        font-weight: 600;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, .4);
     }
 
-    .btn-addnew:hover {
-        background: rgba(1, 210, 152, .18);
+    .st-toast i {
+        font-size: 14px;
     }
 
-    /* ── Anim classes preview ─── */
+    .st-toast-ok {
+        background: #064e3b;
+        color: #6ee7b7;
+        border: 1px solid #065f46;
+    }
+
+    .st-toast-err {
+        background: #7f1d1d;
+        color: #fca5a5;
+        border: 1px solid #b91c1c;
+    }
+
+    /* Keyframes */
     @keyframes hb-float {
 
         0%,
@@ -877,7 +1060,7 @@ function fv($d, $k, $default = ''): string
         }
 
         50% {
-            transform: translateY(-6px)
+            transform: translateY(-5px)
         }
     }
 
@@ -897,6 +1080,30 @@ function fv($d, $k, $default = ''): string
         }
     }
 
+    @keyframes hb-sliL {
+        from {
+            transform: translateX(-20px);
+            opacity: 0
+        }
+
+        to {
+            transform: none;
+            opacity: 1
+        }
+    }
+
+    @keyframes hb-sliR {
+        from {
+            transform: translateX(20px);
+            opacity: 0
+        }
+
+        to {
+            transform: none;
+            opacity: 1
+        }
+    }
+
     @keyframes hb-pulse {
 
         0%,
@@ -905,13 +1112,13 @@ function fv($d, $k, $default = ''): string
         }
 
         50% {
-            transform: scale(1.06)
+            transform: scale(1.07)
         }
     }
 
     @keyframes hb-zoom {
         from {
-            transform: scale(.85);
+            transform: scale(.8);
             opacity: 0
         }
 
@@ -920,866 +1127,1145 @@ function fv($d, $k, $default = ''): string
             opacity: 1
         }
     }
-
-    @keyframes hb-slide-left {
-        from {
-            transform: translateX(-30px);
-            opacity: 0
-        }
-
-        to {
-            transform: translateX(0);
-            opacity: 1
-        }
-    }
-
-    @keyframes hb-slide-right {
-        from {
-            transform: translateX(30px);
-            opacity: 0
-        }
-
-        to {
-            transform: translateX(0);
-            opacity: 1
-        }
-    }
-
-    .pa-float {
-        animation: hb-float 3s ease-in-out infinite;
-    }
-
-    .pa-bounce {
-        animation: hb-bounce 2s ease-in-out infinite;
-    }
-
-    .pa-pulse {
-        animation: hb-pulse 2s ease-in-out infinite;
-    }
-
-    .pa-zoom-in {
-        animation: hb-zoom .6s ease forwards;
-    }
-
-    .pa-slide-left {
-        animation: hb-slide-left .6s ease forwards;
-    }
-
-    .pa-slide-right {
-        animation: hb-slide-right .6s ease forwards;
-    }
-
-    /* ── Gradient picker row ─── */
-    .grad-row {
-        display: grid;
-        grid-template-columns: 36px 36px 1fr 1fr;
-        gap: 6px;
-        align-items: end;
-    }
-
-    /* ── Scrollbar ─── */
-    ::-webkit-scrollbar {
-        width: 5px;
-        height: 5px;
-    }
-
-    ::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    ::-webkit-scrollbar-thumb {
-        background: var(--ide-border);
-        border-radius: 99px;
-    }
-
-    /* ── Radio tabs for center_type ─── */
-    .rtabs {
-        display: flex;
-        gap: 0;
-        border: 1px solid var(--ide-border);
-        border-radius: 7px;
-        overflow: hidden;
-    }
-
-    .rtab {
-        flex: 1;
-    }
-
-    .rtab input {
-        display: none;
-    }
-
-    .rtab label {
-        display: block;
-        text-align: center;
-        padding: 6px;
-        font-size: 11px;
-        font-weight: 700;
-        cursor: pointer;
-        color: var(--ide-muted);
-        background: transparent;
-        letter-spacing: .4px;
-        text-transform: uppercase;
-        border: none;
-        transition: all .15s;
-    }
-
-    .rtab input:checked+label {
-        background: var(--ide-accent);
-        color: #000;
-    }
-
-    /* ── Preview bg gradient display ─── */
-    .bg-preview-strip {
-        height: 6px;
-        border-radius: 3px;
-        margin-bottom: 8px;
-        transition: all .3s;
-    }
 </style>
 
-<div class="ide-wrap">
+<?php $b = $banner; ?>
+<form method="POST" id="stForm">
+    <input type="hidden" name="action" value="save" />
+    <div class="st-root">
 
-    <!-- TOPBAR -->
-    <div class="ide-topbar">
-        <div style="display:flex;align-items:center;gap:6px">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <rect width="16" height="16" rx="4" fill="#01d298" fill-opacity=".15" />
-                <path d="M3 12V8l5-5 5 5v4H10V9H6v3H3z" fill="#01d298" />
-            </svg>
-            <h1>Hero Banner IDE</h1>
-        </div>
-        <span class="badge-ide">v5</span>
-        <div style="flex:1"></div>
-        <a href="/admin" class="btn-ide btn-ghost" style="font-size:11px;padding:5px 12px;">← Back</a>
-    </div>
-
-    <!-- LEFT PANEL -->
-    <div class="ide-left">
-
-        <?php if ($msg): ?>
-            <script>
-                window._toastMsg = <?= json_encode($msg) ?>;
-                window._toastType = 'ok';
-            </script>
-        <?php endif; ?>
-        <?php if ($err): ?>
-            <script>
-                window._toastMsg = <?= json_encode($err) ?>;
-                window._toastType = 'err';
-            </script>
-        <?php endif; ?>
-
-        <!-- Banner list -->
-        <div class="banner-list">
-            <div class="banner-list-title">Semua Banner (<?= count($banners) ?>)</div>
-            <?php foreach ($banners as $b): ?>
-                <div class="banner-card <?= $isEdit && $editRow['id'] == $b['id'] ? 'active' : '' ?>"
-                    onclick="loadBannerIntoForm(<?= htmlspecialchars(json_encode($b)) ?>)">
-                    <div class="bc-status <?= $b['is_active'] ? 'on' : 'off' ?>"></div>
-                    <div class="bc-info">
-                        <div class="bc-title"><?= htmlspecialchars($b['title'] ?: ($b['btn_text'] ?: 'Banner #' . $b['id'])) ?></div>
-                        <div class="bc-meta">h=<?= $b['height'] ?>px · #<?= $b['id'] ?> · sort=<?= $b['sort_order'] ?></div>
-                    </div>
-                    <div class="bc-actions">
-                        <form method="post" style="display:inline">
-                            <input type="hidden" name="action" value="toggle">
-                            <input type="hidden" name="id" value="<?= $b['id'] ?>">
-                            <button class="bc-btn" type="submit" title="Toggle aktif" onclick="event.stopPropagation()">
-                                <?= $b['is_active'] ? '◉' : '○' ?>
-                            </button>
-                        </form>
-                        <form method="post" style="display:inline" onsubmit="return confirm('Hapus banner ini?')">
-                            <input type="hidden" name="action" value="delete">
-                            <input type="hidden" name="id" value="<?= $b['id'] ?>">
-                            <button class="bc-btn del" type="submit" title="Hapus" onclick="event.stopPropagation()">✕</button>
-                        </form>
-                    </div>
-                </div>
-            <?php endforeach; ?>
+        <!-- TOOL STRIP -->
+        <div class="st-strip">
+            <button type="button" class="st-tb on" id="tbGambar" onclick="swTool('Gambar')" title="Gambar"><i class="ph ph-images"></i></button>
+            <button type="button" class="st-tb" id="tbKonten" onclick="swTool('Konten')" title="Konten"><i class="ph ph-text-aa"></i></button>
+            <button type="button" class="st-tb" id="tbPosisi" onclick="swTool('Posisi')" title="Posisi &amp; Ukuran"><i class="ph ph-arrows-out-cardinal"></i></button>
+            <button type="button" class="st-tb" id="tbTombol" onclick="swTool('Tombol')" title="Tombol"><i class="ph ph-cursor-click"></i></button>
+            <div class="st-tb-sep"></div>
+            <button type="button" class="st-tb" id="tbSet" onclick="swTool('Set')" title="Pengaturan"><i class="ph ph-gear-six"></i></button>
         </div>
 
-        <button class="btn-addnew" onclick="resetForm()">+ Tambah Banner Baru</button>
-
-        <!-- FORM -->
-        <form method="post" id="hbForm">
-            <input type="hidden" name="action" value="<?= $isEdit ? 'save' : 'add' ?>" id="formAction">
-            <input type="hidden" name="id" value="<?= fv($d, 'id') ?>" id="formId">
-
-            <!-- ── STRIP ── -->
-            <div class="ide-section">
-                <div class="ide-section-head open" onclick="toggleSection(this)">
-                    <div class="sh-left">
-                        <span class="dot" style="background:#ff9f43"></span> Strip
-                    </div>
-                    <span class="sh-arrow">▾</span>
-                </div>
-                <div class="ide-section-body open">
-                    <div class="field">
-                        <label>Height (px)</label>
-                        <input type="number" name="height" id="f_height" value="<?= fv($d, 'height', '160') ?>" min="60" max="400" oninput="updatePreview()">
-                        <div class="hint">Tinggi strip. Total render = height + 44px (ruang overlap menu card)</div>
-                    </div>
-                    <div class="g2">
-                        <div class="field">
-                            <label>Sort Order</label>
-                            <input type="number" name="sort_order" id="f_sort_order" value="<?= fv($d, 'sort_order', '0') ?>" oninput="updatePreview()">
-                        </div>
-                        <div class="toggle-row" style="padding-top:16px">
-                            <label class="sw">
-                                <input type="checkbox" name="is_active" id="f_is_active" <?= ($d['is_active'] ?? 1) ? 'checked' : '' ?> onchange="updatePreview()">
-                                <span class="sw-track"></span>
-                            </label>
-                            <label for="f_is_active">Aktif</label>
-                        </div>
-                    </div>
-                </div>
+        <!-- INSPECTOR -->
+        <div class="st-insp">
+            <div class="st-savebar">
+                <span class="st-dirty" id="dirtyDot"></span>
+                <span class="st-save-txt" id="saveTxt">Semua tersimpan</span>
+                <button type="submit" class="st-save-btn"><i class="ph ph-floppy-disk"></i>Simpan</button>
             </div>
-
-            <!-- ── GAMBAR KIRI ── -->
-            <div class="ide-section">
-                <div class="ide-section-head open" onclick="toggleSection(this)">
-                    <div class="sh-left"><span class="dot" style="background:#54a0ff"></span> Gambar Kiri</div>
-                    <span class="sh-arrow">▾</span>
-                </div>
-                <div class="ide-section-body open">
-                    <div class="field">
-                        <label>URL Gambar</label>
-                        <input type="text" name="img_left" id="f_img_left" value="<?= fv($d, 'img_left') ?>" placeholder="https://..." oninput="updatePreview()">
-                    </div>
-                    <div class="g2">
-                        <div class="field">
-                            <label>Width (px)</label>
-                            <input type="number" name="img_left_w" id="f_img_left_w" value="<?= fv($d, 'img_left_w', '90') ?>" min="10" max="300" oninput="updatePreview()">
-                        </div>
-                        <div class="field">
-                            <label>Height (px, kosong=auto)</label>
-                            <input type="number" name="img_left_h" id="f_img_left_h" value="<?= fv($d, 'img_left_h') ?>" min="10" max="400" placeholder="auto" oninput="updatePreview()">
-                        </div>
-                    </div>
-                    <div class="g3">
-                        <div class="field">
-                            <label>X (left)</label>
-                            <input type="text" name="img_left_x" id="f_img_left_x" value="<?= fv($d, 'img_left_x', '0') ?>" placeholder="0" oninput="updatePreview()">
-                            <div class="hint">dari tepi kiri</div>
-                        </div>
-                        <div class="field">
-                            <label>Y (bottom)</label>
-                            <input type="text" name="img_left_y" id="f_img_left_y" value="<?= fv($d, 'img_left_y', '0') ?>" placeholder="0" oninput="updatePreview()">
-                            <div class="hint">dari bawah strip</div>
-                        </div>
-                        <div class="field">
-                            <label>Z-index</label>
-                            <input type="number" name="img_left_z" id="f_img_left_z" value="<?= fv($d, 'img_left_z', '1') ?>" oninput="updatePreview()">
-                        </div>
-                    </div>
-                    <div class="field">
-                        <label>Animasi</label>
-                        <select name="img_left_anim" id="f_img_left_anim" onchange="updatePreview()">
-                            <?php foreach (['' => 'Tidak ada', 'float' => 'Float', 'bounce' => 'Bounce', 'slide-left' => 'Slide Left', 'zoom-in' => 'Zoom In'] as $v => $l): ?>
-                                <option value="<?= $v ?>" <?= ($d['img_left_anim'] ?? '') === $v ? 'selected' : '' ?>><?= $l ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                </div>
+            <div class="st-tabs">
+                <button type="button" class="st-tab on" data-p="pGambar"><i class="ph ph-images"></i>Gambar</button>
+                <button type="button" class="st-tab" data-p="pKonten"><i class="ph ph-text-aa"></i>Konten</button>
+                <button type="button" class="st-tab" data-p="pPosisi"><i class="ph ph-arrows-out-cardinal"></i>Posisi</button>
+                <button type="button" class="st-tab" data-p="pTombol"><i class="ph ph-cursor-click"></i>Tombol</button>
+                <button type="button" class="st-tab" data-p="pSet"><i class="ph ph-gear-six"></i>Set</button>
             </div>
+            <div class="st-body">
 
-            <!-- ── GAMBAR KANAN ── -->
-            <div class="ide-section">
-                <div class="ide-section-head" onclick="toggleSection(this)">
-                    <div class="sh-left"><span class="dot" style="background:#ff6b81"></span> Gambar Kanan</div>
-                    <span class="sh-arrow">▾</span>
-                </div>
-                <div class="ide-section-body">
-                    <div class="field">
-                        <label>URL Gambar</label>
-                        <input type="text" name="img_right" id="f_img_right" value="<?= fv($d, 'img_right') ?>" placeholder="https://..." oninput="updatePreview()">
-                    </div>
-                    <div class="g2">
-                        <div class="field">
-                            <label>Width (px)</label>
-                            <input type="number" name="img_right_w" id="f_img_right_w" value="<?= fv($d, 'img_right_w', '90') ?>" min="10" max="300" oninput="updatePreview()">
-                        </div>
-                        <div class="field">
-                            <label>Height (px, kosong=auto)</label>
-                            <input type="number" name="img_right_h" id="f_img_right_h" value="<?= fv($d, 'img_right_h') ?>" min="10" max="400" placeholder="auto" oninput="updatePreview()">
-                        </div>
-                    </div>
-                    <div class="g3">
-                        <div class="field">
-                            <label>X (right)</label>
-                            <input type="text" name="img_right_x" id="f_img_right_x" value="<?= fv($d, 'img_right_x', '0') ?>" placeholder="0" oninput="updatePreview()">
-                            <div class="hint">dari tepi kanan</div>
-                        </div>
-                        <div class="field">
-                            <label>Y (bottom)</label>
-                            <input type="text" name="img_right_y" id="f_img_right_y" value="<?= fv($d, 'img_right_y', '0') ?>" placeholder="0" oninput="updatePreview()">
-                            <div class="hint">dari bawah strip</div>
-                        </div>
-                        <div class="field">
-                            <label>Z-index</label>
-                            <input type="number" name="img_right_z" id="f_img_right_z" value="<?= fv($d, 'img_right_z', '1') ?>" oninput="updatePreview()">
-                        </div>
-                    </div>
-                    <div class="field">
-                        <label>Animasi</label>
-                        <select name="img_right_anim" id="f_img_right_anim" onchange="updatePreview()">
-                            <?php foreach (['' => 'Tidak ada', 'float' => 'Float', 'bounce' => 'Bounce', 'slide-right' => 'Slide Right', 'zoom-in' => 'Zoom In'] as $v => $l): ?>
-                                <option value="<?= $v ?>" <?= ($d['img_right_anim'] ?? '') === $v ? 'selected' : '' ?>><?= $l ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ── CENTER ── -->
-            <div class="ide-section">
-                <div class="ide-section-head open" onclick="toggleSection(this)">
-                    <div class="sh-left"><span class="dot" style="background:#ffd32a"></span> Center</div>
-                    <span class="sh-arrow">▾</span>
-                </div>
-                <div class="ide-section-body open">
-                    <div class="g3">
-                        <div class="field">
-                            <label>Y (bottom)</label>
-                            <input type="text" name="center_y" id="f_center_y" value="<?= fv($d, 'center_y', '0') ?>" placeholder="0" oninput="updatePreview()">
-                            <div class="hint">offset dari bawah strip</div>
-                        </div>
-                        <div class="field">
-                            <label>Width (px, kosong=auto)</label>
-                            <input type="number" name="center_w" id="f_center_w" value="<?= fv($d, 'center_w') ?>" placeholder="auto" min="40" oninput="updatePreview()">
-                        </div>
-                        <div class="field">
-                            <label>Z-index</label>
-                            <input type="number" name="center_z" id="f_center_z" value="<?= fv($d, 'center_z', '2') ?>" oninput="updatePreview()">
-                        </div>
-                    </div>
-
-                    <!-- Center type tabs -->
-                    <div class="field">
-                        <label>Tipe Konten Tengah</label>
-                        <div class="rtabs">
-                            <div class="rtab">
-                                <input type="radio" name="center_type" id="ct_text" value="text"
-                                    <?= ($d['center_type'] ?? 'text') === 'text' ? 'checked' : '' ?> onchange="switchCenterType(); updatePreview()">
-                                <label for="ct_text">Teks</label>
-                            </div>
-                            <div class="rtab">
-                                <input type="radio" name="center_type" id="ct_image" value="image"
-                                    <?= ($d['center_type'] ?? 'text') === 'image' ? 'checked' : '' ?> onchange="switchCenterType(); updatePreview()">
-                                <label for="ct_image">Gambar</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Text fields -->
-                    <div id="centerTextFields">
-                        <div style="display:flex;flex-direction:column;gap:10px">
-                            <div class="field">
-                                <label>Title</label>
-                                <input type="text" name="title" id="f_title" value="<?= fv($d, 'title') ?>" placeholder="KLAIM HADIAH" oninput="updatePreview()">
-                            </div>
-                            <div class="g3">
-                                <div class="field">
-                                    <label>Warna Title</label>
-                                    <div class="color-row">
-                                        <input type="color" name="title_color" id="f_title_color" value="<?= fv($d, 'title_color', '#ffffff') ?>" oninput="updatePreview()">
-                                        <input type="text" id="f_title_color_txt" value="<?= fv($d, 'title_color', '#ffffff') ?>" oninput="syncColor('title_color')">
+                <!-- ══ PANEL GAMBAR ══ -->
+                <div id="pGambar">
+                    <!-- Gambar Kiri -->
+                    <div class="st-sec">
+                        <div class="st-sh"><i class="ph ph-align-left" style="color:#a855f7"></i>Gambar Kiri</div>
+                        <input type="text" name="img_left" id="f_img_left" class="st-inp"
+                            placeholder="https://…" value="<?= htmlspecialchars($b['img_left'] ?? '') ?>"
+                            oninput="livePreview();showThumb(this,'ilT');markDirty()" />
+                        <img id="ilT" class="st-thumb" src="<?= htmlspecialchars($b['img_left'] ?? '') ?>" alt=""
+                            style="<?= !empty($b['img_left']) ? 'display:block' : '' ?>" />
+                        <div class="st-row" style="margin-top:6px">
+                            <div class="st-col">
+                                <span class="st-lbl">W × H</span>
+                                <div class="st-sz">
+                                    <div class="st-sz-f">
+                                        <input type="number" name="img_left_w" id="f_img_left_w" class="st-inp"
+                                            min="10" max="400" value="<?= (int)($b['img_left_w'] ?? 90) ?>"
+                                            oninput="livePreview();markDirty()" />
+                                        <span class="st-sz-u">W</span>
+                                    </div>
+                                    <div class="st-sz-f">
+                                        <input type="number" name="img_left_h" id="f_img_left_h" class="st-inp"
+                                            min="0" max="400" placeholder="auto"
+                                            value="<?= (int)($b['img_left_h'] ?? 0) > 0 ? (int)$b['img_left_h'] : '' ?>"
+                                            oninput="livePreview();markDirty()" />
+                                        <span class="st-sz-u">H</span>
                                     </div>
                                 </div>
-                                <div class="field">
-                                    <label>Font Size</label>
-                                    <input type="text" name="title_size" id="f_title_size" value="<?= fv($d, 'title_size', '15px') ?>" placeholder="15px" oninput="updatePreview()">
+                            </div>
+                            <div class="st-col">
+                                <span class="st-lbl">Anim</span>
+                                <?= anim_sel('img_left_anim', $b['img_left_anim'] ?? '') ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gambar Kanan -->
+                    <div class="st-sec">
+                        <div class="st-sh"><i class="ph ph-align-right" style="color:#f59e0b"></i>Gambar Kanan</div>
+                        <input type="text" name="img_right" id="f_img_right" class="st-inp"
+                            placeholder="https://…" value="<?= htmlspecialchars($b['img_right'] ?? '') ?>"
+                            oninput="livePreview();showThumb(this,'irT');markDirty()" />
+                        <img id="irT" class="st-thumb" src="<?= htmlspecialchars($b['img_right'] ?? '') ?>" alt=""
+                            style="<?= !empty($b['img_right']) ? 'display:block' : '' ?>" />
+                        <div class="st-row" style="margin-top:6px">
+                            <div class="st-col">
+                                <span class="st-lbl">W × H</span>
+                                <div class="st-sz">
+                                    <div class="st-sz-f">
+                                        <input type="number" name="img_right_w" id="f_img_right_w" class="st-inp"
+                                            min="10" max="400" value="<?= (int)($b['img_right_w'] ?? 90) ?>"
+                                            oninput="livePreview();markDirty()" />
+                                        <span class="st-sz-u">W</span>
+                                    </div>
+                                    <div class="st-sz-f">
+                                        <input type="number" name="img_right_h" id="f_img_right_h" class="st-inp"
+                                            min="0" max="400" placeholder="auto"
+                                            value="<?= (int)($b['img_right_h'] ?? 0) > 0 ? (int)$b['img_right_h'] : '' ?>"
+                                            oninput="livePreview();markDirty()" />
+                                        <span class="st-sz-u">H</span>
+                                    </div>
                                 </div>
-                                <div class="field">
-                                    <label>Font Weight</label>
-                                    <select name="title_weight" id="f_title_weight" onchange="updatePreview()">
+                            </div>
+                            <div class="st-col">
+                                <span class="st-lbl">Anim</span>
+                                <?= anim_sel('img_right_anim', $b['img_right_anim'] ?? '') ?>
+                            </div>
+                        </div>
+                    </div>
+                </div><!-- /pGambar -->
+
+                <!-- ══ PANEL KONTEN ══ -->
+                <div id="pKonten" style="display:none">
+                    <!-- Center type pills -->
+                    <div class="st-sec">
+                        <div class="st-sh"><i class="ph ph-align-center-horizontal"></i>Isi Tengah</div>
+                        <div class="st-pills">
+                            <?php foreach (['text' => ['ph-text-aa', 'Teks & Tombol'], 'image' => ['ph-image-square', 'Gambar']] as $v => [$ic, $lb]): ?>
+                                <div class="st-pill <?= ($b['center_type'] ?? 'text') === $v ? 'on' : '' ?>"
+                                    onclick="setCT('<?= $v ?>')">
+                                    <input type="radio" name="center_type" value="<?= $v ?>"
+                                        <?= ($b['center_type'] ?? 'text') === $v ? 'checked' : '' ?> style="display:none" />
+                                    <i class="ph <?= $ic ?>"></i><?= $lb ?>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+
+                    <!-- Teks fields -->
+                    <div id="ctT">
+                        <div class="st-sec">
+                            <div class="st-sh"><i class="ph ph-text-h" style="color:#f59e0b"></i>Judul</div>
+                            <div class="st-row" style="align-items:flex-end">
+                                <div style="flex-shrink:0">
+                                    <span class="st-lbl">Clr</span>
+                                    <input type="color" name="title_color" class="st-sw-inp"
+                                        value="<?= htmlspecialchars($b['title_color'] ?? '#ffffff') ?>"
+                                        oninput="livePreview()" />
+                                </div>
+                                <div class="st-col">
+                                    <span class="st-lbl">Teks Judul</span>
+                                    <input type="text" name="title" id="f_title" class="st-inp" maxlength="200"
+                                        placeholder="KLAIM HADIAH"
+                                        value="<?= htmlspecialchars($b['title'] ?? '') ?>"
+                                        oninput="livePreview()" />
+                                </div>
+                            </div>
+                            <div class="st-row" style="margin-top:5px">
+                                <div class="st-col">
+                                    <span class="st-lbl">Size</span>
+                                    <input type="text" name="title_size" class="st-inp" maxlength="20"
+                                        placeholder="15px"
+                                        value="<?= htmlspecialchars($b['title_size'] ?? '15px') ?>"
+                                        oninput="livePreview();markDirty()" />
+                                </div>
+                                <div class="st-col">
+                                    <span class="st-lbl">Weight</span>
+                                    <select name="title_weight" class="st-select" onchange="livePreview();markDirty()">
                                         <?php foreach (['400', '500', '600', '700', '800', '900'] as $w): ?>
-                                            <option value="<?= $w ?>" <?= ($d['title_weight'] ?? '900') === $w ? 'selected' : '' ?>><?= $w ?></option>
+                                            <option value="<?= $w ?>" <?= ($b['title_weight'] ?? '900') === $w ? 'selected' : '' ?>><?= $w ?></option>
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
+                                <div class="st-col">
+                                    <span class="st-lbl">Margin B</span>
+                                    <input type="text" name="title_mb" class="st-inp" maxlength="20"
+                                        placeholder="2px"
+                                        value="<?= htmlspecialchars($b['title_mb'] ?? '2px') ?>"
+                                        oninput="livePreview();markDirty()" />
+                                </div>
                             </div>
-                            <div class="field">
-                                <label>Margin Bottom Title</label>
-                                <input type="text" name="title_mb" id="f_title_mb" value="<?= fv($d, 'title_mb', '2px') ?>" placeholder="2px" oninput="updatePreview()">
+                        </div>
+                        <div class="st-sec">
+                            <div class="st-sh"><i class="ph ph-text-align-left" style="color:#10b981"></i>Subtitle</div>
+                            <div class="st-row" style="align-items:flex-end">
+                                <div style="flex-shrink:0">
+                                    <span class="st-lbl">Clr</span>
+                                    <input type="color" name="subtitle_color" class="st-sw-inp"
+                                        value="<?= htmlspecialchars($b['subtitle_color'] ?? '#ffffffd9') ?>"
+                                        oninput="livePreview()" />
+                                </div>
+                                <div class="st-col">
+                                    <span class="st-lbl">Teks Subtitle</span>
+                                    <input type="text" name="subtitle" id="f_subtitle" class="st-inp" maxlength="300"
+                                        placeholder="& Jutaan Rupiah"
+                                        value="<?= htmlspecialchars($b['subtitle'] ?? '') ?>"
+                                        oninput="livePreview()" />
+                                </div>
                             </div>
+                            <div class="st-row" style="margin-top:5px">
+                                <div class="st-col">
+                                    <span class="st-lbl">Size</span>
+                                    <input type="text" name="subtitle_size" class="st-inp" maxlength="20"
+                                        placeholder="10.5px"
+                                        value="<?= htmlspecialchars($b['subtitle_size'] ?? '10.5px') ?>"
+                                        oninput="livePreview();markDirty()" />
+                                </div>
+                                <div class="st-col">
+                                    <span class="st-lbl">Margin B</span>
+                                    <input type="text" name="subtitle_mb" class="st-inp" maxlength="20"
+                                        placeholder="10px"
+                                        value="<?= htmlspecialchars($b['subtitle_mb'] ?? '10px') ?>"
+                                        oninput="livePreview();markDirty()" />
+                                </div>
+                            </div>
+                        </div>
+                    </div><!-- /ctT -->
 
-                            <div class="field">
-                                <label>Subtitle</label>
-                                <input type="text" name="subtitle" id="f_subtitle" value="<?= fv($d, 'subtitle') ?>" placeholder="& Jutaan Rupiah" oninput="updatePreview()">
-                            </div>
-                            <div class="g3">
-                                <div class="field">
-                                    <label>Warna Subtitle</label>
-                                    <div class="color-row">
-                                        <input type="color" name="subtitle_color" id="f_subtitle_color" value="<?= fv($d, 'subtitle_color', '#ffffffd9') ?>" oninput="updatePreview()">
-                                        <input type="text" id="f_subtitle_color_txt" value="<?= fv($d, 'subtitle_color', '#ffffffd9') ?>" oninput="syncColor('subtitle_color')">
+                    <!-- Gambar tengah fields -->
+                    <div id="ctI" style="display:none">
+                        <div class="st-sec">
+                            <div class="st-sh"><i class="ph ph-image-square" style="color:#a855f7"></i>Gambar Tengah</div>
+                            <input type="text" name="center_image" class="st-inp"
+                                placeholder="https://…"
+                                value="<?= htmlspecialchars($b['center_image'] ?? '') ?>"
+                                oninput="livePreview();showThumb(this,'ciT');markDirty()" />
+                            <img id="ciT" class="st-thumb" src="<?= htmlspecialchars($b['center_image'] ?? '') ?>" alt=""
+                                style="<?= !empty($b['center_image']) ? 'display:block' : '' ?>" />
+                            <div class="st-row" style="margin-top:6px">
+                                <div class="st-col">
+                                    <span class="st-lbl">W × H</span>
+                                    <div class="st-sz">
+                                        <div class="st-sz-f">
+                                            <input type="number" name="center_img_w" id="f_center_img_w" class="st-inp"
+                                                min="10" max="600"
+                                                value="<?= (int)($b['center_img_w'] ?? 160) ?>"
+                                                oninput="livePreview();markDirty()" />
+                                            <span class="st-sz-u">W</span>
+                                        </div>
+                                        <div class="st-sz-f">
+                                            <input type="number" name="center_img_h" id="f_center_img_h" class="st-inp"
+                                                min="0" max="600" placeholder="auto"
+                                                value="<?= (int)($b['center_img_h'] ?? 0) > 0 ? (int)$b['center_img_h'] : '' ?>"
+                                                oninput="livePreview();markDirty()" />
+                                            <span class="st-sz-u">H</span>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="field">
-                                    <label>Font Size</label>
-                                    <input type="text" name="subtitle_size" id="f_subtitle_size" value="<?= fv($d, 'subtitle_size', '10.5px') ?>" placeholder="10.5px" oninput="updatePreview()">
+                                <div class="st-col">
+                                    <span class="st-lbl">Margin B</span>
+                                    <input type="text" name="center_img_mb" class="st-inp" maxlength="20"
+                                        placeholder="0"
+                                        value="<?= htmlspecialchars($b['center_img_mb'] ?? '0') ?>"
+                                        oninput="livePreview();markDirty()" />
                                 </div>
-                                <div class="field">
-                                    <label>Margin Bottom Sub</label>
-                                    <input type="text" name="subtitle_mb" id="f_subtitle_mb" value="<?= fv($d, 'subtitle_mb', '10px') ?>" placeholder="10px" oninput="updatePreview()">
+                            </div>
+                            <div class="st-row">
+                                <div class="st-col">
+                                    <span class="st-lbl">Anim</span>
+                                    <?= anim_sel('center_img_anim', $b['center_img_anim'] ?? '') ?>
                                 </div>
+                            </div>
+                        </div>
+                    </div><!-- /ctI -->
+                </div><!-- /pKonten -->
+
+                <!-- ══ PANEL POSISI ══ -->
+                <div id="pPosisi" style="display:none">
+
+                    <!-- Gambar Kiri posisi -->
+                    <div class="st-sec">
+                        <div class="st-sh"><i class="ph ph-align-left" style="color:#a855f7"></i>Posisi Gambar Kiri</div>
+                        <div class="st-row">
+                            <div class="st-col">
+                                <span class="st-lbl">X — dari tepi kiri</span>
+                                <div class="st-xy">
+                                    <div class="st-xy-f">
+                                        <input type="text" name="img_left_x" id="f_img_left_x" class="st-inp"
+                                            placeholder="0" maxlength="20"
+                                            value="<?= htmlspecialchars($b['img_left_x'] ?? '0') ?>"
+                                            oninput="livePreview();markDirty()" />
+                                        <span class="st-xy-u">X</span>
+                                    </div>
+                                    <div class="st-xy-f">
+                                        <input type="text" name="img_left_y" id="f_img_left_y" class="st-inp"
+                                            placeholder="0" maxlength="20"
+                                            value="<?= htmlspecialchars($b['img_left_y'] ?? '0') ?>"
+                                            oninput="livePreview();markDirty()" />
+                                        <span class="st-xy-u">Y</span>
+                                    </div>
+                                </div>
+                                <div style="font-size:9px;color:#282838;margin-top:3px;line-height:1.4">
+                                    X = offset kiri&nbsp;&nbsp;Y = offset bawah<br>contoh: <code style="color:#60a5fa">-10px</code> / <code style="color:#60a5fa">50%</code>
+                                </div>
+                            </div>
+                            <div class="st-col">
+                                <span class="st-lbl">Z-index</span>
+                                <input type="number" name="img_left_z" class="st-inp" min="0" max="99"
+                                    value="<?= (int)($b['img_left_z'] ?? 1) ?>"
+                                    oninput="livePreview();markDirty()" />
                             </div>
                         </div>
                     </div>
 
-                    <!-- Image center fields -->
-                    <div id="centerImageFields" style="display:none;flex-direction:column;gap:10px">
-                        <div class="field">
-                            <label>URL Gambar Tengah</label>
-                            <input type="text" name="center_image" id="f_center_image" value="<?= fv($d, 'center_image') ?>" placeholder="https://..." oninput="updatePreview()">
+                    <!-- Gambar Kanan posisi -->
+                    <div class="st-sec">
+                        <div class="st-sh"><i class="ph ph-align-right" style="color:#f59e0b"></i>Posisi Gambar Kanan</div>
+                        <div class="st-row">
+                            <div class="st-col">
+                                <span class="st-lbl">X — dari tepi kanan</span>
+                                <div class="st-xy">
+                                    <div class="st-xy-f">
+                                        <input type="text" name="img_right_x" id="f_img_right_x" class="st-inp"
+                                            placeholder="0" maxlength="20"
+                                            value="<?= htmlspecialchars($b['img_right_x'] ?? '0') ?>"
+                                            oninput="livePreview();markDirty()" />
+                                        <span class="st-xy-u">X</span>
+                                    </div>
+                                    <div class="st-xy-f">
+                                        <input type="text" name="img_right_y" id="f_img_right_y" class="st-inp"
+                                            placeholder="0" maxlength="20"
+                                            value="<?= htmlspecialchars($b['img_right_y'] ?? '0') ?>"
+                                            oninput="livePreview();markDirty()" />
+                                        <span class="st-xy-u">Y</span>
+                                    </div>
+                                </div>
+                                <div style="font-size:9px;color:#282838;margin-top:3px;line-height:1.4">
+                                    X = offset kanan&nbsp;&nbsp;Y = offset bawah
+                                </div>
+                            </div>
+                            <div class="st-col">
+                                <span class="st-lbl">Z-index</span>
+                                <input type="number" name="img_right_z" class="st-inp" min="0" max="99"
+                                    value="<?= (int)($b['img_right_z'] ?? 1) ?>"
+                                    oninput="livePreview();markDirty()" />
+                            </div>
                         </div>
-                        <div class="g2">
-                            <div class="field">
-                                <label>Width (px)</label>
-                                <input type="number" name="center_img_w" id="f_center_img_w" value="<?= fv($d, 'center_img_w', '160') ?>" min="10" oninput="updatePreview()">
+                    </div>
+
+                    <!-- Center posisi -->
+                    <div class="st-sec">
+                        <div class="st-sh"><i class="ph ph-align-center-horizontal" style="color:#3b82f6"></i>Posisi Center</div>
+                        <div class="st-row">
+                            <div class="st-col">
+                                <span class="st-lbl">Y — dari bawah strip</span>
+                                <input type="text" name="center_y" id="f_center_y" class="st-inp"
+                                    placeholder="0" maxlength="20"
+                                    value="<?= htmlspecialchars($b['center_y'] ?? '0') ?>"
+                                    oninput="livePreview();markDirty()" />
+                                <div style="font-size:9px;color:#282838;margin-top:3px">
+                                    Center selalu horizontal-center otomatis
+                                </div>
                             </div>
-                            <div class="field">
-                                <label>Height (px, kosong=auto)</label>
-                                <input type="number" name="center_img_h" id="f_center_img_h" value="<?= fv($d, 'center_img_h') ?>" placeholder="auto" min="10" oninput="updatePreview()">
+                            <div class="st-col">
+                                <span class="st-lbl">Max-width (px)</span>
+                                <input type="number" name="center_w" class="st-inp" min="40"
+                                    placeholder="auto"
+                                    value="<?= (int)($b['center_w'] ?? 0) > 0 ? (int)$b['center_w'] : '' ?>"
+                                    oninput="livePreview();markDirty()" />
+                            </div>
+                            <div class="st-col">
+                                <span class="st-lbl">Z-index</span>
+                                <input type="number" name="center_z" class="st-inp" min="0" max="99"
+                                    value="<?= (int)($b['center_z'] ?? 2) ?>"
+                                    oninput="livePreview();markDirty()" />
                             </div>
                         </div>
-                        <div class="g2">
-                            <div class="field">
-                                <label>Margin Bottom</label>
-                                <input type="text" name="center_img_mb" id="f_center_img_mb" value="<?= fv($d, 'center_img_mb', '0') ?>" placeholder="0" oninput="updatePreview()">
+                    </div>
+
+                    <div style="font-size:9px;color:#282838;background:#0a0a12;border-radius:6px;padding:7px 9px;line-height:1.5;margin-top:4px">
+                        <strong style="color:#3a3a52">Sistem Absolute</strong><br>
+                        Gambar kiri/kanan pakai <code style="color:#60a5fa">position:absolute</code>.<br>
+                        Ubah ukuran gambar tidak akan menggeser center.
+                    </div>
+                </div><!-- /pPosisi -->
+
+                <!-- ══ PANEL TOMBOL ══ -->
+                <div id="pTombol" style="display:none">
+                    <div class="st-sec">
+                        <div class="st-sh"><i class="ph ph-cursor-click" style="color:#10b981"></i>Tombol</div>
+                        <div class="st-row">
+                            <div class="st-col">
+                                <span class="st-lbl">Teks (kosong = tidak tampil)</span>
+                                <input type="text" name="btn_text" class="st-inp" maxlength="80"
+                                    placeholder="SERBU"
+                                    value="<?= htmlspecialchars($b['btn_text'] ?? '') ?>"
+                                    oninput="livePreview();markDirty()" />
                             </div>
-                            <div class="field">
-                                <label>Animasi</label>
-                                <select name="center_img_anim" id="f_center_img_anim" onchange="updatePreview()">
-                                    <?php foreach (['' => 'Tidak ada', 'float' => 'Float', 'bounce' => 'Bounce', 'pulse' => 'Pulse', 'zoom-in' => 'Zoom In'] as $v => $l): ?>
-                                        <option value="<?= $v ?>" <?= ($d['center_img_anim'] ?? '') === $v ? 'selected' : '' ?>><?= $l ?></option>
+                            <div class="st-col">
+                                <span class="st-lbl">Link</span>
+                                <input type="text" name="btn_href" class="st-inp" maxlength="255"
+                                    placeholder="#"
+                                    value="<?= htmlspecialchars($b['btn_href'] ?? '#') ?>" />
+                            </div>
+                        </div>
+                        <div class="st-row">
+                            <div class="st-col">
+                                <span class="st-lbl">BG Color</span>
+                                <div class="st-clr-row">
+                                    <input type="color" class="st-sw-inp" id="sw_bc"
+                                        value="<?= htmlspecialchars(substr($b['btn_color'] ?? '#FFD700', 0, 7)) ?>"
+                                        oninput="syncH(this,'hx_bc');livePreview();markDirty()" />
+                                    <input type="text" id="hx_bc" class="st-hex" maxlength="9"
+                                        value="<?= htmlspecialchars($b['btn_color'] ?? '#FFD700') ?>"
+                                        oninput="syncS(this,'sw_bc');document.querySelector('[name=btn_color]').value=this.value;livePreview();markDirty()" />
+                                    <input type="hidden" name="btn_color" value="<?= htmlspecialchars($b['btn_color'] ?? '#FFD700') ?>" />
+                                </div>
+                            </div>
+                            <div class="st-col">
+                                <span class="st-lbl">Text Color</span>
+                                <div class="st-clr-row">
+                                    <input type="color" class="st-sw-inp" id="sw_btc"
+                                        value="<?= htmlspecialchars(substr($b['btn_text_color'] ?? '#000000', 0, 7)) ?>"
+                                        oninput="syncH(this,'hx_btc');livePreview();markDirty()" />
+                                    <input type="text" id="hx_btc" class="st-hex" maxlength="9"
+                                        value="<?= htmlspecialchars($b['btn_text_color'] ?? '#000000') ?>"
+                                        oninput="syncS(this,'sw_btc');document.querySelector('[name=btn_text_color]').value=this.value;livePreview();markDirty()" />
+                                    <input type="hidden" name="btn_text_color" value="<?= htmlspecialchars($b['btn_text_color'] ?? '#000000') ?>" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="st-div"></div>
+                        <!-- Padding -->
+                        <div class="st-sh" style="margin-bottom:5px"><i class="ph ph-frame-corners"></i>Padding</div>
+                        <div class="st-row">
+                            <div class="st-col">
+                                <span class="st-lbl">Top / Bottom</span>
+                                <div class="st-xy">
+                                    <div class="st-xy-f">
+                                        <input type="text" name="btn_pt" class="st-inp" maxlength="20" placeholder="7px"
+                                            value="<?= htmlspecialchars($b['btn_pt'] ?? '7px') ?>"
+                                            oninput="livePreview();markDirty()" />
+                                        <span class="st-xy-u">T</span>
+                                    </div>
+                                    <div class="st-xy-f">
+                                        <input type="text" name="btn_pb" class="st-inp" maxlength="20" placeholder="7px"
+                                            value="<?= htmlspecialchars($b['btn_pb'] ?? '7px') ?>"
+                                            oninput="livePreview();markDirty()" />
+                                        <span class="st-xy-u">B</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="st-col">
+                                <span class="st-lbl">Left / Right</span>
+                                <div class="st-xy">
+                                    <div class="st-xy-f">
+                                        <input type="text" name="btn_pl" class="st-inp" maxlength="20" placeholder="26px"
+                                            value="<?= htmlspecialchars($b['btn_pl'] ?? '26px') ?>"
+                                            oninput="livePreview();markDirty()" />
+                                        <span class="st-xy-u">L</span>
+                                    </div>
+                                    <div class="st-xy-f">
+                                        <input type="text" name="btn_pr" class="st-inp" maxlength="20" placeholder="26px"
+                                            value="<?= htmlspecialchars($b['btn_pr'] ?? '26px') ?>"
+                                            oninput="livePreview();markDirty()" />
+                                        <span class="st-xy-u">R</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="st-row">
+                            <div class="st-col">
+                                <span class="st-lbl">Border Radius</span>
+                                <input type="text" name="btn_radius" class="st-inp" maxlength="20" placeholder="99px"
+                                    value="<?= htmlspecialchars($b['btn_radius'] ?? '99px') ?>"
+                                    oninput="livePreview();markDirty()" />
+                            </div>
+                            <div class="st-col">
+                                <span class="st-lbl">Font Size</span>
+                                <input type="text" name="btn_size" class="st-inp" maxlength="20" placeholder="12px"
+                                    value="<?= htmlspecialchars($b['btn_size'] ?? '12px') ?>"
+                                    oninput="livePreview();markDirty()" />
+                            </div>
+                            <div class="st-col">
+                                <span class="st-lbl">Weight</span>
+                                <select name="btn_weight" class="st-select" onchange="livePreview();markDirty()">
+                                    <?php foreach (['400', '500', '600', '700', '800', '900'] as $w): ?>
+                                        <option value="<?= $w ?>" <?= ($b['btn_weight'] ?? '900') === $w ? 'selected' : '' ?>><?= $w ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
                         </div>
+                        <div class="st-row">
+                            <div class="st-col">
+                                <span class="st-lbl">Animasi</span>
+                                <?= anim_sel('btn_anim', $b['btn_anim'] ?? 'pulse') ?>
+                            </div>
+                        </div>
                     </div>
+                </div><!-- /pTombol -->
+
+                <!-- ══ PANEL SETTINGS ══ -->
+                <div id="pSet" style="display:none">
+                    <div class="st-sec">
+                        <div class="st-sh"><i class="ph ph-arrows-vertical"></i>Strip</div>
+                        <div class="st-sld-row">
+                            <input type="range" name="height" min="60" max="280"
+                                value="<?= (int)($b['height'] ?? 160) ?>"
+                                oninput="document.getElementById('hV').textContent=this.value+'px';livePreview();markDirty()" />
+                            <span id="hV" class="st-sld-val"><?= (int)$b['height'] ?>px</span>
+                        </div>
+                    </div>
+                    <div class="st-div"></div>
+                    <div class="st-sec">
+                        <div class="st-sh"><i class="ph ph-toggle-right"></i>Status</div>
+                        <div class="st-tog-row">
+                            <span class="st-tog-lbl">Aktifkan Banner</span>
+                            <label class="st-sw">
+                                <input type="checkbox" name="is_active"
+                                    <?= $b['is_active'] ? 'checked' : '' ?>
+                                    onchange="markDirty();livePreview()" />
+                                <span class="st-sw-tr"></span><span class="st-sw-th"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="st-div"></div>
+                    <div class="st-sec">
+                        <div class="st-sh"><i class="ph ph-database"></i>Info</div>
+                        <?php foreach (
+                            [
+                                ['ID',      '#' . $b['id']],
+                                ['Height',  $b['height'] . 'px'],
+                                ['Dibuat',  date('d M Y', strtotime($b['created_at']))],
+                                ['Update',  date('d M Y', strtotime($b['updated_at']))],
+                            ] as [$k, $v]
+                        ): ?>
+                            <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1a1a26">
+                                <span style="font-size:10px;color:#3a3a52"><?= $k ?></span>
+                                <span style="font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace;color:#5a5a78"><?= htmlspecialchars($v) ?></span>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div><!-- /pSet -->
+
+            </div><!-- /st-body -->
+        </div><!-- /st-insp -->
+
+        <!-- ══ CANVAS ══ -->
+        <div class="st-canvas">
+            <div class="st-canvas-lbl">Live Preview</div>
+            <div class="st-pw">
+                <?php
+                // Build hero bg inline style
+                $heroBg = "background:linear-gradient(135deg,#0066cc,#0099ff)"; // default, dioverride JS
+                $h = (int)($b['height'] ?? 160);
+                $leftX  = htmlspecialchars($b['img_left_x']  ?? '0');
+                $leftY  = htmlspecialchars($b['img_left_y']  ?? '0');
+                $leftW  = (int)($b['img_left_w']  ?? 90);
+                $leftH  = (int)($b['img_left_h']  ?? 0) > 0 ? (int)$b['img_left_h'] . 'px' : 'auto';
+                $leftZ  = (int)($b['img_left_z']  ?? 1);
+                $rightX = htmlspecialchars($b['img_right_x'] ?? '0');
+                $rightY = htmlspecialchars($b['img_right_y'] ?? '0');
+                $rightW = (int)($b['img_right_w'] ?? 90);
+                $rightH = (int)($b['img_right_h'] ?? 0) > 0 ? (int)$b['img_right_h'] . 'px' : 'auto';
+                $rightZ = (int)($b['img_right_z'] ?? 1);
+                $centerY = htmlspecialchars($b['center_y'] ?? '0');
+                $centerW = (int)($b['center_w'] ?? 0) > 0 ? (int)$b['center_w'] . 'px' : 'auto';
+                $centerZ = (int)($b['center_z'] ?? 2);
+                $titleColor = htmlspecialchars($b['title_color'] ?? '#fff');
+                $titleSize  = htmlspecialchars($b['title_size']  ?? '15px');
+                $titleWeight = htmlspecialchars($b['title_weight'] ?? '900');
+                $titleMb    = htmlspecialchars($b['title_mb']    ?? '2px');
+                $subColor   = htmlspecialchars($b['subtitle_color'] ?? '#ffffffd9');
+                $subSize    = htmlspecialchars($b['subtitle_size']  ?? '10.5px');
+                $subMb      = htmlspecialchars($b['subtitle_mb']    ?? '10px');
+                $cImgW  = (int)($b['center_img_w'] ?? 160);
+                $cImgH  = (int)($b['center_img_h'] ?? 0) > 0 ? (int)$b['center_img_h'] . 'px' : 'auto';
+                $cImgMb = htmlspecialchars($b['center_img_mb'] ?? '0');
+                $btnBg  = htmlspecialchars($b['btn_color']      ?? '#FFD700');
+                $btnClr = htmlspecialchars($b['btn_text_color'] ?? '#000');
+                $btnPad = htmlspecialchars($b['btn_pt'] ?? '7px') . ' ' . htmlspecialchars($b['btn_pr'] ?? '26px') . ' ' . htmlspecialchars($b['btn_pb'] ?? '7px') . ' ' . htmlspecialchars($b['btn_pl'] ?? '26px');
+                $btnRad = htmlspecialchars($b['btn_radius'] ?? '99px');
+                $btnSz  = htmlspecialchars($b['btn_size']   ?? '12px');
+                $btnWt  = htmlspecialchars($b['btn_weight'] ?? '900');
+                ?>
+                <div id="prevCanvas" style="padding:28px 18px 0;position:relative;overflow:hidden;">
+                    <div id="prevInactiveOv" style="<?= $b['is_active'] ? 'display:none' : '' ?>">
+                        <span class="st-ib"><i class="ph ph-eye-slash"></i>Banner Nonaktif</span>
+                    </div>
+
+                    <!-- hd-strip: position:relative, height=h+44 -->
+                    <div id="prevStrip" style="position:relative;width:100%;overflow:visible;margin-top:12px;height:<?= $h + 44 ?>px">
+
+                        <!-- Gambar Kiri — absolute LEFT+BOTTOM -->
+                        <?php if (!empty($b['img_left'])): ?>
+                            <img id="prevImgLeft"
+                                src="<?= htmlspecialchars($b['img_left']) ?>"
+                                class="drg <?= $b['img_left_anim'] ? 'anim-' . htmlspecialchars($b['img_left_anim']) : '' ?>"
+                                data-lbl="Gambar Kiri"
+                                style="position:absolute;object-fit:contain;
+                    width:<?= $leftW ?>px;height:<?= $leftH ?>;
+                    left:<?= $leftX ?>;bottom:<?= $leftY ?>;z-index:<?= $leftZ ?>;
+                    <?= $b['img_left_anim'] ? animCSS_php($b['img_left_anim']) : '' ?>"
+                                alt="">
+                            <div class="rsz" data-target="img_left" style="position:absolute;left:<?= $leftX ?>;bottom:calc(<?= $leftY ?> - 5px)"></div>
+                        <?php endif; ?>
+
+                        <!-- Gambar Kanan — absolute RIGHT+BOTTOM -->
+                        <?php if (!empty($b['img_right'])): ?>
+                            <img id="prevImgRight"
+                                src="<?= htmlspecialchars($b['img_right']) ?>"
+                                class="drg <?= $b['img_right_anim'] ? 'anim-' . htmlspecialchars($b['img_right_anim']) : '' ?>"
+                                data-lbl="Gambar Kanan"
+                                style="position:absolute;object-fit:contain;
+                    width:<?= $rightW ?>px;height:<?= $rightH ?>;
+                    right:<?= $rightX ?>;bottom:<?= $rightY ?>;z-index:<?= $rightZ ?>;
+                    <?= $b['img_right_anim'] ? animCSS_php($b['img_right_anim']) : '' ?>"
+                                alt="">
+                        <?php endif; ?>
+
+                        <!-- Center — absolute, horizontal center -->
+                        <div id="prevCenter"
+                            style="position:absolute;left:50%;transform:translateX(-50%);
+                    display:flex;flex-direction:column;align-items:center;text-align:center;
+                    bottom:<?= $centerY ?>;width:<?= $centerW ?>;z-index:<?= $centerZ ?>">
+
+                            <?php if (($b['center_type'] ?? 'text') === 'image' && !empty($b['center_image'])): ?>
+                                <img id="prevCenterImg"
+                                    src="<?= htmlspecialchars($b['center_image']) ?>"
+                                    class="drg <?= $b['center_img_anim'] ? 'anim-' . htmlspecialchars($b['center_img_anim']) : '' ?>"
+                                    data-lbl="Gambar Tengah"
+                                    style="width:<?= $cImgW ?>px;height:<?= $cImgH ?>;
+                        object-fit:contain;margin-bottom:<?= $cImgMb ?>;
+                        <?= $b['center_img_anim'] ? animCSS_php($b['center_img_anim']) : '' ?>"
+                                    alt="">
+                                <div class="rsz" data-target="center_img"></div>
+                            <?php else: ?>
+                                <?php if (!empty($b['title'])): ?>
+                                    <div id="prevTitle"
+                                        style="color:<?= $titleColor ?>;font-size:<?= $titleSize ?>;
+                        font-weight:<?= $titleWeight ?>;margin-bottom:<?= $titleMb ?>;
+                        line-height:1.15;letter-spacing:-.3px;text-shadow:0 1px 6px rgba(0,0,0,.25)">
+                                        <?= htmlspecialchars($b['title']) ?>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($b['subtitle'])): ?>
+                                    <div id="prevSub"
+                                        style="color:<?= $subColor ?>;font-size:<?= $subSize ?>;
+                        margin-bottom:<?= $subMb ?>;
+                        opacity:.92;text-shadow:0 1px 3px rgba(0,0,0,.2);line-height:1.3">
+                                        <?= htmlspecialchars($b['subtitle']) ?>
+                                    </div>
+                                <?php endif; ?>
+                            <?php endif; ?>
+
+                            <?php if (!empty($b['btn_text'])): ?>
+                                <a id="prevBtn"
+                                    href="<?= htmlspecialchars($b['btn_href'] ?? '#') ?>"
+                                    class="drg <?= $b['btn_anim'] ? 'anim-' . htmlspecialchars($b['btn_anim']) : '' ?>"
+                                    data-lbl="Tombol"
+                                    style="display:inline-block;
+                    background:<?= $btnBg ?>;color:<?= $btnClr ?>;
+                    padding:<?= $btnPad ?>;border-radius:<?= $btnRad ?>;
+                    font-size:<?= $btnSz ?>;font-weight:<?= $btnWt ?>;
+                    letter-spacing:.4px;text-decoration:none;cursor:pointer;border:none;
+                    font-family:inherit;box-shadow:0 4px 14px rgba(0,0,0,.22);
+                    <?= $b['btn_anim'] ? animCSS_php($b['btn_anim']) : '' ?>">
+                                    <?= htmlspecialchars($b['btn_text']) ?>
+                                </a>
+                                <div class="rsz" data-target="btn"></div>
+                            <?php endif; ?>
+                        </div>
+
+                    </div><!-- /prevStrip -->
+                </div><!-- /prevCanvas -->
+            </div>
+
+            <!-- Ruler -->
+            <div class="st-ruler">
+                <span>H: <strong id="rH"><?= $h ?>px</strong></span>
+                <span>Center: <strong id="rC"><?= htmlspecialchars($b['center_type'] ?? 'text') ?></strong></span>
+                <span>Strip total: <strong id="rS"><?= $h + 44 ?>px</strong></span>
+                <span style="margin-left:auto;display:flex;align-items:center;gap:5px">
+                    <span class="st-rdot" id="rDot" style="background:<?= $b['is_active'] ? '#059669' : '#dc2626' ?>"></span>
+                    <span id="rAct" style="color:<?= $b['is_active'] ? '#059669' : '#dc2626' ?>"><?= $b['is_active'] ? 'Aktif' : 'Nonaktif' ?></span>
+                </span>
+            </div>
+        </div><!-- /st-canvas -->
+
+        <!-- ══ RIGHT PROPS PANEL ══ -->
+        <div class="st-props">
+            <div class="st-ph">
+                <div class="st-ph-t">Properties</div>
+                <div class="st-ph-el" id="propEl">klik elemen di preview</div>
+            </div>
+            <div class="st-pb" id="propBody">
+                <div class="st-empty">
+                    <i class="ph ph-cursor-click"></i>
+                    <p>Klik gambar / tombol di preview untuk edit posisi &amp; ukuran langsung.</p>
                 </div>
             </div>
-
-            <!-- ── TOMBOL ── -->
-            <div class="ide-section">
-                <div class="ide-section-head" onclick="toggleSection(this)">
-                    <div class="sh-left"><span class="dot" style="background:#01d298"></span> Tombol</div>
-                    <span class="sh-arrow">▾</span>
-                </div>
-                <div class="ide-section-body">
-                    <div class="g2">
-                        <div class="field">
-                            <label>Teks Tombol (kosong = tidak tampil)</label>
-                            <input type="text" name="btn_text" id="f_btn_text" value="<?= fv($d, 'btn_text') ?>" placeholder="SERBU" oninput="updatePreview()">
-                        </div>
-                        <div class="field">
-                            <label>Href / Link</label>
-                            <input type="text" name="btn_href" id="f_btn_href" value="<?= fv($d, 'btn_href', '#') ?>" oninput="updatePreview()">
-                        </div>
-                    </div>
-                    <div class="g2">
-                        <div class="field">
-                            <label>Bg Color</label>
-                            <div class="color-row">
-                                <input type="color" name="btn_color" id="f_btn_color" value="<?= fv($d, 'btn_color', '#FFD700') ?>" oninput="updatePreview()">
-                                <input type="text" id="f_btn_color_txt" value="<?= fv($d, 'btn_color', '#FFD700') ?>" oninput="syncColor('btn_color')">
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label>Text Color</label>
-                            <div class="color-row">
-                                <input type="color" name="btn_text_color" id="f_btn_text_color" value="<?= fv($d, 'btn_text_color', '#000000') ?>" oninput="updatePreview()">
-                                <input type="text" id="f_btn_text_color_txt" value="<?= fv($d, 'btn_text_color', '#000000') ?>" oninput="syncColor('btn_text_color')">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="g2">
-                        <div class="field">
-                            <label>Padding T / B</label>
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-                                <input type="text" name="btn_pt" id="f_btn_pt" value="<?= fv($d, 'btn_pt', '7px') ?>" placeholder="7px" oninput="updatePreview()">
-                                <input type="text" name="btn_pb" id="f_btn_pb" value="<?= fv($d, 'btn_pb', '7px') ?>" placeholder="7px" oninput="updatePreview()">
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label>Padding L / R</label>
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-                                <input type="text" name="btn_pl" id="f_btn_pl" value="<?= fv($d, 'btn_pl', '26px') ?>" placeholder="26px" oninput="updatePreview()">
-                                <input type="text" name="btn_pr" id="f_btn_pr" value="<?= fv($d, 'btn_pr', '26px') ?>" placeholder="26px" oninput="updatePreview()">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="g3">
-                        <div class="field">
-                            <label>Border Radius</label>
-                            <input type="text" name="btn_radius" id="f_btn_radius" value="<?= fv($d, 'btn_radius', '99px') ?>" placeholder="99px" oninput="updatePreview()">
-                        </div>
-                        <div class="field">
-                            <label>Font Size</label>
-                            <input type="text" name="btn_size" id="f_btn_size" value="<?= fv($d, 'btn_size', '12px') ?>" placeholder="12px" oninput="updatePreview()">
-                        </div>
-                        <div class="field">
-                            <label>Font Weight</label>
-                            <select name="btn_weight" id="f_btn_weight" onchange="updatePreview()">
-                                <?php foreach (['400', '500', '600', '700', '800', '900'] as $w): ?>
-                                    <option value="<?= $w ?>" <?= ($d['btn_weight'] ?? '900') === $w ? 'selected' : '' ?>><?= $w ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="field">
-                        <label>Animasi Tombol</label>
-                        <select name="btn_anim" id="f_btn_anim" onchange="updatePreview()">
-                            <?php foreach (['' => 'Tidak ada', 'pulse' => 'Pulse', 'bounce' => 'Bounce', 'float' => 'Float'] as $v => $l): ?>
-                                <option value="<?= $v ?>" <?= ($d['btn_anim'] ?? 'pulse') === $v ? 'selected' : '' ?>><?= $l ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ── SAVE BUTTONS ── -->
-            <div class="btn-row">
-                <button type="submit" class="btn-ide btn-primary" id="btnSave">
-                    <?= $isEdit ? '💾 Simpan Perubahan' : '＋ Tambah Banner' ?>
-                </button>
-                <?php if ($isEdit): ?>
-                    <button type="button" class="btn-ide btn-ghost" onclick="resetForm()">Cancel</button>
-                <?php endif; ?>
-            </div>
-
-        </form>
-    </div><!-- /ide-left -->
-
-    <!-- RIGHT PANEL (PREVIEW) -->
-    <div class="ide-right">
-        <div class="ide-preview-bar">
-            <div class="preview-dots">
-                <i></i><i></i><i></i>
-            </div>
-            <span>LIVE PREVIEW</span>
-            <div style="flex:1"></div>
-            <div style="font-size:10px;color:var(--ide-muted)">320px · Hero Strip</div>
         </div>
-        <div class="ide-preview-area">
-            <div>
-                <!-- hero bg wrapper simulation -->
-                <div style="width:320px;background:linear-gradient(135deg,#0066cc,#0099ff);border-radius:20px 20px 0 0;padding:14px 14px 0;position:relative;" id="prevHeroBg">
-                    <!-- hd-strip -->
-                    <div id="prevStrip" style="position:relative;width:100%;overflow:visible;margin-top:8px;">
-                        <img id="prevImgLeft" class="phone-img-left" src="" alt="" style="display:none">
-                        <img id="prevImgRight" class="phone-img-right" src="" alt="" style="display:none">
-                        <div id="prevCenter" class="phone-center" style="bottom:0;width:auto;z-index:2">
-                            <div id="prevTitle" class="phone-title" style="display:none"></div>
-                            <div id="prevSub" class="phone-sub" style="display:none"></div>
-                            <img id="prevCenterImg" class="phone-center-img" src="" alt="" style="display:none">
-                            <a id="prevBtn" class="phone-btn" href="#" style="display:none" onclick="return false"></a>
-                        </div>
-                    </div>
-                </div>
-                <!-- menu card overlap -->
-                <div class="phone-menucard">
-                    <?php for ($i = 0; $i < 8; $i++): ?>
-                        <div class="phone-menuitem">
-                            <div class="ic"></div>
-                            <div class="lb"></div>
-                        </div>
-                    <?php endfor; ?>
-                </div>
-                <!-- height indicator -->
-                <div style="margin-top:12px;text-align:center;font-size:10px;color:var(--ide-muted)" id="prevMeta">
-                    strip height: <span id="prevH">–</span>px
-                </div>
-            </div>
-        </div>
-    </div>
 
-</div>
-
-<!-- Toast -->
-<div class="toast" id="toast"></div>
+    </div><!-- /st-root -->
+</form>
 
 <script>
-    // ── animClass map ───────────────────────────────────────────
-    const ANIM = {
-        'float': 'pa-float',
-        'bounce': 'pa-bounce',
-        'slide-left': 'pa-slide-left',
-        'slide-right': 'pa-slide-right',
-        'zoom-in': 'pa-zoom-in',
-        'pulse': 'pa-pulse',
-    };
-
-    function animCls(v) {
-        return ANIM[v] || '';
+    // ─── Tabs & Tool strip ────────────────────────────────────
+    function swTool(name) {
+        document.querySelectorAll('.st-tb').forEach(b => b.classList.remove('on'));
+        document.getElementById('tb' + name)?.classList.add('on');
+        showPanel('p' + name);
     }
 
-    // ── get form value helpers ──────────────────────────────────
-    const g = id => document.getElementById(id);
-    const gv = id => (g(id) ? g(id).value : '');
-
-    // ── updatePreview — core ────────────────────────────────────
-    function updatePreview() {
-        const h = parseInt(gv('f_height')) || 160;
-        const strip = g('prevStrip');
-        const heroBg = g('prevHeroBg');
-
-        // strip height
-        strip.style.height = (h + 44) + 'px';
-        g('prevH').textContent = h + 44;
-
-        // ── IMG LEFT ───────────────────────────────────────────
-        const elL = g('prevImgLeft');
-        const lUrl = gv('f_img_left').trim();
-        if (lUrl) {
-            elL.style.display = 'block';
-            elL.src = lUrl;
-            elL.style.width = (parseInt(gv('f_img_left_w')) || 90) + 'px';
-            elL.style.height = gv('f_img_left_h') ? (parseInt(gv('f_img_left_h')) + 'px') : 'auto';
-            elL.style.left = gv('f_img_left_x') || '0';
-            elL.style.bottom = gv('f_img_left_y') || '0';
-            elL.style.zIndex = gv('f_img_left_z') || '1';
-            elL.className = 'phone-img-left ' + animCls(gv('f_img_left_anim'));
-        } else {
-            elL.style.display = 'none';
-            elL.src = '';
-        }
-
-        // ── IMG RIGHT ──────────────────────────────────────────
-        const elR = g('prevImgRight');
-        const rUrl = gv('f_img_right').trim();
-        if (rUrl) {
-            elR.style.display = 'block';
-            elR.src = rUrl;
-            elR.style.width = (parseInt(gv('f_img_right_w')) || 90) + 'px';
-            elR.style.height = gv('f_img_right_h') ? (parseInt(gv('f_img_right_h')) + 'px') : 'auto';
-            elR.style.right = gv('f_img_right_x') || '0';
-            elR.style.bottom = gv('f_img_right_y') || '0';
-            elR.style.zIndex = gv('f_img_right_z') || '1';
-            elR.className = 'phone-img-right ' + animCls(gv('f_img_right_anim'));
-        } else {
-            elR.style.display = 'none';
-            elR.src = '';
-        }
-
-        // ── CENTER ─────────────────────────────────────────────
-        const elC = g('prevCenter');
-        elC.style.bottom = gv('f_center_y') || '0';
-        elC.style.width = gv('f_center_w') ? (parseInt(gv('f_center_w')) + 'px') : 'auto';
-        elC.style.zIndex = gv('f_center_z') || '2';
-
-        const ctype = document.querySelector('input[name="center_type"]:checked')?.value || 'text';
-
-        // title
-        const elTitle = g('prevTitle');
-        const elSub = g('prevSub');
-        const elCI = g('prevCenterImg');
-
-        if (ctype === 'text') {
-            elCI.style.display = 'none';
-            const titleTxt = gv('f_title').trim();
-            if (titleTxt) {
-                elTitle.style.display = 'block';
-                elTitle.textContent = titleTxt;
-                elTitle.style.color = gv('f_title_color') || '#fff';
-                elTitle.style.fontSize = gv('f_title_size') || '15px';
-                elTitle.style.fontWeight = gv('f_title_weight') || '900';
-                elTitle.style.marginBottom = gv('f_title_mb') || '2px';
-            } else {
-                elTitle.style.display = 'none';
-            }
-
-            const subTxt = gv('f_subtitle').trim();
-            if (subTxt) {
-                elSub.style.display = 'block';
-                elSub.textContent = subTxt;
-                elSub.style.color = gv('f_subtitle_color') || '#fff';
-                elSub.style.fontSize = gv('f_subtitle_size') || '10.5px';
-                elSub.style.marginBottom = gv('f_subtitle_mb') || '10px';
-            } else {
-                elSub.style.display = 'none';
-            }
-        } else {
-            elTitle.style.display = 'none';
-            elSub.style.display = 'none';
-            const ciUrl = gv('f_center_image').trim();
-            if (ciUrl) {
-                elCI.style.display = 'block';
-                elCI.src = ciUrl;
-                elCI.style.width = (parseInt(gv('f_center_img_w')) || 160) + 'px';
-                elCI.style.height = gv('f_center_img_h') ? parseInt(gv('f_center_img_h')) + 'px' : 'auto';
-                elCI.style.marginBottom = gv('f_center_img_mb') || '0';
-                elCI.className = 'phone-center-img ' + animCls(gv('f_center_img_anim'));
-            } else {
-                elCI.style.display = 'none';
-            }
-        }
-
-        // ── BUTTON ────────────────────────────────────────────
-        const elBtn = g('prevBtn');
-        const btnTxt = gv('f_btn_text').trim();
-        if (btnTxt) {
-            elBtn.style.display = 'inline-block';
-            elBtn.textContent = btnTxt;
-            elBtn.style.background = gv('f_btn_color') || '#FFD700';
-            elBtn.style.color = gv('f_btn_text_color') || '#000';
-            elBtn.style.padding = `${gv('f_btn_pt')||'7px'} ${gv('f_btn_pr')||'26px'} ${gv('f_btn_pb')||'7px'} ${gv('f_btn_pl')||'26px'}`;
-            elBtn.style.borderRadius = gv('f_btn_radius') || '99px';
-            elBtn.style.fontSize = gv('f_btn_size') || '12px';
-            elBtn.style.fontWeight = gv('f_btn_weight') || '900';
-            elBtn.className = 'phone-btn ' + animCls(gv('f_btn_anim'));
-        } else {
-            elBtn.style.display = 'none';
-        }
-    }
-
-    // ── switchCenterType ────────────────────────────────────────
-    function switchCenterType() {
-        const t = document.querySelector('input[name="center_type"]:checked')?.value || 'text';
-        g('centerTextFields').style.display = t === 'text' ? 'flex' : 'none';
-        g('centerImageFields').style.display = t === 'image' ? 'flex' : 'none';
-    }
-
-    // ── Section toggle ──────────────────────────────────────────
-    function toggleSection(head) {
-        head.classList.toggle('open');
-        const body = head.nextElementSibling;
-        body.classList.toggle('open');
-    }
-
-    // ── Sync color picker ↔ text input ─────────────────────────
-    function syncColor(name) {
-        const txt = g('f_' + name + '_txt');
-        const picker = g('f_' + name);
-        if (!txt || !picker) return;
-        // only sync if it looks like a valid hex
-        if (/^#[0-9a-fA-F]{3,8}$/.test(txt.value)) {
-            picker.value = txt.value.slice(0, 7); // color input only supports 6-digit hex
-        }
-        updatePreview();
-    }
-    // also sync from picker → txt
-    ['title_color', 'subtitle_color', 'btn_color', 'btn_text_color'].forEach(name => {
-        const p = g('f_' + name);
-        if (p) p.addEventListener('input', () => {
-            const t = g('f_' + name + '_txt');
-            if (t) t.value = p.value;
-            updatePreview();
+    function showPanel(id) {
+        ['pGambar', 'pKonten', 'pPosisi', 'pTombol', 'pSet'].forEach(p => {
+            const el = document.getElementById(p);
+            if (el) el.style.display = p === id ? '' : 'none';
         });
+        document.querySelectorAll('.st-tab').forEach(t => t.classList.toggle('on', t.dataset.p === id));
+    }
+    document.querySelectorAll('.st-tab').forEach(t => t.addEventListener('click', () => showPanel(t.dataset.p)));
+
+    // ─── Center type ─────────────────────────────────────────
+    function setCT(v) {
+        document.querySelectorAll('input[name="center_type"]').forEach(r => r.checked = r.value === v);
+        document.querySelectorAll('#pKonten .st-pill').forEach(p => {
+            const r = p.querySelector('input[name="center_type"]');
+            if (r) p.classList.toggle('on', r.checked);
+        });
+        document.getElementById('ctT').style.display = v === 'text' ? '' : 'none';
+        document.getElementById('ctI').style.display = v === 'image' ? '' : 'none';
+        markDirty();
+        livePreview();
+    }
+
+    // ─── Color sync ──────────────────────────────────────────
+    function syncH(sw, hId) {
+        const h = document.getElementById(hId);
+        if (h) h.value = sw.value;
+    }
+
+    function syncS(h, swId) {
+        if (/^#[0-9a-fA-F]{6}$/.test(h.value)) {
+            const s = document.getElementById(swId);
+            if (s) s.value = h.value;
+        }
+    }
+
+    // ─── Dirty state ─────────────────────────────────────────
+    let _dirty = false;
+
+    function markDirty() {
+        _dirty = true;
+        document.getElementById('dirtyDot')?.classList.add('on');
+        const s = document.getElementById('saveTxt');
+        if (s) s.textContent = 'Belum tersimpan...';
+    }
+    document.getElementById('stForm').addEventListener('input', markDirty);
+    document.getElementById('stForm').addEventListener('submit', () => {
+        _dirty = false;
+        document.getElementById('dirtyDot')?.classList.remove('on');
+    });
+    window.addEventListener('beforeunload', e => {
+        if (_dirty) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
     });
 
-    // ── loadBannerIntoForm ──────────────────────────────────────
-    function loadBannerIntoForm(b) {
-        // action
-        g('formAction').value = 'save';
-        g('formId').value = b.id;
-        g('btnSave').textContent = '💾 Simpan Perubahan';
+    // ─── Helpers ─────────────────────────────────────────────
+    function gv(name) {
+        const el = document.querySelector(`[name="${name}"]`);
+        if (!el) return '';
+        if (el.type === 'checkbox') return el.checked;
+        return el.value ?? '';
+    }
 
-        const setV = (id, key, def = '') => {
-            if (g(id)) g(id).value = b[key] ?? def;
+    function sv(name, val) {
+        document.querySelectorAll(`[name="${name}"]`).forEach(el => el.value = val);
+        const fi = document.getElementById('f_' + name);
+        if (fi) fi.value = val;
+    }
+    const eH = s => String(s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    const ANIM_CSS = {
+        'float': 'animation:hb-float 3s ease-in-out infinite',
+        'bounce': 'animation:hb-bounce 1.2s ease-in-out infinite',
+        'slide-left': 'animation:hb-sliL .5s ease-out both',
+        'slide-right': 'animation:hb-sliR .5s ease-out both',
+        'pulse': 'animation:hb-pulse 1.5s ease-in-out infinite',
+        'zoom-in': 'animation:hb-zoom .4s ease-out both',
+    };
+    const aC = a => ANIM_CSS[a] || '';
+
+    function showThumb(inp, id) {
+        const i = document.getElementById(id);
+        if (!i) return;
+        i.src = inp.value.trim();
+        i.style.display = inp.value.trim() ? 'block' : 'none';
+    }
+
+    // ─── LIVE PREVIEW ─────────────────────────────────────────
+    function livePreview() {
+        const bh = Math.max(60, parseInt(gv('height')) || 160);
+        const strip = document.getElementById('prevStrip');
+        if (strip) strip.style.height = (bh + 44) + 'px';
+
+        const active = gv('is_active');
+        const inactOv = document.getElementById('prevInactiveOv');
+        if (inactOv) inactOv.style.display = active ? 'none' : '';
+
+        // ── Gambar Kiri ────────────────────────────────────
+        const iL = gv('img_left').trim();
+        const lW = parseInt(gv('img_left_w')) || 90;
+        const lH = parseInt(gv('img_left_h')) || 0;
+        const lX = gv('img_left_x') || '0';
+        const lY = gv('img_left_y') || '0';
+        const lZ = parseInt(gv('img_left_z')) || 1;
+        const lAnim = gv('img_left_anim');
+        let elL = document.getElementById('prevImgLeft');
+        if (!elL && iL) {
+            elL = document.createElement('img');
+            elL.id = 'prevImgLeft';
+            elL.className = 'drg';
+            elL.dataset.lbl = 'Gambar Kiri';
+            elL.alt = '';
+            strip.appendChild(elL);
+            initDrg(strip);
+        }
+        if (elL) {
+            if (iL) {
+                elL.style.cssText = `position:absolute;object-fit:contain;
+                width:${lW}px;height:${lH > 0 ? lH + 'px' : 'auto'};
+                left:${lX};bottom:${lY};z-index:${lZ};${aC(lAnim)}`;
+                elL.src = iL;
+            } else {
+                elL.remove();
+            }
+        }
+
+        // ── Gambar Kanan ───────────────────────────────────
+        const iR = gv('img_right').trim();
+        const rW = parseInt(gv('img_right_w')) || 90;
+        const rHpx = parseInt(gv('img_right_h')) || 0;
+        const rX = gv('img_right_x') || '0';
+        const rY = gv('img_right_y') || '0';
+        const rZ = parseInt(gv('img_right_z')) || 1;
+        const rAnim = gv('img_right_anim');
+        let elR = document.getElementById('prevImgRight');
+        if (!elR && iR) {
+            elR = document.createElement('img');
+            elR.id = 'prevImgRight';
+            elR.className = 'drg';
+            elR.dataset.lbl = 'Gambar Kanan';
+            elR.alt = '';
+            strip.appendChild(elR);
+            initDrg(strip);
+        }
+        if (elR) {
+            if (iR) {
+                elR.style.cssText = `position:absolute;object-fit:contain;
+                width:${rW}px;height:${rHpx > 0 ? rHpx + 'px' : 'auto'};
+                right:${rX};bottom:${rY};z-index:${rZ};${aC(rAnim)}`;
+                elR.src = iR;
+            } else {
+                elR.remove();
+            }
+        }
+
+        // ── Center ─────────────────────────────────────────
+        const cY = gv('center_y') || '0';
+        const cW = parseInt(gv('center_w')) || 0;
+        const cZ = parseInt(gv('center_z')) || 2;
+        const cType = document.querySelector('input[name="center_type"]:checked')?.value || 'text';
+        let elC = document.getElementById('prevCenter');
+        if (!elC) {
+            elC = document.createElement('div');
+            elC.id = 'prevCenter';
+            strip.appendChild(elC);
+        }
+        elC.style.cssText = `position:absolute;left:50%;transform:translateX(-50%);
+        display:flex;flex-direction:column;align-items:center;text-align:center;
+        bottom:${cY};width:${cW > 0 ? cW + 'px' : 'auto'};z-index:${cZ}`;
+
+        let html = '';
+        if (cType === 'image') {
+            const ciUrl = gv('center_image').trim();
+            if (ciUrl) {
+                const ciW = parseInt(gv('center_img_w')) || 160;
+                const ciH = parseInt(gv('center_img_h')) || 0;
+                const ciMb = gv('center_img_mb') || '0';
+                const ciAn = gv('center_img_anim');
+                html = `<img src="${eH(ciUrl)}" class="drg" data-lbl="Gambar Tengah"
+                style="width:${ciW}px;height:${ciH > 0 ? ciH + 'px' : 'auto'};
+                       object-fit:contain;margin-bottom:${ciMb};${aC(ciAn)}" alt="">
+                <div class="rsz" data-target="center_img"></div>`;
+            }
+        } else {
+            const ti = gv('title').trim();
+            const su = gv('subtitle').trim();
+            const tc = gv('title_color') || '#fff';
+            const tsz = gv('title_size') || '15px';
+            const twt = gv('title_weight') || '900';
+            const tmb = gv('title_mb') || '2px';
+            const sc = gv('subtitle_color') || '#ffffffd9';
+            const ssz = gv('subtitle_size') || '10.5px';
+            const smb = gv('subtitle_mb') || '10px';
+            if (ti) html += `<div id="prevTitle"
+            style="color:${eH(tc)};font-size:${tsz};font-weight:${twt};margin-bottom:${tmb};
+                   line-height:1.15;letter-spacing:-.3px;text-shadow:0 1px 6px rgba(0,0,0,.25)">
+            ${eH(ti)}</div>`;
+            if (su) html += `<div id="prevSub"
+            style="color:${eH(sc)};font-size:${ssz};margin-bottom:${smb};
+                   opacity:.92;text-shadow:0 1px 3px rgba(0,0,0,.2);line-height:1.3">
+            ${eH(su)}</div>`;
+        }
+
+        const bt = gv('btn_text').trim();
+        const bb = gv('btn_color') || '#FFD700';
+        const bfc = gv('btn_text_color') || '#000';
+        const bhr = gv('btn_href') || '#';
+        const bpt = gv('btn_pt') || '7px';
+        const bpb = gv('btn_pb') || '7px';
+        const bpl = gv('btn_pl') || '26px';
+        const bpr = gv('btn_pr') || '26px';
+        const brd = gv('btn_radius') || '99px';
+        const bsz = gv('btn_size') || '12px';
+        const bwt = gv('btn_weight') || '900';
+        const banim = gv('btn_anim');
+        if (bt) html += `<a id="prevBtn" class="drg" data-lbl="Tombol" href="${eH(bhr)}"
+        style="display:inline-block;background:${eH(bb)};color:${eH(bfc)};
+               padding:${bpt} ${bpr} ${bpb} ${bpl};border-radius:${brd};
+               font-size:${bsz};font-weight:${bwt};letter-spacing:.4px;
+               text-decoration:none;cursor:pointer;border:none;font-family:inherit;
+               box-shadow:0 4px 14px rgba(0,0,0,.22);${aC(banim)}"
+        onclick="return false">${eH(bt)}</a>
+        <div class="rsz" data-target="btn"></div>`;
+
+        elC.innerHTML = html;
+        if (strip) initDrg(strip);
+
+        // ── Ruler update ───────────────────────────────────
+        const elRulerH = document.getElementById('rH');
+        if (elRulerH) elRulerH.textContent = bh + 'px';
+        const elRulerS = document.getElementById('rS');
+        if (elRulerS) elRulerS.textContent = (bh + 44) + 'px';
+        const elRulerC = document.getElementById('rC');
+        if (elRulerC) elRulerC.textContent = cType;
+        const elRulerDot = document.getElementById('rDot');
+        const elRulerAct = document.getElementById('rAct');
+        if (elRulerDot) elRulerDot.style.background = active ? '#059669' : '#dc2626';
+        if (elRulerAct) {
+            elRulerAct.textContent = active ? 'Aktif' : 'Nonaktif';
+            elRulerAct.style.color = active ? '#059669' : '#dc2626';
+        }
+
+        if (_selDrg) fillProps(_selDrg);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // DRAG & RESIZE
+    // ═══════════════════════════════════════════════════════════
+    let _selDrg = null;
+
+    function selDrg(drg) {
+        if (_selDrg && _selDrg !== drg) _selDrg.classList.remove('sel');
+        _selDrg = drg;
+        drg.classList.add('sel');
+        fillProps(drg);
+        document.getElementById('propEl').textContent = drg.dataset.lbl || 'Elemen';
+    }
+
+    document.addEventListener('click', e => {
+        if (!e.target.closest('.drg')) {
+            if (_selDrg) {
+                _selDrg.classList.remove('sel');
+                _selDrg = null;
+            }
+            emptyProps();
+        }
+    });
+
+    // Props panel fill — for v5: shows X, Y, Z, W, H per element
+    function fillProps(drg) {
+        const lbl = drg.dataset.lbl || 'Elemen';
+        const pe = document.getElementById('propEl');
+        if (pe) pe.textContent = lbl;
+        const pb = document.getElementById('propBody');
+        if (!pb) return;
+
+        // determine which fields to show based on label
+        const map = {
+            'Gambar Kiri': {
+                x: 'img_left_x',
+                y: 'img_left_y',
+                z: 'img_left_z',
+                w: 'img_left_w',
+                h: 'img_left_h'
+            },
+            'Gambar Kanan': {
+                x: 'img_right_x',
+                y: 'img_right_y',
+                z: 'img_right_z',
+                w: 'img_right_w',
+                h: 'img_right_h'
+            },
+            'Gambar Tengah': {
+                w: 'center_img_w',
+                h: 'center_img_h'
+            },
+            'Tombol': {},
         };
-        setV('f_height', 'height', 160);
-        setV('f_sort_order', 'sort_order', 0);
-        if (g('f_is_active')) g('f_is_active').checked = !!parseInt(b['is_active'] ?? 1);
+        const m = map[lbl] || {};
 
-        setV('f_img_left', 'img_left', '');
-        setV('f_img_left_w', 'img_left_w', 90);
-        setV('f_img_left_h', 'img_left_h', '');
-        setV('f_img_left_x', 'img_left_x', '0');
-        setV('f_img_left_y', 'img_left_y', '0');
-        setV('f_img_left_z', 'img_left_z', 1);
-        setV('f_img_left_anim', 'img_left_anim', '');
+        let html = `<div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#3a3a52;margin-bottom:8px">${lbl}</div>`;
 
-        setV('f_img_right', 'img_right', '');
-        setV('f_img_right_w', 'img_right_w', 90);
-        setV('f_img_right_h', 'img_right_h', '');
-        setV('f_img_right_x', 'img_right_x', '0');
-        setV('f_img_right_y', 'img_right_y', '0');
-        setV('f_img_right_z', 'img_right_z', 1);
-        setV('f_img_right_anim', 'img_right_anim', '');
+        const field = (label, name, type = 'text', extra = '') => {
+            const val = gv(name) || '';
+            return `<div style="margin-bottom:6px">
+          <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#282838;margin-bottom:2px">${label}</div>
+          <input type="${type}" class="st-off-i" style="width:100%;background:#080810;border:1px solid #1a1a26;border-radius:3px;padding:3px 5px;color:#8080a0;font-size:10px;font-family:'JetBrains Mono',monospace;outline:none;"
+            data-name="${name}" value="${eH(val)}" ${extra}
+            oninput="writeField(this,'${name}')"/>
+        </div>`;
+        };
 
-        setV('f_center_y', 'center_y', '0');
-        setV('f_center_w', 'center_w', '');
-        setV('f_center_z', 'center_z', 2);
+        if (m.x !== undefined) {
+            html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+            ${field('X (left/right)', m.x)}
+            ${field('Y (bottom)', m.y)}
+        </div>`;
+            html += field('Z-index', m.z, 'number', 'min="0" max="99"');
+        }
+        if (m.w !== undefined) {
+            html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+            ${field('Width (px)', m.w, 'number', 'min="10" max="600"')}
+            ${field('Height (px)', m.h, 'number', 'min="0" max="600" placeholder="auto"')}
+        </div>`;
+        }
 
-        setV('f_title', 'title', '');
-        setV('f_title_color', 'title_color', '#ffffff');
-        setV('f_title_color_txt', 'title_color', '#ffffff');
-        setV('f_title_size', 'title_size', '15px');
-        setV('f_title_weight', 'title_weight', '900');
-        setV('f_title_mb', 'title_mb', '2px');
-        setV('f_subtitle', 'subtitle', '');
-        setV('f_subtitle_color', 'subtitle_color', '#ffffffd9');
-        setV('f_subtitle_color_txt', 'subtitle_color', '#ffffffd9');
-        setV('f_subtitle_size', 'subtitle_size', '10.5px');
-        setV('f_subtitle_mb', 'subtitle_mb', '10px');
+        pb.innerHTML = html || '<div class="st-empty"><i class="ph ph-cursor-click"></i><p>Tidak ada properti posisi untuk elemen ini.</p></div>';
+    }
 
-        // center type radio
-        const ct = b['center_type'] || 'text';
-        const radio = document.querySelector(`input[name="center_type"][value="${ct}"]`);
-        if (radio) radio.checked = true;
-        switchCenterType();
+    function emptyProps() {
+        const pe = document.getElementById('propEl');
+        if (pe) pe.textContent = 'klik elemen di preview';
+        const pb = document.getElementById('propBody');
+        if (pb) pb.innerHTML = '<div class="st-empty"><i class="ph ph-cursor-click"></i><p>Klik gambar / tombol di preview untuk edit posisi &amp; ukuran langsung.</p></div>';
+    }
 
-        setV('f_center_image', 'center_image', '');
-        setV('f_center_img_w', 'center_img_w', 160);
-        setV('f_center_img_h', 'center_img_h', '');
-        setV('f_center_img_mb', 'center_img_mb', '0');
-        setV('f_center_img_anim', 'center_img_anim', '');
+    function writeField(inp, name) {
+        sv(name, inp.value);
+        const fi = document.getElementById('f_' + name);
+        if (fi) fi.value = inp.value;
+        livePreview();
+        markDirty();
+    }
 
-        setV('f_btn_text', 'btn_text', '');
-        setV('f_btn_href', 'btn_href', '#');
-        setV('f_btn_color', 'btn_color', '#FFD700');
-        setV('f_btn_color_txt', 'btn_color', '#FFD700');
-        setV('f_btn_text_color', 'btn_text_color', '#000000');
-        setV('f_btn_text_color_txt', 'btn_text_color', '#000000');
-        setV('f_btn_pt', 'btn_pt', '7px');
-        setV('f_btn_pb', 'btn_pb', '7px');
-        setV('f_btn_pl', 'btn_pl', '26px');
-        setV('f_btn_pr', 'btn_pr', '26px');
-        setV('f_btn_radius', 'btn_radius', '99px');
-        setV('f_btn_size', 'btn_size', '12px');
-        setV('f_btn_weight', 'btn_weight', '900');
-        setV('f_btn_anim', 'btn_anim', 'pulse');
+    // Init drag on elements in container
+    function initDrg(container) {
+        (container || document).querySelectorAll('.drg').forEach(drg => {
+            if (drg._di) return;
+            drg._di = true;
+            drg.addEventListener('mousedown', e => {
+                if (e.target.classList.contains('rsz')) return;
+                e.preventDefault();
+                e.stopPropagation();
+                selDrg(drg);
+                const lbl = drg.dataset.lbl || '';
+                const sx = e.clientX,
+                    sy = e.clientY;
 
-        // mark active card
-        document.querySelectorAll('.banner-card').forEach(c => c.classList.remove('active'));
-        event?.currentTarget?.classList.add('active');
+                // determine which fields control position
+                const pm = {
+                    'Gambar Kiri': {
+                        px: 'img_left_x',
+                        py: 'img_left_y'
+                    },
+                    'Gambar Kanan': {
+                        px: 'img_right_x',
+                        py: 'img_right_y'
+                    },
+                };
+                const pf = pm[lbl];
+                if (!pf) return; // center and btn have no drag in v5
 
-        updatePreview();
-        g('hbForm').scrollIntoView({
-            behavior: 'smooth',
-            block: 'start'
+                const startX = parseFloat(gv(pf.px)) || 0;
+                const startY = parseFloat(gv(pf.py)) || 0;
+                drg.classList.add('dragging');
+
+                const onMove = ev => {
+                    const dx = ev.clientX - sx;
+                    const dy = ev.clientY - sy;
+                    // X: kiri tambah, kanan kurang (kanan pakai right so invert dx)
+                    const newX = Math.round(startX + (lbl === 'Gambar Kanan' ? -dx : dx));
+                    const newY = Math.round(startY - dy); // bottom: naik = tambah
+                    writeField({
+                        value: newX + 'px'
+                    }, pf.px);
+                    writeField({
+                        value: newY + 'px'
+                    }, pf.py);
+                };
+                const onUp = () => {
+                    drg.classList.remove('dragging');
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                };
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+            });
+
+            // Resize handle
+            drg.querySelectorAll('.rsz').forEach(rh => {
+                if (rh._ri) return;
+                rh._ri = true;
+                rh.addEventListener('mousedown', e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const t = rh.dataset.target || '';
+                    const wf = t === 'img_left' ? 'img_left_w' :
+                        t === 'img_right' ? 'img_right_w' :
+                        t === 'center_img' ? 'center_img_w' :
+                        t === 'btn' ? null : null;
+                    const hf = t === 'img_left' ? 'img_left_h' :
+                        t === 'img_right' ? 'img_right_h' :
+                        t === 'center_img' ? 'center_img_h' : null;
+                    if (!wf) return;
+                    const sx = e.clientX,
+                        sy = e.clientY;
+                    const sw = parseInt(gv(wf)) || 90;
+                    const sh = parseInt(gv(hf)) || 0;
+                    const onMove = ev => {
+                        sv(wf, Math.max(10, Math.round(sw + ev.clientX - sx)));
+                        if (hf) sv(hf, Math.max(0, Math.round(sh + ev.clientY - sy)));
+                        livePreview();
+                        markDirty();
+                        if (_selDrg) fillProps(_selDrg);
+                    };
+                    const onUp = () => {
+                        document.removeEventListener('mousemove', onMove);
+                        document.removeEventListener('mouseup', onUp);
+                    };
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                });
+            });
         });
     }
 
-    // ── resetForm ───────────────────────────────────────────────
-    function resetForm() {
-        g('formAction').value = 'add';
-        g('formId').value = '';
-        g('btnSave').textContent = '＋ Tambah Banner';
-        g('hbForm').reset();
-        document.querySelectorAll('.banner-card').forEach(c => c.classList.remove('active'));
-        switchCenterType();
-        updatePreview();
-    }
-
-    // ── Toast ───────────────────────────────────────────────────
-    function showToast(msg, type = 'ok') {
-        const t = g('toast');
-        t.textContent = msg;
-        t.className = 'toast' + (type === 'err' ? ' err' : '') + ' show';
-        setTimeout(() => t.classList.remove('show'), 3000);
-    }
-
-    // ── Init ────────────────────────────────────────────────────
-    document.addEventListener('DOMContentLoaded', () => {
-        switchCenterType();
-        updatePreview();
-        if (window._toastMsg) showToast(window._toastMsg, window._toastType || 'ok');
+    // ─── Init ─────────────────────────────────────────────────
+    window.addEventListener('load', () => {
+        const ct = document.querySelector('input[name="center_type"]:checked')?.value || 'text';
+        setCT(ct);
+        livePreview();
+        initDrg();
+        document.querySelectorAll('.st-toast').forEach(t => {
+            setTimeout(() => {
+                t.style.transition = 'opacity .4s';
+                t.style.opacity = '0';
+            }, 3000);
+            setTimeout(() => t.remove(), 3400);
+        });
     });
 </script>
 
-<?php require_once __DIR__ . '/../includes/footer.php'; ?>
+<?php require_once __DIR__ . '/includes/footer.php'; ?>
