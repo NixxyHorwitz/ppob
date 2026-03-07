@@ -1232,6 +1232,20 @@ function timeAgo(string $ts): string
                 $btnRadius = $cssVal($hb['btn_radius'] ?? '99px') ?: '99px';
                 $btnSize   = $cssVal($hb['btn_size']   ?? '12px') ?: '12px';
                 $btnWeight = $cssVal($hb['btn_weight'] ?? '900')  ?: '900';
+                $btnY      = $cssVal($hb['btn_y']    ?? '')  ?: null;
+                $btnW      = $cssVal($hb['btn_w']    ?? '')  ?: null;
+                $btnH      = $cssVal($hb['btn_h']    ?? '')  ?: null;
+                $btnShow   = (int)($hb['btn_show']   ?? 1);
+
+                // Center margin
+                $centerMt  = $cssVal($hb['center_mt'] ?? '') ?: null;
+                $centerMb  = $cssVal($hb['center_mb'] ?? '') ?: null;
+                $centerMarginStyle = ($centerMt ? "margin-top:{$centerMt};" : '') . ($centerMb ? "margin-bottom:{$centerMb};" : '');
+
+                // Btn extra styles
+                $btnExtraStyle = ($btnY ? "margin-top:{$btnY};" : '') .
+                    ($btnW ? "min-width:{$btnW};"  : '') .
+                    ($btnH ? "height:{$btnH};"     : '');
         ?>
                 <div class="hd-strip" style="height:<?= $h + 44 ?>px">
 
@@ -1253,7 +1267,7 @@ function timeAgo(string $ts): string
 
                     <!-- Center — absolute horizontal center, tidak dipengaruhi gambar -->
                     <div class="hd-center"
-                        style="bottom:<?= $centerY ?>;width:<?= $centerW ?>;z-index:<?= $centerZ ?>">
+                        style="bottom:<?= $centerY ?>;width:<?= $centerW ?>;z-index:<?= $centerZ ?>;<?= $centerMarginStyle ?>">
 
                         <?php if (($hb['center_type'] ?? 'text') === 'image' && !empty($hb['center_image'])): ?>
                             <img src="<?= htmlspecialchars($hb['center_image']) ?>"
@@ -1275,10 +1289,13 @@ function timeAgo(string $ts): string
                             <?php endif; ?>
                         <?php endif; ?>
 
-                        <?php if (!empty($hb['btn_text'])): ?>
+                        <?php if (!empty($hb['btn_text']) && $btnShow): ?>
                             <a href="<?= htmlspecialchars($hb['btn_href'] ?? '#') ?>"
                                 class="hd-btn <?= $animClass($hb['btn_anim'] ?? '') ?>"
-                                style="background:<?= $btnBg ?>;color:<?= $btnColor ?>;padding:<?= $btnPt ?> <?= $btnPr ?> <?= $btnPb ?> <?= $btnPl ?>;border-radius:<?= $btnRadius ?>;font-size:<?= $btnSize ?>;font-weight:<?= $btnWeight ?>">
+                                style="background:<?= $btnBg ?>;color:<?= $btnColor ?>;
+                          padding:<?= $btnPt ?> <?= $btnPr ?> <?= $btnPb ?> <?= $btnPl ?>;
+                          border-radius:<?= $btnRadius ?>;font-size:<?= $btnSize ?>;
+                          font-weight:<?= $btnWeight ?>;<?= $btnExtraStyle ?>">
                                 <?= htmlspecialchars($hb['btn_text']) ?>
                             </a>
                         <?php endif; ?>

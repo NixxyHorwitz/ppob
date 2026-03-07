@@ -18,7 +18,9 @@ if ((int)$pdo->query("SELECT COUNT(*) FROM hero_banner")->fetchColumn() === 0) {
          btn_radius, btn_size, btn_weight, btn_anim,
          img_left_w, img_left_x, img_left_y, img_left_z,
          img_right_w, img_right_x, img_right_y, img_right_z,
-         center_y, center_z)
+         center_y, center_z,
+         center_mt, center_mb,
+         btn_y, btn_w, btn_h, btn_show)
         VALUES
         (160, 1, 1,
          '#ffffff','15px','900','2px',
@@ -69,6 +71,12 @@ if ($action === 'save') {
         'center_y'        => $so($f['center_y'] ?? '0') ?? '0',
         'center_w'        => ($cw = (int)($f['center_w'] ?? 0)) > 0 ? $cw : null,
         'center_z'        => (int)($f['center_z'] ?? 2),
+        'center_mt'       => $so($f['center_mt'] ?? '') ?: null,
+        'center_mb'       => $so($f['center_mb'] ?? '') ?: null,
+        'btn_y'           => $so($f['btn_y']  ?? '') ?: null,
+        'btn_w'           => $so($f['btn_w']  ?? '') ?: null,
+        'btn_h'           => $so($f['btn_h']  ?? '') ?: null,
+        'btn_show'        => isset($f['btn_show']) ? 1 : 0,
 
         // Title
         'title'           => trim($f['title']          ?? '') ?: null,
@@ -172,6 +180,8 @@ $js_keys = [
     'center_y',
     'center_w',
     'center_z',
+    'center_mt',
+    'center_mb',
     'center_type',
     'title',
     'title_color',
@@ -191,6 +201,7 @@ $js_keys = [
     'btn_href',
     'btn_color',
     'btn_text_color',
+    'btn_show',
     'btn_pt',
     'btn_pb',
     'btn_pl',
@@ -199,6 +210,9 @@ $js_keys = [
     'btn_size',
     'btn_weight',
     'btn_anim',
+    'btn_y',
+    'btn_w',
+    'btn_h',
 ];
 $js_data = [];
 foreach ($js_keys as $k) $js_data[$k] = $b[$k] ?? null;
@@ -900,6 +914,7 @@ require_once __DIR__ . '/includes/header.php';
         font-family: system-ui, sans-serif;
     }
 
+    /* Canva-style resize handles */
     .rsz {
         position: absolute;
         bottom: -5px;
@@ -916,6 +931,115 @@ require_once __DIR__ . '/includes/header.php';
 
     .drg.sel .rsz {
         display: block;
+    }
+
+    /* Multi-handle Canva system */
+    .rsz-h {
+        position: absolute;
+        background: #2563eb;
+        border: 2px solid #fff;
+        border-radius: 2px;
+        z-index: 60;
+        display: none;
+    }
+
+    .drg.sel .rsz-h {
+        display: block;
+    }
+
+    /* Corner SE */
+    .rsz-se {
+        width: 10px;
+        height: 10px;
+        right: -5px;
+        bottom: -5px;
+        cursor: se-resize;
+        border-radius: 3px;
+    }
+
+    /* Edge E (right middle) */
+    .rsz-e {
+        width: 8px;
+        height: 18px;
+        right: -4px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: e-resize;
+        border-radius: 2px;
+    }
+
+    /* Edge S (bottom middle) */
+    .rsz-s {
+        width: 18px;
+        height: 8px;
+        bottom: -4px;
+        left: 50%;
+        transform: translateX(-50%);
+        cursor: s-resize;
+        border-radius: 2px;
+    }
+
+    /* Edge W (left middle) */
+    .rsz-w {
+        width: 8px;
+        height: 18px;
+        left: -4px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: w-resize;
+        border-radius: 2px;
+    }
+
+    /* Edge N (top middle) */
+    .rsz-n {
+        width: 18px;
+        height: 8px;
+        top: -4px;
+        left: 50%;
+        transform: translateX(-50%);
+        cursor: n-resize;
+        border-radius: 2px;
+    }
+
+    /* Corner NW */
+    .rsz-nw {
+        width: 10px;
+        height: 10px;
+        left: -5px;
+        top: -5px;
+        cursor: nw-resize;
+        border-radius: 3px;
+    }
+
+    /* Corner NE */
+    .rsz-ne {
+        width: 10px;
+        height: 10px;
+        right: -5px;
+        top: -5px;
+        cursor: ne-resize;
+        border-radius: 3px;
+    }
+
+    /* Corner SW */
+    .rsz-sw {
+        width: 10px;
+        height: 10px;
+        left: -5px;
+        bottom: -5px;
+        cursor: sw-resize;
+        border-radius: 3px;
+    }
+
+    /* Selection border highlight */
+    .drg.sel {
+        outline-color: #2563eb !important;
+    }
+
+    /* Prevent pointer capture on resize handles from bubbling to click-outside */
+    .rsz,
+    .rsz-h {
+        pointer-events: auto;
     }
 
     /* Ruler */
@@ -1459,9 +1583,6 @@ require_once __DIR__ . '/includes/header.php';
                                     placeholder="0" maxlength="20"
                                     value="<?= htmlspecialchars($b['center_y'] ?? '0') ?>"
                                     oninput="livePreview();markDirty()" />
-                                <div style="font-size:9px;color:#282838;margin-top:3px">
-                                    Center selalu horizontal-center otomatis
-                                </div>
                             </div>
                             <div class="st-col">
                                 <span class="st-lbl">Max-width (px)</span>
@@ -1476,6 +1597,24 @@ require_once __DIR__ . '/includes/header.php';
                                     value="<?= (int)($b['center_z'] ?? 2) ?>"
                                     oninput="livePreview();markDirty()" />
                             </div>
+                        </div>
+                        <div class="st-row">
+                            <div class="st-col">
+                                <span class="st-lbl">Margin Top</span>
+                                <input type="text" name="center_mt" class="st-inp" maxlength="20"
+                                    placeholder="—" value="<?= htmlspecialchars($b['center_mt'] ?? '') ?>"
+                                    oninput="livePreview();markDirty()" />
+                            </div>
+                            <div class="st-col">
+                                <span class="st-lbl">Margin Bottom</span>
+                                <input type="text" name="center_mb" class="st-inp" maxlength="20"
+                                    placeholder="—" value="<?= htmlspecialchars($b['center_mb'] ?? '') ?>"
+                                    oninput="livePreview();markDirty()" />
+                            </div>
+                        </div>
+                        <div style="font-size:9px;color:#282838;margin-top:3px;line-height:1.4">
+                            Center selalu horizontal-center otomatis.<br>
+                            Y = offset dari bawah (bottom). MT/MB = margin layout.
                         </div>
                     </div>
 
@@ -1598,6 +1737,38 @@ require_once __DIR__ . '/includes/header.php';
                                 <?= anim_sel('btn_anim', $b['btn_anim'] ?? 'pulse') ?>
                             </div>
                         </div>
+                        <div class="st-div"></div>
+                        <div class="st-sh" style="margin-bottom:5px"><i class="ph ph-resize"></i>Ukuran &amp; Posisi Tombol</div>
+                        <div class="st-row">
+                            <div class="st-col">
+                                <span class="st-lbl">Min-Width (px)</span>
+                                <input type="text" name="btn_w" class="st-inp" maxlength="20" placeholder="auto"
+                                    value="<?= htmlspecialchars($b['btn_w'] ?? '') ?>"
+                                    oninput="livePreview();markDirty()" />
+                            </div>
+                            <div class="st-col">
+                                <span class="st-lbl">Height (px)</span>
+                                <input type="text" name="btn_h" class="st-inp" maxlength="20" placeholder="auto"
+                                    value="<?= htmlspecialchars($b['btn_h'] ?? '') ?>"
+                                    oninput="livePreview();markDirty()" />
+                            </div>
+                            <div class="st-col">
+                                <span class="st-lbl">Margin Top (Y)</span>
+                                <input type="text" name="btn_y" class="st-inp" maxlength="20" placeholder="—"
+                                    value="<?= htmlspecialchars($b['btn_y'] ?? '') ?>"
+                                    oninput="livePreview();markDirty()" />
+                            </div>
+                        </div>
+                        <div class="st-div"></div>
+                        <div class="st-tog-row">
+                            <span class="st-tog-lbl">Tampilkan Tombol</span>
+                            <label class="st-sw">
+                                <input type="checkbox" name="btn_show" id="f_btn_show"
+                                    <?= ($b['btn_show'] ?? 1) ? 'checked' : '' ?>
+                                    onchange="markDirty();livePreview()" />
+                                <span class="st-sw-tr"></span><span class="st-sw-th"></span>
+                            </label>
+                        </div>
                     </div>
                 </div><!-- /pTombol -->
 
@@ -1665,9 +1836,14 @@ require_once __DIR__ . '/includes/header.php';
                 $rightW = (int)($b['img_right_w'] ?? 90);
                 $rightH = (int)($b['img_right_h'] ?? 0) > 0 ? (int)$b['img_right_h'] . 'px' : 'auto';
                 $rightZ = (int)($b['img_right_z'] ?? 1);
-                $centerY = htmlspecialchars($b['center_y'] ?? '0');
-                $centerW = (int)($b['center_w'] ?? 0) > 0 ? (int)$b['center_w'] . 'px' : 'auto';
-                $centerZ = (int)($b['center_z'] ?? 2);
+                $centerY  = htmlspecialchars($b['center_y']  ?? '0');
+                $centerW  = (int)($b['center_w'] ?? 0) > 0 ? (int)$b['center_w'] . 'px' : 'auto';
+                $centerZ  = (int)($b['center_z'] ?? 2);
+                $centerMt = htmlspecialchars($b['center_mt'] ?? '');
+                $centerMb = htmlspecialchars($b['center_mb'] ?? '');
+                $centerMargin = ($centerMt !== '' || $centerMb !== '') ?
+                    ($centerMt !== '' ? "margin-top:{$centerMt};" : '') .
+                    ($centerMb !== '' ? "margin-bottom:{$centerMb};" : '') : '';
                 $titleColor = htmlspecialchars($b['title_color'] ?? '#fff');
                 $titleSize  = htmlspecialchars($b['title_size']  ?? '15px');
                 $titleWeight = htmlspecialchars($b['title_weight'] ?? '900');
@@ -1678,12 +1854,19 @@ require_once __DIR__ . '/includes/header.php';
                 $cImgW  = (int)($b['center_img_w'] ?? 160);
                 $cImgH  = (int)($b['center_img_h'] ?? 0) > 0 ? (int)$b['center_img_h'] . 'px' : 'auto';
                 $cImgMb = htmlspecialchars($b['center_img_mb'] ?? '0');
-                $btnBg  = htmlspecialchars($b['btn_color']      ?? '#FFD700');
-                $btnClr = htmlspecialchars($b['btn_text_color'] ?? '#000');
-                $btnPad = htmlspecialchars($b['btn_pt'] ?? '7px') . ' ' . htmlspecialchars($b['btn_pr'] ?? '26px') . ' ' . htmlspecialchars($b['btn_pb'] ?? '7px') . ' ' . htmlspecialchars($b['btn_pl'] ?? '26px');
-                $btnRad = htmlspecialchars($b['btn_radius'] ?? '99px');
-                $btnSz  = htmlspecialchars($b['btn_size']   ?? '12px');
-                $btnWt  = htmlspecialchars($b['btn_weight'] ?? '900');
+                $btnBg   = htmlspecialchars($b['btn_color']      ?? '#FFD700');
+                $btnClr  = htmlspecialchars($b['btn_text_color'] ?? '#000');
+                $btnPad  = htmlspecialchars($b['btn_pt'] ?? '7px') . ' ' . htmlspecialchars($b['btn_pr'] ?? '26px') . ' ' . htmlspecialchars($b['btn_pb'] ?? '7px') . ' ' . htmlspecialchars($b['btn_pl'] ?? '26px');
+                $btnRad  = htmlspecialchars($b['btn_radius'] ?? '99px');
+                $btnSz   = htmlspecialchars($b['btn_size']   ?? '12px');
+                $btnWt   = htmlspecialchars($b['btn_weight'] ?? '900');
+                $btnY    = htmlspecialchars($b['btn_y']    ?? '');
+                $btnW    = htmlspecialchars($b['btn_w']    ?? '');
+                $btnH    = htmlspecialchars($b['btn_h']    ?? '');
+                $btnShow = (int)($b['btn_show'] ?? 1);
+                $btnMarginTop = $btnY !== '' ? "margin-top:{$btnY};" : '';
+                $btnMinW      = $btnW !== '' ? "min-width:{$btnW};"  : '';
+                $btnHStyle    = $btnH !== '' ? "height:{$btnH};"     : '';
                 ?>
                 <div id="prevCanvas" style="padding:28px 18px 0;position:relative;overflow:hidden;">
                     <div id="prevInactiveOv" style="<?= $b['is_active'] ? 'display:none' : '' ?>">
@@ -1724,7 +1907,7 @@ require_once __DIR__ . '/includes/header.php';
                         <div id="prevCenter"
                             style="position:absolute;left:50%;transform:translateX(-50%);
                     display:flex;flex-direction:column;align-items:center;text-align:center;
-                    bottom:<?= $centerY ?>;width:<?= $centerW ?>;z-index:<?= $centerZ ?>">
+                    bottom:<?= $centerY ?>;width:<?= $centerW ?>;z-index:<?= $centerZ ?>;<?= $centerMargin ?>">
 
                             <?php if (($b['center_type'] ?? 'text') === 'image' && !empty($b['center_image'])): ?>
                                 <img id="prevCenterImg"
@@ -1755,7 +1938,7 @@ require_once __DIR__ . '/includes/header.php';
                                 <?php endif; ?>
                             <?php endif; ?>
 
-                            <?php if (!empty($b['btn_text'])): ?>
+                            <?php if (!empty($b['btn_text']) && $btnShow): ?>
                                 <a id="prevBtn"
                                     href="<?= htmlspecialchars($b['btn_href'] ?? '#') ?>"
                                     class="drg <?= $b['btn_anim'] ? 'anim-' . htmlspecialchars($b['btn_anim']) : '' ?>"
@@ -1764,12 +1947,19 @@ require_once __DIR__ . '/includes/header.php';
                     background:<?= $btnBg ?>;color:<?= $btnClr ?>;
                     padding:<?= $btnPad ?>;border-radius:<?= $btnRad ?>;
                     font-size:<?= $btnSz ?>;font-weight:<?= $btnWt ?>;
+                    <?= $btnMarginTop ?><?= $btnMinW ?><?= $btnHStyle ?>
                     letter-spacing:.4px;text-decoration:none;cursor:pointer;border:none;
                     font-family:inherit;box-shadow:0 4px 14px rgba(0,0,0,.22);
                     <?= $b['btn_anim'] ? animCSS_php($b['btn_anim']) : '' ?>">
                                     <?= htmlspecialchars($b['btn_text']) ?>
                                 </a>
-                                <div class="rsz" data-target="btn"></div>
+                                <?php /* Canva-style resize: se corner + 4 edge handles */ ?>
+                                <div class="rsz-wrap drg-rsz" id="rszBtnWrap" data-target="btn"
+                                    style="display:<?= $btnShow ? 'none' : 'none' ?>;position:absolute;pointer-events:none;inset:0">
+                                    <div class="rsz-h rsz-se" data-target="btn" data-dir="se"></div>
+                                    <div class="rsz-h rsz-e" data-target="btn" data-dir="e"></div>
+                                    <div class="rsz-h rsz-s" data-target="btn" data-dir="s"></div>
+                                </div>
                             <?php endif; ?>
                         </div>
 
@@ -1807,7 +1997,16 @@ require_once __DIR__ . '/includes/header.php';
 </form>
 
 <script>
-    // ─── Tabs & Tool strip ────────────────────────────────────
+    /* ═══════════════════════════════════════════════════════════
+   HERO BANNER STUDIO — JS
+   Fixes:
+   1. Click-outside tidak unselect saat klik input di props panel
+   2. Canva-style resize handles (se/e/s/w/n corners+edges)
+   3. Center mt/mb, center_img height
+   4. Btn show/hide, btn_y, btn_w/h, resize tombol
+═══════════════════════════════════════════════════════════ */
+
+    // ── Tabs & Tool strip ──────────────────────────────────────
     function swTool(name) {
         document.querySelectorAll('.st-tb').forEach(b => b.classList.remove('on'));
         document.getElementById('tb' + name)?.classList.add('on');
@@ -1823,7 +2022,7 @@ require_once __DIR__ . '/includes/header.php';
     }
     document.querySelectorAll('.st-tab').forEach(t => t.addEventListener('click', () => showPanel(t.dataset.p)));
 
-    // ─── Center type ─────────────────────────────────────────
+    // ── Center type ────────────────────────────────────────────
     function setCT(v) {
         document.querySelectorAll('input[name="center_type"]').forEach(r => r.checked = r.value === v);
         document.querySelectorAll('#pKonten .st-pill').forEach(p => {
@@ -1836,7 +2035,7 @@ require_once __DIR__ . '/includes/header.php';
         livePreview();
     }
 
-    // ─── Color sync ──────────────────────────────────────────
+    // ── Color sync ─────────────────────────────────────────────
     function syncH(sw, hId) {
         const h = document.getElementById(hId);
         if (h) h.value = sw.value;
@@ -1849,7 +2048,7 @@ require_once __DIR__ . '/includes/header.php';
         }
     }
 
-    // ─── Dirty state ─────────────────────────────────────────
+    // ── Dirty state ────────────────────────────────────────────
     let _dirty = false;
 
     function markDirty() {
@@ -1870,7 +2069,7 @@ require_once __DIR__ . '/includes/header.php';
         }
     });
 
-    // ─── Helpers ─────────────────────────────────────────────
+    // ── Field helpers ──────────────────────────────────────────
     function gv(name) {
         const el = document.querySelector(`[name="${name}"]`);
         if (!el) return '';
@@ -1879,13 +2078,19 @@ require_once __DIR__ . '/includes/header.php';
     }
 
     function sv(name, val) {
-        document.querySelectorAll(`[name="${name}"]`).forEach(el => el.value = val);
+        document.querySelectorAll(`[name="${name}"]`).forEach(el => {
+            if (el.type !== 'checkbox') el.value = val;
+        });
         const fi = document.getElementById('f_' + name);
-        if (fi) fi.value = val;
+        if (fi && fi.type !== 'checkbox') fi.value = val;
     }
-    const eH = s => String(s)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+    function parsePx(s) {
+        return parseFloat(String(s || '0').replace(/[^\d.\-]/g, '')) || 0;
+    }
+    const eH = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    // ── Animation CSS helper ───────────────────────────────────
     const ANIM_CSS = {
         'float': 'animation:hb-float 3s ease-in-out infinite',
         'bounce': 'animation:hb-bounce 1.2s ease-in-out infinite',
@@ -1903,79 +2108,82 @@ require_once __DIR__ . '/includes/header.php';
         i.style.display = inp.value.trim() ? 'block' : 'none';
     }
 
-    // ─── LIVE PREVIEW ─────────────────────────────────────────
+    // ══════════════════════════════════════════════════════════
+    // LIVE PREVIEW
+    // ══════════════════════════════════════════════════════════
     function livePreview() {
         const bh = Math.max(60, parseInt(gv('height')) || 160);
-        const strip = document.getElementById('prevStrip');
-        if (strip) strip.style.height = (bh + 44) + 'px';
-
         const active = gv('is_active');
+        const strip = document.getElementById('prevStrip');
+        if (!strip) return;
+        strip.style.height = (bh + 44) + 'px';
+
         const inactOv = document.getElementById('prevInactiveOv');
         if (inactOv) inactOv.style.display = active ? 'none' : '';
 
-        // ── Gambar Kiri ────────────────────────────────────
+        // ── Gambar Kiri ────────────────────────────────────────
         const iL = gv('img_left').trim();
         const lW = parseInt(gv('img_left_w')) || 90;
-        const lH = parseInt(gv('img_left_h')) || 0;
+        const lHpx = parseInt(gv('img_left_h')) || 0;
         const lX = gv('img_left_x') || '0';
         const lY = gv('img_left_y') || '0';
         const lZ = parseInt(gv('img_left_z')) || 1;
-        const lAnim = gv('img_left_anim');
+        const lAn = gv('img_left_anim');
         let elL = document.getElementById('prevImgLeft');
-        if (!elL && iL) {
-            elL = document.createElement('img');
-            elL.id = 'prevImgLeft';
-            elL.className = 'drg';
-            elL.dataset.lbl = 'Gambar Kiri';
-            elL.alt = '';
-            strip.appendChild(elL);
-            initDrg(strip);
-        }
-        if (elL) {
-            if (iL) {
-                elL.style.cssText = `position:absolute;object-fit:contain;
-                width:${lW}px;height:${lH > 0 ? lH + 'px' : 'auto'};
-                left:${lX};bottom:${lY};z-index:${lZ};${aC(lAnim)}`;
-                elL.src = iL;
-            } else {
-                elL.remove();
+        if (iL) {
+            if (!elL) {
+                elL = document.createElement('img');
+                elL.id = 'prevImgLeft';
+                elL.alt = '';
+                elL.className = 'drg';
+                elL.dataset.lbl = 'Gambar Kiri';
+                strip.appendChild(elL);
             }
+            elL.src = iL;
+            elL.style.cssText = `position:absolute;object-fit:contain;display:block;
+            width:${lW}px;height:${lHpx>0?lHpx+'px':'auto'};
+            left:${lX};bottom:${lY};z-index:${lZ};${aC(lAn)}`;
+            // Canva handles
+            ensureHandles(elL, ['se', 'e', 's', 'n', 'w', 'nw', 'ne', 'sw']);
+        } else if (elL) {
+            elL.remove();
         }
 
-        // ── Gambar Kanan ───────────────────────────────────
+        // ── Gambar Kanan ───────────────────────────────────────
         const iR = gv('img_right').trim();
         const rW = parseInt(gv('img_right_w')) || 90;
         const rHpx = parseInt(gv('img_right_h')) || 0;
         const rX = gv('img_right_x') || '0';
         const rY = gv('img_right_y') || '0';
         const rZ = parseInt(gv('img_right_z')) || 1;
-        const rAnim = gv('img_right_anim');
+        const rAn = gv('img_right_anim');
         let elR = document.getElementById('prevImgRight');
-        if (!elR && iR) {
-            elR = document.createElement('img');
-            elR.id = 'prevImgRight';
-            elR.className = 'drg';
-            elR.dataset.lbl = 'Gambar Kanan';
-            elR.alt = '';
-            strip.appendChild(elR);
-            initDrg(strip);
-        }
-        if (elR) {
-            if (iR) {
-                elR.style.cssText = `position:absolute;object-fit:contain;
-                width:${rW}px;height:${rHpx > 0 ? rHpx + 'px' : 'auto'};
-                right:${rX};bottom:${rY};z-index:${rZ};${aC(rAnim)}`;
-                elR.src = iR;
-            } else {
-                elR.remove();
+        if (iR) {
+            if (!elR) {
+                elR = document.createElement('img');
+                elR.id = 'prevImgRight';
+                elR.alt = '';
+                elR.className = 'drg';
+                elR.dataset.lbl = 'Gambar Kanan';
+                strip.appendChild(elR);
             }
+            elR.src = iR;
+            elR.style.cssText = `position:absolute;object-fit:contain;display:block;
+            width:${rW}px;height:${rHpx>0?rHpx+'px':'auto'};
+            right:${rX};bottom:${rY};z-index:${rZ};${aC(rAn)}`;
+            ensureHandles(elR, ['se', 'e', 's', 'n', 'w', 'nw', 'ne', 'sw']);
+        } else if (elR) {
+            elR.remove();
         }
 
-        // ── Center ─────────────────────────────────────────
+        // ── Center block ───────────────────────────────────────
         const cY = gv('center_y') || '0';
         const cW = parseInt(gv('center_w')) || 0;
         const cZ = parseInt(gv('center_z')) || 2;
+        const cMt = gv('center_mt') || '';
+        const cMb = gv('center_mb') || '';
         const cType = document.querySelector('input[name="center_type"]:checked')?.value || 'text';
+
         let elC = document.getElementById('prevCenter');
         if (!elC) {
             elC = document.createElement('div');
@@ -1984,20 +2192,24 @@ require_once __DIR__ . '/includes/header.php';
         }
         elC.style.cssText = `position:absolute;left:50%;transform:translateX(-50%);
         display:flex;flex-direction:column;align-items:center;text-align:center;
-        bottom:${cY};width:${cW > 0 ? cW + 'px' : 'auto'};z-index:${cZ}`;
+        bottom:${cY};width:${cW>0?cW+'px':'auto'};z-index:${cZ};
+        ${cMt?'margin-top:'+cMt+';':''}${cMb?'margin-bottom:'+cMb+';':''}`;
 
+        // Build center innerHTML
         let html = '';
+
         if (cType === 'image') {
             const ciUrl = gv('center_image').trim();
             if (ciUrl) {
                 const ciW = parseInt(gv('center_img_w')) || 160;
-                const ciH = parseInt(gv('center_img_h')) || 0;
+                const ciHpx = parseInt(gv('center_img_h')) || 0;
                 const ciMb = gv('center_img_mb') || '0';
                 const ciAn = gv('center_img_anim');
-                html = `<img src="${eH(ciUrl)}" class="drg" data-lbl="Gambar Tengah"
-                style="width:${ciW}px;height:${ciH > 0 ? ciH + 'px' : 'auto'};
-                       object-fit:contain;margin-bottom:${ciMb};${aC(ciAn)}" alt="">
-                <div class="rsz" data-target="center_img"></div>`;
+                html = `<img id="prevCenterImg" class="drg" data-lbl="Gambar Tengah"
+                src="${eH(ciUrl)}"
+                style="display:block;object-fit:contain;
+                       width:${ciW}px;height:${ciHpx>0?ciHpx+'px':'auto'};
+                       margin-bottom:${ciMb};${aC(ciAn)}" alt="">`;
             }
         } else {
             const ti = gv('title').trim();
@@ -2009,73 +2221,134 @@ require_once __DIR__ . '/includes/header.php';
             const sc = gv('subtitle_color') || '#ffffffd9';
             const ssz = gv('subtitle_size') || '10.5px';
             const smb = gv('subtitle_mb') || '10px';
-            if (ti) html += `<div id="prevTitle"
-            style="color:${eH(tc)};font-size:${tsz};font-weight:${twt};margin-bottom:${tmb};
-                   line-height:1.15;letter-spacing:-.3px;text-shadow:0 1px 6px rgba(0,0,0,.25)">
+            if (ti) html += `<div id="prevTitle" style="color:${eH(tc)};font-size:${tsz};
+            font-weight:${twt};margin-bottom:${tmb};
+            line-height:1.15;letter-spacing:-.3px;text-shadow:0 1px 6px rgba(0,0,0,.25)">
             ${eH(ti)}</div>`;
-            if (su) html += `<div id="prevSub"
-            style="color:${eH(sc)};font-size:${ssz};margin-bottom:${smb};
-                   opacity:.92;text-shadow:0 1px 3px rgba(0,0,0,.2);line-height:1.3">
+            if (su) html += `<div id="prevSub" style="color:${eH(sc)};font-size:${ssz};
+            margin-bottom:${smb};opacity:.92;
+            text-shadow:0 1px 3px rgba(0,0,0,.2);line-height:1.3">
             ${eH(su)}</div>`;
         }
 
+        // Button
         const bt = gv('btn_text').trim();
-        const bb = gv('btn_color') || '#FFD700';
-        const bfc = gv('btn_text_color') || '#000';
-        const bhr = gv('btn_href') || '#';
-        const bpt = gv('btn_pt') || '7px';
-        const bpb = gv('btn_pb') || '7px';
-        const bpl = gv('btn_pl') || '26px';
-        const bpr = gv('btn_pr') || '26px';
-        const brd = gv('btn_radius') || '99px';
-        const bsz = gv('btn_size') || '12px';
-        const bwt = gv('btn_weight') || '900';
-        const banim = gv('btn_anim');
-        if (bt) html += `<a id="prevBtn" class="drg" data-lbl="Tombol" href="${eH(bhr)}"
-        style="display:inline-block;background:${eH(bb)};color:${eH(bfc)};
-               padding:${bpt} ${bpr} ${bpb} ${bpl};border-radius:${brd};
-               font-size:${bsz};font-weight:${bwt};letter-spacing:.4px;
-               text-decoration:none;cursor:pointer;border:none;font-family:inherit;
-               box-shadow:0 4px 14px rgba(0,0,0,.22);${aC(banim)}"
-        onclick="return false">${eH(bt)}</a>
-        <div class="rsz" data-target="btn"></div>`;
-
-        elC.innerHTML = html;
-        if (strip) initDrg(strip);
-
-        // ── Ruler update ───────────────────────────────────
-        const elRulerH = document.getElementById('rH');
-        if (elRulerH) elRulerH.textContent = bh + 'px';
-        const elRulerS = document.getElementById('rS');
-        if (elRulerS) elRulerS.textContent = (bh + 44) + 'px';
-        const elRulerC = document.getElementById('rC');
-        if (elRulerC) elRulerC.textContent = cType;
-        const elRulerDot = document.getElementById('rDot');
-        const elRulerAct = document.getElementById('rAct');
-        if (elRulerDot) elRulerDot.style.background = active ? '#059669' : '#dc2626';
-        if (elRulerAct) {
-            elRulerAct.textContent = active ? 'Aktif' : 'Nonaktif';
-            elRulerAct.style.color = active ? '#059669' : '#dc2626';
+        const bShow = gv('btn_show');
+        if (bt && bShow) {
+            const bb = gv('btn_color') || '#FFD700';
+            const bfc = gv('btn_text_color') || '#000';
+            const bhr = gv('btn_href') || '#';
+            const bpt = gv('btn_pt') || '7px';
+            const bpb = gv('btn_pb') || '7px';
+            const bpl = gv('btn_pl') || '26px';
+            const bpr = gv('btn_pr') || '26px';
+            const brd = gv('btn_radius') || '99px';
+            const bsz = gv('btn_size') || '12px';
+            const bwt = gv('btn_weight') || '900';
+            const ban = gv('btn_anim');
+            const byV = gv('btn_y') || '';
+            const bwV = gv('btn_w') || '';
+            const bhV = gv('btn_h') || '';
+            html += `<a id="prevBtn" class="drg" data-lbl="Tombol"
+            href="${eH(bhr)}" onclick="return false"
+            style="display:inline-block;
+                background:${eH(bb)};color:${eH(bfc)};
+                padding:${bpt} ${bpr} ${bpb} ${bpl};
+                border-radius:${brd};font-size:${bsz};font-weight:${bwt};
+                letter-spacing:.4px;text-decoration:none;cursor:grab;border:none;
+                font-family:inherit;box-shadow:0 4px 14px rgba(0,0,0,.22);
+                ${byV?'margin-top:'+byV+';':''}
+                ${bwV?'min-width:'+bwV+';':''}
+                ${bhV?'height:'+bhV+';':''}
+                ${aC(ban)}">${eH(bt)}</a>`;
         }
 
+        elC.innerHTML = html;
+
+        // Attach handles AFTER innerHTML rebuild
+        if (cType === 'image') {
+            const ci = document.getElementById('prevCenterImg');
+            if (ci) ensureHandles(ci, ['se', 'e', 's']);
+        }
+        const pb2 = document.getElementById('prevBtn');
+        if (pb2) ensureHandles(pb2, ['se', 'e', 's', 'w']);
+
+        // Re-init drg for newly created elements
+        initDrg(strip);
+
+        // ── Ruler ──────────────────────────────────────────────
+        const elRH = document.getElementById('rH');
+        if (elRH) elRH.textContent = bh + 'px';
+        const elRS = document.getElementById('rS');
+        if (elRS) elRS.textContent = (bh + 44) + 'px';
+        const elRC = document.getElementById('rC');
+        if (elRC) elRC.textContent = cType;
+        const elRDt = document.getElementById('rDot');
+        const elRAc = document.getElementById('rAct');
+        if (elRDt) elRDt.style.background = active ? '#059669' : '#dc2626';
+        if (elRAc) {
+            elRAc.textContent = active ? 'Aktif' : 'Nonaktif';
+            elRAc.style.color = active ? '#059669' : '#dc2626';
+        }
+
+        // Refresh props panel if something is selected
         if (_selDrg) fillProps(_selDrg);
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // DRAG & RESIZE
-    // ═══════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════
+    // CANVA-STYLE SELECTION & DRAG & RESIZE
+    // ══════════════════════════════════════════════════════════
     let _selDrg = null;
+    let _isDragging = false; // prevent click-outside while dragging
+
+    // Per-element field map
+    const ELEM_FIELDS = {
+        'Gambar Kiri': {
+            px: 'img_left_x',
+            py: 'img_left_y',
+            w: 'img_left_w',
+            h: 'img_left_h',
+            draggable: true,
+            invertX: false
+        },
+        'Gambar Kanan': {
+            px: 'img_right_x',
+            py: 'img_right_y',
+            w: 'img_right_w',
+            h: 'img_right_h',
+            draggable: true,
+            invertX: true
+        },
+        'Gambar Tengah': {
+            w: 'center_img_w',
+            h: 'center_img_h',
+            draggable: false
+        },
+        'Tombol': {
+            w: 'btn_w',
+            h: 'btn_h',
+            py: 'btn_y',
+            draggable: false
+        },
+    };
 
     function selDrg(drg) {
         if (_selDrg && _selDrg !== drg) _selDrg.classList.remove('sel');
         _selDrg = drg;
         drg.classList.add('sel');
         fillProps(drg);
-        document.getElementById('propEl').textContent = drg.dataset.lbl || 'Elemen';
+        const pe = document.getElementById('propEl');
+        if (pe) pe.textContent = drg.dataset.lbl || 'Elemen';
     }
 
-    document.addEventListener('click', e => {
-        if (!e.target.closest('.drg')) {
+    // ── Click-outside: ONLY deselect if click is truly outside ──
+    // Key fix: also exclude clicks inside #propBody and .st-props
+    document.addEventListener('mousedown', e => {
+        if (_isDragging) return;
+        const inDrg = e.target.closest('.drg');
+        const inProps = e.target.closest('.st-props');
+        const inHandle = e.target.classList.contains('rsz-h') || e.target.classList.contains('rsz');
+        if (!inDrg && !inProps && !inHandle) {
             if (_selDrg) {
                 _selDrg.classList.remove('sel');
                 _selDrg = null;
@@ -2084,129 +2357,146 @@ require_once __DIR__ . '/includes/header.php';
         }
     });
 
-    // Props panel fill — for v5: shows X, Y, Z, W, H per element
-    function fillProps(drg) {
-        const lbl = drg.dataset.lbl || 'Elemen';
-        const pe = document.getElementById('propEl');
-        if (pe) pe.textContent = lbl;
-        const pb = document.getElementById('propBody');
-        if (!pb) return;
+    // ── Ensure Canva handles exist on element ──────────────────
+    const CURSOR_MAP = {
+        se: 'se-resize',
+        e: 'e-resize',
+        s: 's-resize',
+        w: 'w-resize',
+        n: 'n-resize',
+        nw: 'nw-resize',
+        ne: 'ne-resize',
+        sw: 'sw-resize'
+    };
+    const POS_MAP = {
+        se: {
+            right: '-5px',
+            bottom: '-5px',
+            width: '10px',
+            height: '10px'
+        },
+        e: {
+            right: '-4px',
+            top: '50%',
+            width: '8px',
+            height: '20px',
+            ty: '-50%'
+        },
+        s: {
+            bottom: '-4px',
+            left: '50%',
+            width: '20px',
+            height: '8px',
+            tx: '-50%'
+        },
+        w: {
+            left: '-4px',
+            top: '50%',
+            width: '8px',
+            height: '20px',
+            ty: '-50%'
+        },
+        n: {
+            top: '-4px',
+            left: '50%',
+            width: '20px',
+            height: '8px',
+            tx: '-50%'
+        },
+        nw: {
+            left: '-5px',
+            top: '-5px',
+            width: '10px',
+            height: '10px'
+        },
+        ne: {
+            right: '-5px',
+            top: '-5px',
+            width: '10px',
+            height: '10px'
+        },
+        sw: {
+            left: '-5px',
+            bottom: '-5px',
+            width: '10px',
+            height: '10px'
+        },
+    };
 
-        // determine which fields to show based on label
-        const map = {
-            'Gambar Kiri': {
-                x: 'img_left_x',
-                y: 'img_left_y',
-                z: 'img_left_z',
-                w: 'img_left_w',
-                h: 'img_left_h'
-            },
-            'Gambar Kanan': {
-                x: 'img_right_x',
-                y: 'img_right_y',
-                z: 'img_right_z',
-                w: 'img_right_w',
-                h: 'img_right_h'
-            },
-            'Gambar Tengah': {
-                w: 'center_img_w',
-                h: 'center_img_h'
-            },
-            'Tombol': {},
-        };
-        const m = map[lbl] || {};
-
-        let html = `<div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#3a3a52;margin-bottom:8px">${lbl}</div>`;
-
-        const field = (label, name, type = 'text', extra = '') => {
-            const val = gv(name) || '';
-            return `<div style="margin-bottom:6px">
-          <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#282838;margin-bottom:2px">${label}</div>
-          <input type="${type}" class="st-off-i" style="width:100%;background:#080810;border:1px solid #1a1a26;border-radius:3px;padding:3px 5px;color:#8080a0;font-size:10px;font-family:'JetBrains Mono',monospace;outline:none;"
-            data-name="${name}" value="${eH(val)}" ${extra}
-            oninput="writeField(this,'${name}')"/>
-        </div>`;
-        };
-
-        if (m.x !== undefined) {
-            html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
-            ${field('X (left/right)', m.x)}
-            ${field('Y (bottom)', m.y)}
-        </div>`;
-            html += field('Z-index', m.z, 'number', 'min="0" max="99"');
-        }
-        if (m.w !== undefined) {
-            html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
-            ${field('Width (px)', m.w, 'number', 'min="10" max="600"')}
-            ${field('Height (px)', m.h, 'number', 'min="0" max="600" placeholder="auto"')}
-        </div>`;
-        }
-
-        pb.innerHTML = html || '<div class="st-empty"><i class="ph ph-cursor-click"></i><p>Tidak ada properti posisi untuk elemen ini.</p></div>';
+    function ensureHandles(el, dirs) {
+        // Remove old handles first to avoid duplicate init
+        el.querySelectorAll('.rsz-h').forEach(h => h.remove());
+        dirs.forEach(dir => {
+            const p = POS_MAP[dir];
+            if (!p) return;
+            const h = document.createElement('div');
+            h.className = 'rsz-h';
+            h.dataset.dir = dir;
+            const tx = p.tx ? `translateX(${p.tx})` : '';
+            const ty = p.ty ? `translateY(${p.ty})` : '';
+            const tr = (tx || ty) ? `transform:${tx} ${ty};` : '';
+            h.style.cssText = `position:absolute;background:#2563eb;border:2px solid #fff;
+            border-radius:${dir.length===2?'3px':'2px'};z-index:60;display:none;
+            cursor:${CURSOR_MAP[dir]};pointer-events:auto;
+            width:${p.width};height:${p.height};
+            ${p.right  !== undefined ? 'right:'+p.right+';'   : ''}
+            ${p.left   !== undefined ? 'left:'+p.left+';'     : ''}
+            ${p.top    !== undefined ? 'top:'+p.top+';'       : ''}
+            ${p.bottom !== undefined ? 'bottom:'+p.bottom+';' : ''}
+            ${tr}`;
+            el.style.position = el.style.position || 'relative'; // needed for absolute children
+            el.appendChild(h);
+        });
     }
 
-    function emptyProps() {
-        const pe = document.getElementById('propEl');
-        if (pe) pe.textContent = 'klik elemen di preview';
-        const pb = document.getElementById('propBody');
-        if (pb) pb.innerHTML = '<div class="st-empty"><i class="ph ph-cursor-click"></i><p>Klik gambar / tombol di preview untuk edit posisi &amp; ukuran langsung.</p></div>';
+    // ── Show/hide handles based on selection ──────────────────
+    // Override CSS with JS so handles always react to _selDrg
+    function updateHandleVisibility() {
+        document.querySelectorAll('.rsz-h').forEach(h => {
+            const parent = h.closest('.drg');
+            h.style.display = (parent && parent === _selDrg) ? 'block' : 'none';
+        });
     }
 
-    function writeField(inp, name) {
-        sv(name, inp.value);
-        const fi = document.getElementById('f_' + name);
-        if (fi) fi.value = inp.value;
-        livePreview();
-        markDirty();
-    }
-
-    // Init drag on elements in container
+    // ── Init drag on element ───────────────────────────────────
     function initDrg(container) {
         (container || document).querySelectorAll('.drg').forEach(drg => {
             if (drg._di) return;
             drg._di = true;
+
+            // Click to select
             drg.addEventListener('mousedown', e => {
-                if (e.target.classList.contains('rsz')) return;
+                // Don't start drag if clicking a resize handle
+                if (e.target.classList.contains('rsz-h') || e.target.classList.contains('rsz')) return;
                 e.preventDefault();
                 e.stopPropagation();
                 selDrg(drg);
+                updateHandleVisibility();
+
                 const lbl = drg.dataset.lbl || '';
+                const fm = ELEM_FIELDS[lbl];
+                if (!fm || !fm.draggable) return;
+
+                _isDragging = true;
                 const sx = e.clientX,
                     sy = e.clientY;
-
-                // determine which fields control position
-                const pm = {
-                    'Gambar Kiri': {
-                        px: 'img_left_x',
-                        py: 'img_left_y'
-                    },
-                    'Gambar Kanan': {
-                        px: 'img_right_x',
-                        py: 'img_right_y'
-                    },
-                };
-                const pf = pm[lbl];
-                if (!pf) return; // center and btn have no drag in v5
-
-                const startX = parseFloat(gv(pf.px)) || 0;
-                const startY = parseFloat(gv(pf.py)) || 0;
-                drg.classList.add('dragging');
+                const startX = parsePx(gv(fm.px));
+                const startY = parsePx(gv(fm.py));
+                drg.style.cursor = 'grabbing';
 
                 const onMove = ev => {
                     const dx = ev.clientX - sx;
                     const dy = ev.clientY - sy;
-                    // X: kiri tambah, kanan kurang (kanan pakai right so invert dx)
-                    const newX = Math.round(startX + (lbl === 'Gambar Kanan' ? -dx : dx));
-                    const newY = Math.round(startY - dy); // bottom: naik = tambah
-                    writeField({
-                        value: newX + 'px'
-                    }, pf.px);
-                    writeField({
-                        value: newY + 'px'
-                    }, pf.py);
+                    const newX = Math.round(startX + (fm.invertX ? -dx : dx));
+                    const newY = Math.round(startY - dy);
+                    sv(fm.px, newX + 'px');
+                    sv(fm.py, newY + 'px');
+                    livePreview();
+                    markDirty();
                 };
                 const onUp = () => {
-                    drg.classList.remove('dragging');
+                    _isDragging = false;
+                    drg.style.cursor = '';
                     document.removeEventListener('mousemove', onMove);
                     document.removeEventListener('mouseup', onUp);
                 };
@@ -2214,45 +2504,306 @@ require_once __DIR__ . '/includes/header.php';
                 document.addEventListener('mouseup', onUp);
             });
 
-            // Resize handle
-            drg.querySelectorAll('.rsz').forEach(rh => {
-                if (rh._ri) return;
-                rh._ri = true;
-                rh.addEventListener('mousedown', e => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const t = rh.dataset.target || '';
-                    const wf = t === 'img_left' ? 'img_left_w' :
-                        t === 'img_right' ? 'img_right_w' :
-                        t === 'center_img' ? 'center_img_w' :
-                        t === 'btn' ? null : null;
-                    const hf = t === 'img_left' ? 'img_left_h' :
-                        t === 'img_right' ? 'img_right_h' :
-                        t === 'center_img' ? 'center_img_h' : null;
-                    if (!wf) return;
-                    const sx = e.clientX,
-                        sy = e.clientY;
-                    const sw = parseInt(gv(wf)) || 90;
-                    const sh = parseInt(gv(hf)) || 0;
-                    const onMove = ev => {
-                        sv(wf, Math.max(10, Math.round(sw + ev.clientX - sx)));
-                        if (hf) sv(hf, Math.max(0, Math.round(sh + ev.clientY - sy)));
-                        livePreview();
-                        markDirty();
-                        if (_selDrg) fillProps(_selDrg);
-                    };
-                    const onUp = () => {
-                        document.removeEventListener('mousemove', onMove);
-                        document.removeEventListener('mouseup', onUp);
-                    };
-                    document.addEventListener('mousemove', onMove);
-                    document.addEventListener('mouseup', onUp);
-                });
+            // Init resize handles
+            initHandles(drg);
+        });
+    }
+
+    // ── Init resize handles on element ────────────────────────
+    function initHandles(drg) {
+        drg.querySelectorAll('.rsz-h').forEach(rh => {
+            if (rh._ri) return;
+            rh._ri = true;
+            rh.addEventListener('mousedown', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                selDrg(drg);
+                updateHandleVisibility();
+                _isDragging = true;
+
+                const lbl = drg.dataset.lbl || '';
+                const fm = ELEM_FIELDS[lbl];
+                if (!fm) {
+                    _isDragging = false;
+                    return;
+                }
+
+                const dir = rh.dataset.dir || 'se';
+                const sx = e.clientX,
+                    sy = e.clientY;
+                const sw = parsePx(gv(fm.w)) || (drg.offsetWidth || 90);
+                const sh = parsePx(gv(fm.h)) || (drg.offsetHeight || 40);
+                const spy = fm.py ? parsePx(gv(fm.py)) : 0;
+
+                const onMove = ev => {
+                    const dx = ev.clientX - sx;
+                    const dy = ev.clientY - sy;
+
+                    if (fm.w) {
+                        if (['e', 'se', 'ne'].includes(dir)) sv(fm.w, Math.max(10, Math.round(sw + dx)) + 'px');
+                        if (['w', 'sw', 'nw'].includes(dir)) sv(fm.w, Math.max(10, Math.round(sw - dx)) + 'px');
+                    }
+                    if (fm.h) {
+                        if (['s', 'se', 'sw'].includes(dir)) sv(fm.h, Math.max(0, Math.round(sh + dy)) + 'px');
+                        if (['n', 'ne', 'nw'].includes(dir)) {
+                            sv(fm.h, Math.max(0, Math.round(sh - dy)) + 'px');
+                            if (fm.py) sv(fm.py, Math.round(spy + dy) + 'px');
+                        }
+                    }
+                    livePreview();
+                    markDirty();
+                    if (_selDrg) fillProps(_selDrg);
+                };
+                const onUp = () => {
+                    _isDragging = false;
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                };
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
             });
         });
     }
 
-    // ─── Init ─────────────────────────────────────────────────
+    // ── Write field from props panel ───────────────────────────
+    function writeField(inp, name) {
+        // stop propagation so this doesn't trigger click-outside
+        sv(name, inp.value);
+        livePreview();
+        markDirty();
+    }
+
+    // ── Props panel ────────────────────────────────────────────
+    const PROP_MAP = {
+        'Gambar Kiri': [{
+                g: 'pos',
+                label: 'X (kiri)',
+                name: 'img_left_x',
+                type: 'text'
+            },
+            {
+                g: 'pos',
+                label: 'Y (bawah)',
+                name: 'img_left_y',
+                type: 'text'
+            },
+            {
+                g: 'size',
+                label: 'Width (px)',
+                name: 'img_left_w',
+                type: 'number',
+                min: 10,
+                max: 600
+            },
+            {
+                g: 'size',
+                label: 'Height (px)',
+                name: 'img_left_h',
+                type: 'number',
+                min: 0,
+                max: 600,
+                ph: 'auto'
+            },
+            {
+                g: 'full',
+                label: 'Z-index',
+                name: 'img_left_z',
+                type: 'number',
+                min: 0,
+                max: 99
+            },
+        ],
+        'Gambar Kanan': [{
+                g: 'pos',
+                label: 'X (kanan)',
+                name: 'img_right_x',
+                type: 'text'
+            },
+            {
+                g: 'pos',
+                label: 'Y (bawah)',
+                name: 'img_right_y',
+                type: 'text'
+            },
+            {
+                g: 'size',
+                label: 'Width (px)',
+                name: 'img_right_w',
+                type: 'number',
+                min: 10,
+                max: 600
+            },
+            {
+                g: 'size',
+                label: 'Height (px)',
+                name: 'img_right_h',
+                type: 'number',
+                min: 0,
+                max: 600,
+                ph: 'auto'
+            },
+            {
+                g: 'full',
+                label: 'Z-index',
+                name: 'img_right_z',
+                type: 'number',
+                min: 0,
+                max: 99
+            },
+        ],
+        'Gambar Tengah': [{
+                g: 'size',
+                label: 'Width (px)',
+                name: 'center_img_w',
+                type: 'number',
+                min: 10,
+                max: 600
+            },
+            {
+                g: 'size',
+                label: 'Height (px)',
+                name: 'center_img_h',
+                type: 'number',
+                min: 0,
+                max: 600,
+                ph: 'auto'
+            },
+            {
+                g: 'full',
+                label: 'Margin Bawah',
+                name: 'center_img_mb',
+                type: 'text'
+            },
+        ],
+        'Tombol': [{
+                g: 'size',
+                label: 'Min-Width',
+                name: 'btn_w',
+                type: 'text',
+                ph: 'auto'
+            },
+            {
+                g: 'size',
+                label: 'Height',
+                name: 'btn_h',
+                type: 'text',
+                ph: 'auto'
+            },
+            {
+                g: 'full',
+                label: 'Margin Top',
+                name: 'btn_y',
+                type: 'text',
+                ph: '—'
+            },
+            {
+                g: 'pos',
+                label: 'Pad T',
+                name: 'btn_pt',
+                type: 'text'
+            },
+            {
+                g: 'pos',
+                label: 'Pad B',
+                name: 'btn_pb',
+                type: 'text'
+            },
+            {
+                g: 'pos',
+                label: 'Pad L',
+                name: 'btn_pl',
+                type: 'text'
+            },
+            {
+                g: 'pos',
+                label: 'Pad R',
+                name: 'btn_pr',
+                type: 'text'
+            },
+            {
+                g: 'full',
+                label: 'Radius',
+                name: 'btn_radius',
+                type: 'text'
+            },
+        ],
+    };
+
+    function fillProps(drg) {
+        const lbl = drg.dataset.lbl || '';
+        const pe = document.getElementById('propEl');
+        if (pe) pe.textContent = lbl;
+        const pb = document.getElementById('propBody');
+        if (!pb) return;
+        const fields = PROP_MAP[lbl];
+        if (!fields || !fields.length) {
+            pb.innerHTML = '<div class="st-empty"><i class="ph ph-cursor-click"></i><p>Tidak ada properti untuk elemen ini.</p></div>';
+            return;
+        }
+
+        const inp = f => {
+            const val = gv(f.name) || '';
+            const ext = (f.min !== undefined ? `min="${f.min}" ` : '') + (f.max !== undefined ? `max="${f.max}" ` : '') +
+                (f.ph ? `placeholder="${f.ph}"` : '');
+            // CRITICAL: use oninput only, no onclick — prevents click-outside from firing
+            return `<div style="margin-bottom:5px">
+          <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+               color:#3a3a52;margin-bottom:2px">${f.label}</div>
+          <input type="${f.type}" ${ext} value="${eH(val)}"
+            style="width:100%;box-sizing:border-box;background:#080810;border:1px solid #1a1a26;
+                   border-radius:4px;padding:5px 7px;color:#b0b0cc;font-size:11px;
+                   font-family:'JetBrains Mono',monospace;outline:none;"
+            onfocus="this.style.borderColor='#2563eb';event.stopPropagation()"
+            onblur="this.style.borderColor='#1a1a26'"
+            oninput="writeField(this,'${f.name}');event.stopPropagation()"
+            onmousedown="event.stopPropagation()"/></div>`;
+        };
+
+        // Lay out: 'pos' = 2-col pair, 'size' = 2-col pair, 'full' = full width
+        let html = `<div style="font-size:9px;font-weight:800;text-transform:uppercase;
+        letter-spacing:.6px;color:#44445a;margin-bottom:10px;padding-bottom:6px;
+        border-bottom:1px solid #1e1e2c">${lbl}</div>`;
+
+        // Group consecutive same-group fields into pairs
+        const rows = [];
+        let i = 0;
+        while (i < fields.length) {
+            const f = fields[i];
+            if (f.g === 'full') {
+                rows.push([f]);
+                i++;
+            } else if (fields[i + 1] && fields[i + 1].g === f.g) {
+                rows.push([f, fields[i + 1]]);
+                i += 2;
+            } else {
+                rows.push([f]);
+                i++;
+            }
+        }
+
+        rows.forEach(row => {
+            if (row.length === 2) {
+                html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:0">
+                ${inp(row[0])}${inp(row[1])}</div>`;
+            } else {
+                html += inp(row[0]);
+            }
+        });
+
+        pb.innerHTML = html;
+    }
+
+    function emptyProps() {
+        const pe = document.getElementById('propEl');
+        if (pe) pe.textContent = 'klik elemen di preview';
+        const pb = document.getElementById('propBody');
+        if (pb) pb.innerHTML = `<div class="st-empty">
+        <i class="ph ph-cursor-click"></i>
+        <p>Klik gambar / tombol di preview untuk edit posisi &amp; ukuran langsung.</p>
+    </div>`;
+    }
+
+    // ── Init ───────────────────────────────────────────────────
     window.addEventListener('load', () => {
         const ct = document.querySelector('input[name="center_type"]:checked')?.value || 'text';
         setCT(ct);
