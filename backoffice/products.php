@@ -86,7 +86,7 @@ if ($action === 'toggle' && !empty($_POST['id'])) {
 if ($action === 'delete' && !empty($_POST['id'])) {
   $id  = (int)$_POST['id'];
   // Cek apakah ada transaksi dengan sku ini
-  $used = $pdo->prepare("SELECT COUNT(*) FROM transactions WHERE sku_code = (SELECT sku_code FROM products WHERE id=?)");
+  $used = $pdo->prepare("SELECT COUNT(*) FROM transactions WHERE sku_code = (SELECT sku_code AS psku FROM products WHERE id=?)");
   $used->execute([$id]);
   if ((int)$used->fetchColumn() > 0) {
     $toast_e = 'Produk tidak bisa dihapus karena sudah memiliki riwayat transaksi.';
@@ -120,24 +120,24 @@ $per_page = 20;
 $where = [];
 $params = [];
 if ($q) {
-  $where[] = "(sku_code LIKE ? OR product_name LIKE ? OR brand LIKE ?)";
+  $where[] = "(p.sku_code LIKE ? OR p.product_name LIKE ? OR p.brand LIKE ?)";
   $s = "%$q%";
   array_push($params, $s, $s, $s);
 }
 if ($f_cat) {
-  $where[] = "category = ?";
+  $where[] = "p.category = ?";
   $params[] = $f_cat;
 }
 if ($f_brand) {
-  $where[] = "brand = ?";
+  $where[] = "p.brand = ?";
   $params[] = $f_brand;
 }
 if ($f_type) {
-  $where[] = "type = ?";
+  $where[] = "p.type = ?";
   $params[] = $f_type;
 }
 if ($f_status !== '') {
-  $where[] = "status = ?";
+  $where[] = "p.status = ?";
   $params[] = $f_status;
 }
 $wsql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
