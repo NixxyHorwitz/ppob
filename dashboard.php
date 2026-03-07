@@ -340,7 +340,6 @@ function timeAgo(string $ts): string
         overflow: visible;
         /* gambar boleh overflow ke atas */
         pointer-events: none;
-        margin-bottom: 3rem;
     }
 
     .hd-strip a,
