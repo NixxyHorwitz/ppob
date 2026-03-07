@@ -1358,56 +1358,88 @@ require_once __DIR__ . '/includes/header.php';
     <div class="dp-hint" id="dpHint"></div>
 </div>
 
+
 <?php
-$b_json = json_encode($b, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
-$page_scripts = <<<SCRIPT
+$b_json = json_encode($b, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
+$page_scripts = '';
+?>
 <script>
-const HB = $b_json;
+    <?php echo 'const HB=' . $b_json . ';'; ?>
 
-// ─── Tabs ──────────────────────────────────────────────────
-function hbeTab(btn,id){
-  document.querySelectorAll('.hbe-tab').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  ['tabBg','tabContent','tabImages','tabOffsets','tabSettings'].forEach(t=>{
-    const el=document.getElementById(t);if(el)el.style.display=t===id?'':'none';
-  });
-}
 
-// ─── Type / center-type pills ──────────────────────────────
-function hbeSetType(v){
-  document.querySelectorAll('input[name="type"]').forEach(r=>r.checked=r.value===v);
-  document.querySelectorAll('.hbe-pill').forEach(p=>{
-    const r=p.querySelector('input[name="type"]');if(r)p.classList.toggle('on',r.checked);
-  });
-  const isL=v==='layout';
-  ['sideImgSec'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display=isL?'':'none';});
-  ['noSideNote'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display=isL?'none':'';});
-  document.querySelectorAll('.sideOffEl').forEach(e=>e.style.display=isL?'':'none');
-  markUnsaved();livePreview();
-}
-function hbeSetCT(v){
-  document.querySelectorAll('input[name="center_type"]').forEach(r=>r.checked=r.value===v);
-  document.querySelectorAll('#tabContent .hbe-pill').forEach(p=>{
-    const r=p.querySelector('input[name="center_type"]');if(r)p.classList.toggle('on',r.checked);
-  });
-  document.getElementById('ctText').style.display=v==='text'?'':'none';
-  document.getElementById('ctImg').style.display=v==='image'?'':'none';
-  markUnsaved();livePreview();
-}
+    // ─── Tabs ──────────────────────────────────────────────────
+    function hbeTab(btn, id) {
+        document.querySelectorAll('.hbe-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        ['tabBg', 'tabContent', 'tabImages', 'tabOffsets', 'tabSettings'].forEach(t => {
+            const el = document.getElementById(t);
+            if (el) el.style.display = t === id ? '' : 'none';
+        });
+    }
 
-// ─── Color helpers ─────────────────────────────────────────
-function syncHex(p,hId){const e=document.getElementById(hId);if(e)e.value=p.value;}
-function syncPic(h,pId){if(/^#[0-9a-fA-F]{6}$/.test(h.value)){const e=document.getElementById(pId);if(e)e.value=h.value;}}
-function setClr(pId,hId,c){
-  const p=document.getElementById(pId),h=document.getElementById(hId);
-  if(p)p.value=c;if(h)h.value=c;markUnsaved();livePreview();updateGradBar();
-}
-function updateGradBar(){
-  const bar=document.getElementById('gradBar');if(!bar)return;
-  const s=document.getElementById('gc_s')?.value||'#005bb5';
-  const e=document.getElementById('gc_e')?.value||'#0099ff';
-  const a=document.querySelector('input[name="bg_gradient_angle"]')?.value||135;
-  bar.style.background=\`linear-gradient(\${a}deg,\${s},\${e})\`;
+    // ─── Type / center-type pills ──────────────────────────────
+    function hbeSetType(v) {
+        document.querySelectorAll('input[name="type"]').forEach(r => r.checked = r.value === v);
+        document.querySelectorAll('.hbe-pill').forEach(p => {
+            const r = p.querySelector('input[name="type"]');
+            if (r) p.classList.toggle('on', r.checked);
+        });
+        const isL = v === 'layout';
+        ['sideImgSec'].forEach(id => {
+            const e = document.getElementById(id);
+            if (e) e.style.display = isL ? '' : 'none';
+        });
+        ['noSideNote'].forEach(id => {
+            const e = document.getElementById(id);
+            if (e) e.style.display = isL ? 'none' : '';
+        });
+        document.querySelectorAll('.sideOffEl').forEach(e => e.style.display = isL ? '' : 'none');
+        markUnsaved();
+        livePreview();
+    }
+
+    function hbeSetCT(v) {
+        document.querySelectorAll('input[name="center_type"]').forEach(r => r.checked = r.value === v);
+        document.querySelectorAll('#tabContent .hbe-pill').forEach(p => {
+            const r = p.querySelector('input[name="center_type"]');
+            if (r) p.classList.toggle('on', r.checked);
+        });
+        document.getElementById('ctText').style.display = v === 'text' ? '' : 'none';
+        document.getElementById('ctImg').style.display = v === 'image' ? '' : 'none';
+        markUnsaved();
+        livePreview();
+    }
+
+    // ─── Color helpers ─────────────────────────────────────────
+    function syncHex(p, hId) {
+        const e = document.getElementById(hId);
+        if (e) e.value = p.value;
+    }
+
+    function syncPic(h, pId) {
+        if (/^#[0-9a-fA-F]{6}$/.test(h.value)) {
+            const e = document.getElementById(pId);
+            if (e) e.value = h.value;
+        }
+    }
+
+    function setClr(pId, hId, c) {
+        const p = document.getElementById(pId),
+            h = document.getElementById(hId);
+        if (p) p.value = c;
+        if (h) h.value = c;
+        markUnsaved();
+        livePreview();
+        updateGradBar();
+    }
+
+    function updateGradBar() {
+        const bar = document.getElementById('gradBar');
+        if (!bar) return;
+        const s = document.getElementById('gc_s')?.value || '#005bb5';
+        const e = document.getElementById('gc_e')?.value || '#0099ff';
+        const a = document.querySelector('input[name="bg_gradient_angle"]')?.value || 135;
+        bar.style.background = \`linear-gradient(\${a}deg,\${s},\${e})\`;
 }
 function hbeThumb(inp,id){const i=document.getElementById(id);if(!i)return;i.src=inp.value.trim();i.style.display=inp.value.trim()?'block':'none';}
 function hbeSwitch(inp){
@@ -1695,6 +1727,7 @@ window.addEventListener('load',()=>{
   });
 });
 </script>
-SCRIPT;
+
+<?php
 require_once __DIR__ . '/includes/footer.php';
 ?>
