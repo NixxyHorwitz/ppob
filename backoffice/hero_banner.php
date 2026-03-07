@@ -959,7 +959,7 @@ foreach (['strip_', 'img_left_', 'center_', 'title_', 'sub_', 'center_img_', 'bt
         $b_safe_keys[] = $pfx . $sfx;
 foreach ($b_safe_keys as $k) $b_safe[$k] = $b[$k] ?? null;
 // JSON_HEX_* ensures ALL non-ASCII and special chars are \uXXXX escaped — 100% safe in JS
-$b_json = json_encode($b_safe, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_HEX_SLASH);
+$b_json = json_encode($b_safe, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
 $page_scripts = '';
 ?>
 <script>
