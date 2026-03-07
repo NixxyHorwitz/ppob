@@ -148,7 +148,7 @@ if (!isset($pageTitle)) $pageTitle = $brandName;
             color: var(--ct);
             padding-bottom: 84px;
             /* ruang untuk bottom nav, di-override di 992px oleh footer.php */
-            max-width: 480px;
+            max-width: 600px;
             /* layout mobile-centered */
             margin: 0 auto;
             -webkit-font-smoothing: antialiased;
