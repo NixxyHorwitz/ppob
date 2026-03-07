@@ -1,6 +1,9 @@
 RewriteEngine On
 RewriteBase /
 
+# prabayar category
+RewriteRule ^modules/prabayar/([A-Za-z0-9_-]+)$ /modules/prabayar/?cat=$1 [L,QSA]
+
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME}\.php -f
 RewriteRule ^(.*)$ $1.php [L]
