@@ -3,6 +3,7 @@ RewriteBase /
 
 # prabayar category
 RewriteRule ^modules/prabayar/([A-Za-z0-9_-]+)$ /modules/prabayar/?cat=$1 [L,QSA]
+RewriteRule ^modules/pascabayar/([A-Za-z0-9_-]+)$ /modules/pascabayar/?cat=$1 [L,QSA]
 
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME}\.php -f
