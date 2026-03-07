@@ -143,7 +143,7 @@ if ($f_status !== '') {
 $wsql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
 // Total count
-$cnt   = $pdo->prepare("SELECT COUNT(*) FROM products $wsql");
+$cnt   = $pdo->prepare("SELECT COUNT(*) FROM products p $wsql");
 $cnt->execute($params);
 $total = (int)$cnt->fetchColumn();
 $pages = max(1, ceil($total / $per_page));
