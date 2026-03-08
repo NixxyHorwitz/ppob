@@ -109,7 +109,6 @@ function menuHref(array $m): string
         background: rgba(255, 255, 255, .12);
         border-radius: 14px;
         padding: 10px 12px;
-        padding-top: 1rem;
     }
 
     .sv-static-lbl {
@@ -863,6 +862,7 @@ function menuHref(array $m): string
     <input type="hidden" name="target" id="fTarget">
     <input type="hidden" name="pin_transaksi" id="fPin">
     <input type="hidden" name="ref_id" id="fRefId">
+    <input type="hidden" name="cat" id="fCat">
     <input type="hidden" name="beli" value="1">
     <input type="hidden" name="cek_tagihan" id="fCekTagihan" value="">
     <input type="hidden" name="bayar_tagihan" id="fBayarTagihan" value="">
@@ -1075,6 +1075,12 @@ function menuHref(array $m): string
     }
 
     function filterProductsByOp(op) {
+        // Hanya filter by operator untuk kategori Pulsa & Data
+        // Kategori lain (E-money, Games, dll) tidak perlu difilter by operator
+        const cat = (_sheetMeta?.query_cat || '').toLowerCase();
+        const isOperatorCat = cat === 'pulsa' || cat === 'data';
+        if (!isOperatorCat) return; // skip filter untuk kategori non-operator
+
         document.querySelectorAll('.sv-prod-card').forEach(c => {
             if (!op) {
                 c.style.display = '';
@@ -1237,6 +1243,7 @@ function menuHref(array $m): string
         document.getElementById('fTarget').value = target;
         document.getElementById('fSku').value = sku;
         document.getElementById('fPin').value = _pinVal;
+        document.getElementById('fCat').value = m.query_cat || '';
 
         if (m.type === 'pasca' && _inquiryData) {
             document.getElementById('fRefId').value = _inquiryData.ref_id || '';
@@ -1247,8 +1254,7 @@ function menuHref(array $m): string
             document.getElementById('fBayarTagihan').value = '';
         }
 
-        document.getElementById('svHiddenForm').action =
-            m.href + (m.query_cat ? '?cat=' + encodeURIComponent(m.query_cat) : '');
+        document.getElementById('svHiddenForm').action = m.href;
         document.getElementById('svHiddenForm').submit();
     }
 
@@ -1285,3 +1291,5 @@ function menuHref(array $m): string
         setTimeout(() => el.remove(), 3000);
     }
 </script>
+
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>
