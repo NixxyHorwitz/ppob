@@ -745,7 +745,7 @@ function menuHref(array $m): string
                             <?php if (($dm['icon_type'] ?? 'ph') === 'img'): ?>
                                 <img src="<?= htmlspecialchars($dm['icon_value']) ?>" style="width:22px;height:22px;object-fit:contain" alt="">
                             <?php else: ?>
-                                <i class="<?= htmlspecialchars($dm['icon_value'] ?? 'ph ph-circle') ?>"></i>
+                                <i class="ph <?= htmlspecialchars($dm['icon_value'] ?? 'ph-circle') ?>"></i>
                             <?php endif; ?>
                         </div>
                         <span class="sv-static-lbl2"><?= htmlspecialchars($dm['name'] ?? '') ?></span>
@@ -808,7 +808,7 @@ function menuHref(array $m): string
                                 <?php if ($item['icon_type'] === 'img'): ?>
                                     <img src="<?= htmlspecialchars($item['icon_value']) ?>" alt="">
                                 <?php else: ?>
-                                    <i class="<?= htmlspecialchars($item['icon_value']) ?>"
+                                    <i class="ph <?= htmlspecialchars($item['icon_value']) ?>"
                                         style="color:<?= htmlspecialchars($item['icon_color']) ?>;font-size:22px"></i>
                                 <?php endif; ?>
                             </div>
@@ -990,7 +990,7 @@ function menuHref(array $m): string
         } else {
             // Ini di-inject ke DOM baru → pakai SVG dari DB kalau ada,
             // tapi karena icon_value adalah class ph-xxx, kita render via img phosphor CDN
-            ico.innerHTML = `<i class="${esc(m.icon_value)}" style="color:${esc(m.icon_color)};font-size:22px"></i>`;
+            ico.innerHTML = `<i class="ph ${esc(m.icon_value)}" style="color:${esc(m.icon_color)};font-size:22px"></i>`;
         }
         document.getElementById('svSheetTitle').textContent = m.name || 'Layanan';
 
