@@ -68,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $banks = $pdo->query("SELECT bank_name FROM payment_method WHERE method_type='MANUAL' AND is_active=1 ORDER BY bank_name ASC")->fetchAll(PDO::FETCH_ASSOC);
 
 /* ── Ambil saldo user ─────────────────────────────────────── */
-$userRow = $pdo->prepare("SELECT balance FROM users WHERE id=?");
+$userRow = $pdo->prepare("SELECT saldo FROM users WHERE id=?");
 $userRow->execute([$userId]);
 $balance = $userRow->fetchColumn() ?: 0;
 
