@@ -109,7 +109,7 @@ function menuHref(array $m): string
         background: rgba(255, 255, 255, .12);
         border-radius: 14px;
         padding: 10px 12px;
-        margin-top: 1rem;
+        padding-top: 1rem;
     }
 
     .sv-static-lbl {
