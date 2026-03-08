@@ -1,5 +1,5 @@
 <?php
-// backoffice/service_menus.php
+// backoffice/sermenu.php
 require_once __DIR__ . '/includes/session.php';
 require_once __DIR__ . '/../config/database.php';
 
@@ -66,13 +66,13 @@ if ($action === 'save_cat') {
     } elseif ($id) {
         $pdo->prepare("UPDATE service_menus SET cat_slug=?,cat_name=?,sort_order=?,is_active=? WHERE id=?")
             ->execute([$cat_slug, $cat_name, $sort, $active, $id]);
-        header('Location: service_menus.php?saved=1&msg=' . urlencode("Kategori \"$cat_name\" diperbarui."));
+        header('Location: sermenu.php?saved=1&msg=' . urlencode("Kategori \"$cat_name\" diperbarui."));
         exit;
     } else {
         if (!$sort) $sort = (int)$pdo->query("SELECT COALESCE(MAX(sort_order),0)+10 FROM service_menus WHERE row_type='category'")->fetchColumn();
         $pdo->prepare("INSERT INTO service_menus (row_type,cat_slug,cat_name,sort_order,is_active) VALUES ('category',?,?,?,?)")
             ->execute([$cat_slug, $cat_name, $sort, $active]);
-        header('Location: service_menus.php?saved=1&msg=' . urlencode("Kategori \"$cat_name\" ditambahkan."));
+        header('Location: sermenu.php?saved=1&msg=' . urlencode("Kategori \"$cat_name\" ditambahkan."));
         exit;
     }
 }
@@ -98,13 +98,13 @@ if ($action === 'save_item') {
     } elseif ($id) {
         $pdo->prepare("UPDATE service_menus SET category_id=?,name=?,icon_type=?,icon_value=?,icon_bg=?,icon_color=?,href=?,query_cat=?,badge=?,badge_color=?,sort_order=?,is_active=? WHERE id=?")
             ->execute([$category_id, $name, $icon_type, $icon_value, $icon_bg, $icon_color, $href, $query_cat, $badge, $badge_color, $sort, $active, $id]);
-        header('Location: service_menus.php?saved=1&msg=' . urlencode("Item \"$name\" diperbarui."));
+        header('Location: sermenu.php?saved=1&msg=' . urlencode("Item \"$name\" diperbarui."));
         exit;
     } else {
         if (!$sort) $sort = (int)$pdo->query("SELECT COALESCE(MAX(sort_order),0)+1 FROM service_menus WHERE category_id=$category_id")->fetchColumn();
         $pdo->prepare("INSERT INTO service_menus (row_type,category_id,name,icon_type,icon_value,icon_bg,icon_color,href,query_cat,badge,badge_color,sort_order,is_active) VALUES ('item',?,?,?,?,?,?,?,?,?,?,?,?)")
             ->execute([$category_id, $name, $icon_type, $icon_value, $icon_bg, $icon_color, $href, $query_cat, $badge, $badge_color, $sort, $active]);
-        header('Location: service_menus.php?saved=1&msg=' . urlencode("Item \"$name\" ditambahkan."));
+        header('Location: sermenu.php?saved=1&msg=' . urlencode("Item \"$name\" ditambahkan."));
         exit;
     }
 }
@@ -191,11 +191,11 @@ require_once __DIR__ . '/includes/header.php';
         </nav>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <a href="service_menus.php?new=cat"
+        <a href="sermenu.php?new=cat"
             style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;background:var(--hover);border:1px solid var(--border);color:var(--sub);font-size:12px;font-weight:600;text-decoration:none">
             <i class="ph ph-folder-plus"></i>Tambah Kategori
         </a>
-        <a href="service_menus.php?new=item<?= $cats ? '&cat=' . $cats[0]['id'] : '' ?>"
+        <a href="sermenu.php?new=item<?= $cats ? '&cat=' . $cats[0]['id'] : '' ?>"
             style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;background:var(--accent);color:#fff;font-size:12px;font-weight:700;text-decoration:none">
             <i class="ph ph-plus"></i>Tambah Item
         </a>
@@ -240,7 +240,7 @@ require_once __DIR__ . '/includes/header.php';
                             <?php else: ?>Tambah <?= $new_mode === 'cat' ? 'Kategori' : 'Item' ?> Baru<?php endif; ?>
                         </span>
                     </div>
-                    <a href="service_menus.php" style="color:var(--mut);font-size:18px;line-height:1;text-decoration:none" title="Tutup">
+                    <a href="sermenu.php" style="color:var(--mut);font-size:18px;line-height:1;text-decoration:none" title="Tutup">
                         <i class="ph ph-x"></i>
                     </a>
                 </div>
@@ -249,7 +249,7 @@ require_once __DIR__ . '/includes/header.php';
 
                     <!-- ════ FORM KATEGORI ════ -->
                     <?php if ($panel_is_cat): ?>
-                        <form method="POST" action="service_menus.php">
+                        <form method="POST" action="sermenu.php">
                             <input type="hidden" name="action" value="save_cat" />
                             <input type="hidden" name="id" value="<?= (int)($d['id'] ?? 0) ?>" />
                             <div class="row g-3">
@@ -295,7 +295,7 @@ require_once __DIR__ . '/includes/header.php';
                                 <button type="submit" class="btn btn-primary btn-sm" style="border-radius:7px;padding:8px 20px">
                                     <i class="ph ph-floppy-disk me-1"></i><?= $edit_row ? 'Perbarui' : 'Simpan' ?> Kategori
                                 </button>
-                                <a href="service_menus.php" class="btn btn-sm" style="border-radius:7px;background:var(--hover);border:1px solid var(--border);color:var(--sub)">Batal</a>
+                                <a href="sermenu.php" class="btn btn-sm" style="border-radius:7px;background:var(--hover);border:1px solid var(--border);color:var(--sub)">Batal</a>
                             </div>
                         </form>
 
@@ -306,7 +306,7 @@ require_once __DIR__ . '/includes/header.php';
                         $iclr  = $d['icon_color'] ?? '#3b82f6';
                         $ival  = $d['icon_value'] ?? '';
                     ?>
-                        <form method="POST" action="service_menus.php">
+                        <form method="POST" action="sermenu.php">
                             <input type="hidden" name="action" value="save_item" />
                             <input type="hidden" name="id" value="<?= (int)($d['id'] ?? 0) ?>" />
                             <div class="row g-3">
@@ -470,7 +470,7 @@ require_once __DIR__ . '/includes/header.php';
                                 <button type="submit" class="btn btn-primary btn-sm" style="border-radius:7px;padding:8px 20px">
                                     <i class="ph ph-floppy-disk me-1"></i><?= $edit_row ? 'Perbarui' : 'Simpan' ?> Item
                                 </button>
-                                <a href="service_menus.php" class="btn btn-sm" style="border-radius:7px;background:var(--hover);border:1px solid var(--border);color:var(--sub)">Batal</a>
+                                <a href="sermenu.php" class="btn btn-sm" style="border-radius:7px;background:var(--hover);border:1px solid var(--border);color:var(--sub)">Batal</a>
                             </div>
                         </form>
                     <?php endif; ?>
@@ -523,10 +523,10 @@ require_once __DIR__ . '/includes/header.php';
                             <div style="font-size:10px;color:var(--mut);margin-top:2px"><?= count($citems) ?> item · sort #<?= $cat['sort_order'] ?></div>
                         </div>
                         <div style="display:flex;gap:3px;flex-shrink:0">
-                            <a href="service_menus.php?edit=<?= $cat['id'] ?>" class="ab" title="Edit" style="<?= $hi_cat ? 'color:var(--accent)' : '' ?>">
+                            <a href="sermenu.php?edit=<?= $cat['id'] ?>" class="ab" title="Edit" style="<?= $hi_cat ? 'color:var(--accent)' : '' ?>">
                                 <i class="ph ph-pencil-simple"></i>
                             </a>
-                            <a href="service_menus.php?new=item&cat=<?= $cat['id'] ?>" class="ab" style="color:var(--ok)" title="Tambah item">
+                            <a href="sermenu.php?new=item&cat=<?= $cat['id'] ?>" class="ab" style="color:var(--ok)" title="Tambah item">
                                 <i class="ph ph-plus-circle"></i>
                             </a>
                             <button class="ab red" onclick="smDeleteCat(<?= $cat['id'] ?>,'<?= htmlspecialchars(addslashes($cat['cat_name'])) ?>')" title="Hapus">
@@ -576,7 +576,7 @@ require_once __DIR__ . '/includes/header.php';
                                         style="<?= $item['is_active'] ? 'color:var(--ok)' : '' ?>">
                                         <i class="ph <?= $item['is_active'] ? 'ph-eye' : 'ph-eye-slash' ?>"></i>
                                     </button>
-                                    <a href="service_menus.php?edit=<?= $item['id'] ?>" class="ab" title="Edit" style="<?= $hi_item ? 'color:var(--accent)' : '' ?>">
+                                    <a href="sermenu.php?edit=<?= $item['id'] ?>" class="ab" title="Edit" style="<?= $hi_item ? 'color:var(--accent)' : '' ?>">
                                         <i class="ph ph-pencil-simple"></i>
                                     </a>
                                     <button class="ab red" onclick="smDeleteItem(<?= $item['id'] ?>,'<?= htmlspecialchars(addslashes($item['name'])) ?>')" title="Hapus">
@@ -586,7 +586,7 @@ require_once __DIR__ . '/includes/header.php';
                             </div>
                         <?php endforeach; ?>
                         <div style="padding:7px 14px">
-                            <a href="service_menus.php?new=item&cat=<?= $cat['id'] ?>"
+                            <a href="sermenu.php?new=item&cat=<?= $cat['id'] ?>"
                                 style="display:flex;align-items:center;justify-content:center;gap:5px;width:100%;background:transparent;border:1px dashed rgba(255,255,255,.07);border-radius:7px;padding:6px;font-size:11px;color:var(--mut);text-decoration:none;transition:all .15s"
                                 onmouseover="this.style.borderColor='var(--ba)';this.style.color='var(--accent)'"
                                 onmouseout="this.style.borderColor='rgba(255,255,255,.07)';this.style.color='var(--mut)'">
@@ -773,7 +773,7 @@ require_once __DIR__ . '/includes/header.php';
 <!-- JS inline (global scope, tidak di dalam DOMContentLoaded) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
 <script>
-    const SM_URL = 'service_menus.php';
+    const SM_URL = 'sermenu.php';
 
     function smPost(data) {
         const fd = new FormData();
