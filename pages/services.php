@@ -3,16 +3,27 @@
 /**
  * pages/services.php
  * Halaman Semua Layanan
- * - Top bar: semua item dari dashboard_menus (static)
- * - Bawahnya: kategori + item dari service_menus (dynamic)
- * - Form pembelian muncul sebagai bottom sheet modal
- *
- * FIX: Icon di JS-rendered content (bottom sheet) pakai SVG inline
- *      bukan <i class="ph ..."> karena Phosphor tidak scan dynamic DOM
  */
 
 $pageTitle = 'Semua Layanan';
 require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../core/transaction.php';
+
+/* ── POST handler — proses transaksi langsung di sini ──────── */
+$txMessage = '';
+if (isset($_POST['beli'])) {
+    $pinInput = $_POST['pin_transaksi'] ?? '';
+    $txMessage = prosesTransaksi($_SESSION['user_id'], $_POST['sku'], $_POST['target'], $pinInput);
+}
+if (isset($_POST['bayar_tagihan'])) {
+    $txMessage = bayarTagihanPasca(
+        $_SESSION['user_id'],
+        $_POST['sku'],
+        $_POST['target'],
+        $_POST['ref_id'] ?? '',
+        $_POST['pin_transaksi'] ?? ''
+    );
+}
 
 /* ── 1. Dashboard menus (static bar atas) ──────────────────── */
 $dashMenus = $pdo->query(
@@ -722,6 +733,14 @@ function menuHref(array $m): string
     }
 </style>
 
+<!-- TX MESSAGE -->
+<?php if ($txMessage): ?>
+    <div style="margin:12px 14px 0;padding:12px 14px;border-radius:12px;font-size:13px;font-weight:700;
+    background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d">
+        <?= htmlspecialchars($txMessage) ?>
+    </div>
+<?php endif; ?>
+
 <!-- TOP BAR -->
 <div class="sv-topbar">
     <a href="<?= base_url('dashboard.php') ?>" class="sv-topbar-back">
@@ -1254,7 +1273,8 @@ function menuHref(array $m): string
             document.getElementById('fBayarTagihan').value = '';
         }
 
-        document.getElementById('svHiddenForm').action = m.href;
+        // Submit ke services.php sendiri, bukan ke prabayar/pascabayar
+        document.getElementById('svHiddenForm').action = window.location.pathname;
         document.getElementById('svHiddenForm').submit();
     }
 
