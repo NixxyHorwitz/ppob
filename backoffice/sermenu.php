@@ -838,374 +838,383 @@ $page_scripts = '';
     const SM_CATS = <?= $cats_json ?>;
     const SM_URL = 'service_menus.php';
 
-    // ══ SORTABLE ══════════════════════════════════════════════════
+    // Modal instances — lazy init inside DOMContentLoaded
+    let smModalCat, smModalItem;
 
-    // Outer: kategori
-    Sortable.create(document.getElementById('smCatList'), {
-        handle: '.sm-drag-cat',
-        animation: 180,
-        ghostClass: 'sortable-ghost',
-        onEnd: () => smDirty(true),
-    });
+    document.addEventListener('DOMContentLoaded', function() {
 
-    // Inner: items per kategori (dengan cross-list drag)
-    document.querySelectorAll('.sm-item-list').forEach(el => {
-        Sortable.create(el, {
-            handle: '.sm-drag-item',
-            animation: 150,
-            group: 'sm-items',
+        // ── Modal instances ───────────────────────────────────────────
+        smModalCat = new bootstrap.Modal(document.getElementById('smModalCat'));
+        smModalItem = new bootstrap.Modal(document.getElementById('smModalItem'));
+
+        // ══ SORTABLE ══════════════════════════════════════════════════
+
+        // Outer: kategori
+        Sortable.create(document.getElementById('smCatList'), {
+            handle: '.sm-drag-cat',
+            animation: 180,
             ghostClass: 'sortable-ghost',
-            onEnd(evt) {
-                const newCatId = evt.to.dataset.catId;
-                const itemId = evt.item.dataset.id;
-                if (evt.from !== evt.to && newCatId && itemId) {
-                    // Kirim update category_id
-                    smPost({
-                        action: 'move_item',
-                        id: itemId,
-                        category_id: newCatId
-                    });
+            onEnd: () => smDirty(true),
+        });
+
+        // Inner: items per kategori (dengan cross-list drag)
+        document.querySelectorAll('.sm-item-list').forEach(el => {
+            Sortable.create(el, {
+                handle: '.sm-drag-item',
+                animation: 150,
+                group: 'sm-items',
+                ghostClass: 'sortable-ghost',
+                onEnd(evt) {
+                    const newCatId = evt.to.dataset.catId;
+                    const itemId = evt.item.dataset.id;
+                    if (evt.from !== evt.to && newCatId && itemId) {
+                        // Kirim update category_id
+                        smPost({
+                            action: 'move_item',
+                            id: itemId,
+                            category_id: newCatId
+                        });
+                    }
+                    smDirty(true);
                 }
-                smDirty(true);
+            });
+        });
+
+        let _dirty = false;
+
+        function smDirty(v) {
+            _dirty = v;
+            const btn = document.getElementById('smSaveOrderBtn');
+            if (btn) btn.style.display = v ? 'inline-flex' : 'none';
+        }
+
+        // ── Kumpulkan & simpan urutan ─────────────────────────────────
+        function smSaveOrder() {
+            const ids = [];
+            document.querySelectorAll('#smCatList .sm-cat-block').forEach(catEl => {
+                ids.push(catEl.dataset.id);
+                catEl.querySelectorAll('.sm-item-list .sm-item-row').forEach(itemEl => {
+                    ids.push(itemEl.dataset.id);
+                });
+            });
+            smPost({
+                action: 'reorder',
+                ids: JSON.stringify(ids)
+            }).then(() => {
+                smDirty(false);
+                smToast('Urutan berhasil disimpan!');
+            });
+        }
+
+        // ── Toggle aktif/nonaktif ─────────────────────────────────────
+        function smToggle(btn, id) {
+            smPost({
+                action: 'toggle',
+                id
+            }).then(r => {
+                if (!r.ok) return;
+                const row = btn.closest('.sm-item-row');
+                const icon = btn.querySelector('i');
+                if (r.is_active) {
+                    row.style.opacity = '';
+                    icon.className = 'ph ph-eye';
+                    btn.style.color = 'var(--ok)';
+                    btn.title = 'Nonaktifkan';
+                } else {
+                    row.style.opacity = '.42';
+                    icon.className = 'ph ph-eye-slash';
+                    btn.style.color = '';
+                    btn.title = 'Aktifkan';
+                }
+                smToast(r.is_active ? 'Item diaktifkan.' : 'Item dinonaktifkan.');
+            });
+        }
+
+        // ── Hapus kategori ─────────────────────────────────────────────
+        function smDeleteCat(id, name) {
+            if (!confirm(`Hapus kategori "${name}" beserta semua item di dalamnya?`)) return;
+            smPost({
+                action: 'delete',
+                id
+            }).then(r => {
+                if (!r.ok) return smToast('Gagal menghapus.', true);
+                document.querySelector(`.sm-cat-block[data-id="${id}"]`)?.remove();
+                smToast(`Kategori "${name}" dihapus.`);
+            });
+        }
+
+        // ── Hapus item ─────────────────────────────────────────────────
+        function smDeleteItem(id, name) {
+            if (!confirm(`Hapus item "${name}"?`)) return;
+            smPost({
+                action: 'delete',
+                id
+            }).then(r => {
+                if (!r.ok) return smToast('Gagal menghapus.', true);
+                document.querySelector(`.sm-item-row[data-id="${id}"]`)?.remove();
+                smToast(`Item "${name}" dihapus.`);
+            });
+        }
+
+        // ══ MODAL: KATEGORI ════════════════════════════════════════════
+
+        function smOpenCatModal(cat) {
+            const editing = !!cat;
+            document.getElementById('smModalCatTitle').innerHTML =
+                `<i class="ph ph-folder${editing?'':'-plus'} me-2" style="color:var(--accent)"></i>${editing ? 'Edit Kategori' : 'Tambah Kategori'}`;
+            document.getElementById('smCatId').value = cat?.id || 0;
+            document.getElementById('smCatName').value = cat?.cat_name || '';
+            document.getElementById('smCatSlug').value = cat?.cat_slug || '';
+            document.getElementById('smCatSort').value = cat?.sort_order || 10;
+            const chk = document.getElementById('smCatActive');
+            chk.checked = cat ? !!+cat.is_active : true;
+            smSwAnim(chk);
+            document.getElementById('smCatSaveLbl').textContent = editing ? 'Perbarui' : 'Simpan';
+            smModalCat.show();
+        }
+
+        function smAutoSlug() {
+            const slug = document.getElementById('smCatSlug');
+            if (!slug.dataset.manual) {
+                slug.value = document.getElementById('smCatName').value
+                    .toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
             }
+        }
+        document.getElementById('smCatSlug').addEventListener('input', function() {
+            this.dataset.manual = '1';
         });
-    });
+        // Clear manual flag when modal opens
+        document.getElementById('smModalCat').addEventListener('show.bs.modal', () => {
+            delete document.getElementById('smCatSlug').dataset.manual;
+        });
 
-    let _dirty = false;
+        function smSaveCat() {
+            const id = document.getElementById('smCatId').value;
+            const cat_name = document.getElementById('smCatName').value.trim();
+            const cat_slug = document.getElementById('smCatSlug').value.trim();
+            const sort_order = document.getElementById('smCatSort').value;
+            const is_active = document.getElementById('smCatActive').checked ? 1 : 0;
 
-    function smDirty(v) {
-        _dirty = v;
-        const btn = document.getElementById('smSaveOrderBtn');
-        if (btn) btn.style.display = v ? 'inline-flex' : 'none';
-    }
+            if (!cat_name || !cat_slug) return smToast('Nama dan slug wajib diisi.', true);
 
-    // ── Kumpulkan & simpan urutan ─────────────────────────────────
-    function smSaveOrder() {
-        const ids = [];
-        document.querySelectorAll('#smCatList .sm-cat-block').forEach(catEl => {
-            ids.push(catEl.dataset.id);
-            catEl.querySelectorAll('.sm-item-list .sm-item-row').forEach(itemEl => {
-                ids.push(itemEl.dataset.id);
+            const btn = document.getElementById('smCatSaveBtn');
+            btn.disabled = true;
+
+            smPost({
+                    action: 'save_cat',
+                    id,
+                    cat_name,
+                    cat_slug,
+                    sort_order,
+                    ...(is_active ? {
+                        is_active: 1
+                    } : {})
+                })
+                .then(r => {
+                    btn.disabled = false;
+                    if (!r.ok) return smToast(r.msg || 'Gagal menyimpan.', true);
+                    smModalCat.hide();
+                    smToast(+id ? 'Kategori diperbarui.' : 'Kategori ditambahkan.');
+                    setTimeout(() => location.reload(), 500);
+                });
+        }
+
+        // ══ MODAL: ITEM ════════════════════════════════════════════════
+
+        function smOpenItemModal(item, defaultCatId) {
+            const editing = !!item;
+            document.getElementById('smModalItemTitle').innerHTML =
+                `<i class="ph ph-${editing?'pencil-simple':'plus-circle'} me-2" style="color:var(--accent)"></i>${editing?'Edit Item':'Tambah Item'}`;
+
+            document.getElementById('smItemId').value = item?.id || 0;
+            document.getElementById('smItemName').value = item?.name || '';
+            document.getElementById('smItemIconVal').value = item?.icon_value || '';
+            document.getElementById('smItemBg').value = item?.icon_bg || '#dbeafe';
+            document.getElementById('smItemBgHex').value = item?.icon_bg || '#dbeafe';
+            document.getElementById('smItemFg').value = item?.icon_color || '#3b82f6';
+            document.getElementById('smItemFgHex').value = item?.icon_color || '#3b82f6';
+            document.getElementById('smItemHref').value = item?.href || '#';
+            document.getElementById('smItemQueryCat').value = item?.query_cat || '';
+            document.getElementById('smItemBadge').value = item?.badge || '';
+            document.getElementById('smItemBadgeColor').value = item?.badge_color || '#ef4444';
+            document.getElementById('smItemSort').value = item?.sort_order || 0;
+
+            // Kategori dropdown
+            const sel = document.getElementById('smItemCat');
+            sel.value = item?.category_id || defaultCatId || (SM_CATS[0]?.id ?? '');
+
+            // Icon type pills
+            const itype = item?.icon_type || 'ph';
+            document.querySelectorAll('input[name="smIconType"]').forEach(r => {
+                r.checked = r.value === itype;
             });
-        });
-        smPost({
-            action: 'reorder',
-            ids: JSON.stringify(ids)
-        }).then(() => {
-            smDirty(false);
-            smToast('Urutan berhasil disimpan!');
-        });
-    }
+            document.querySelectorAll('.sm-itype-pill').forEach(p => {
+                p.classList.toggle('active', p.querySelector('input').value === itype);
+            });
+            smUpdateIconHint(itype);
 
-    // ── Toggle aktif/nonaktif ─────────────────────────────────────
-    function smToggle(btn, id) {
-        smPost({
-            action: 'toggle',
-            id
-        }).then(r => {
-            if (!r.ok) return;
-            const row = btn.closest('.sm-item-row');
-            const icon = btn.querySelector('i');
-            if (r.is_active) {
-                row.style.opacity = '';
-                icon.className = 'ph ph-eye';
-                btn.style.color = 'var(--ok)';
-                btn.title = 'Nonaktifkan';
-            } else {
-                row.style.opacity = '.42';
-                icon.className = 'ph ph-eye-slash';
-                btn.style.color = '';
-                btn.title = 'Aktifkan';
+            // Status toggle
+            const chk = document.getElementById('smItemActive');
+            chk.checked = item ? !!+item.is_active : true;
+            smSwAnim(chk);
+
+            document.getElementById('smItemSaveLbl').textContent = editing ? 'Perbarui Item' : 'Simpan Item';
+
+            smItemPreview();
+            smModalItem.show();
+        }
+
+        function smOnIconTypeChange() {
+            const itype = document.querySelector('input[name="smIconType"]:checked')?.value || 'ph';
+            document.querySelectorAll('.sm-itype-pill').forEach(p => {
+                p.classList.toggle('active', p.querySelector('input').value === itype);
+            });
+            smUpdateIconHint(itype);
+            smItemPreview();
+        }
+
+        function smUpdateIconHint(itype) {
+            const hints = {
+                ph: 'Nama class Phosphor — contoh: <code style="background:var(--hover);padding:0 5px;border-radius:3px">ph-lightning</code>',
+                fa: 'Class Font Awesome — contoh: <code style="background:var(--hover);padding:0 5px;border-radius:3px">fas fa-home</code>',
+                img: 'URL lengkap gambar JPG/PNG/SVG',
+            };
+            document.getElementById('smItemIconHint').innerHTML = hints[itype] || '';
+            document.getElementById('smItemIconVal').placeholder = {
+                ph: 'ph-star',
+                fa: 'fas fa-home',
+                img: 'https://…'
+            } [itype] || '';
+        }
+
+        function smItemPreview() {
+            const itype = document.querySelector('input[name="smIconType"]:checked')?.value || 'ph';
+            const ival = document.getElementById('smItemIconVal').value.trim();
+            const ibg = document.getElementById('smItemBg').value || '#dbeafe';
+            const ifg = document.getElementById('smItemFg').value || '#3b82f6';
+            const badge = document.getElementById('smItemBadge').value.trim();
+            const bclr = document.getElementById('smItemBadgeColor').value;
+
+            const box = document.getElementById('smItemPrevBox');
+            if (!box) return;
+            box.style.background = ibg;
+
+            let inner = `<i class="ph ph-image-square" style="font-size:26px;color:#94a3b8"></i>`;
+            if (ival) {
+                if (itype === 'ph') inner = `<i class="ph ${esc(ival)}" style="font-size:26px;color:${esc(ifg)}"></i>`;
+                if (itype === 'fa') inner = `<i class="${esc(ival)}" style="font-size:22px;color:${esc(ifg)}"></i>`;
+                if (itype === 'img') inner = `<img src="${esc(ival)}" style="width:32px;height:32px;object-fit:contain" onerror="this.style.display='none'"/>`;
             }
-            smToast(r.is_active ? 'Item diaktifkan.' : 'Item dinonaktifkan.');
-        });
-    }
-
-    // ── Hapus kategori ─────────────────────────────────────────────
-    function smDeleteCat(id, name) {
-        if (!confirm(`Hapus kategori "${name}" beserta semua item di dalamnya?`)) return;
-        smPost({
-            action: 'delete',
-            id
-        }).then(r => {
-            if (!r.ok) return smToast('Gagal menghapus.', true);
-            document.querySelector(`.sm-cat-block[data-id="${id}"]`)?.remove();
-            smToast(`Kategori "${name}" dihapus.`);
-        });
-    }
-
-    // ── Hapus item ─────────────────────────────────────────────────
-    function smDeleteItem(id, name) {
-        if (!confirm(`Hapus item "${name}"?`)) return;
-        smPost({
-            action: 'delete',
-            id
-        }).then(r => {
-            if (!r.ok) return smToast('Gagal menghapus.', true);
-            document.querySelector(`.sm-item-row[data-id="${id}"]`)?.remove();
-            smToast(`Item "${name}" dihapus.`);
-        });
-    }
-
-    // ══ MODAL: KATEGORI ════════════════════════════════════════════
-    const smModalCat = new bootstrap.Modal(document.getElementById('smModalCat'));
-
-    function smOpenCatModal(cat) {
-        const editing = !!cat;
-        document.getElementById('smModalCatTitle').innerHTML =
-            `<i class="ph ph-folder${editing?'':'-plus'} me-2" style="color:var(--accent)"></i>${editing ? 'Edit Kategori' : 'Tambah Kategori'}`;
-        document.getElementById('smCatId').value = cat?.id || 0;
-        document.getElementById('smCatName').value = cat?.cat_name || '';
-        document.getElementById('smCatSlug').value = cat?.cat_slug || '';
-        document.getElementById('smCatSort').value = cat?.sort_order || 10;
-        const chk = document.getElementById('smCatActive');
-        chk.checked = cat ? !!+cat.is_active : true;
-        smSwAnim(chk);
-        document.getElementById('smCatSaveLbl').textContent = editing ? 'Perbarui' : 'Simpan';
-        smModalCat.show();
-    }
-
-    function smAutoSlug() {
-        const slug = document.getElementById('smCatSlug');
-        if (!slug.dataset.manual) {
-            slug.value = document.getElementById('smCatName').value
-                .toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+            if (badge) {
+                inner += `<div style="position:absolute;top:-5px;right:-5px;background:${esc(bclr)};color:#fff;font-size:7px;font-weight:800;padding:1px 5px;border-radius:99px;line-height:1.5">${esc(badge)}</div>`;
+            }
+            box.innerHTML = inner;
         }
-    }
-    document.getElementById('smCatSlug').addEventListener('input', function() {
-        this.dataset.manual = '1';
-    });
-    // Clear manual flag when modal opens
-    document.getElementById('smModalCat').addEventListener('show.bs.modal', () => {
-        delete document.getElementById('smCatSlug').dataset.manual;
-    });
 
-    function smSaveCat() {
-        const id = document.getElementById('smCatId').value;
-        const cat_name = document.getElementById('smCatName').value.trim();
-        const cat_slug = document.getElementById('smCatSlug').value.trim();
-        const sort_order = document.getElementById('smCatSort').value;
-        const is_active = document.getElementById('smCatActive').checked ? 1 : 0;
-
-        if (!cat_name || !cat_slug) return smToast('Nama dan slug wajib diisi.', true);
-
-        const btn = document.getElementById('smCatSaveBtn');
-        btn.disabled = true;
-
-        smPost({
-                action: 'save_cat',
-                id,
-                cat_name,
-                cat_slug,
-                sort_order,
-                ...(is_active ? {
-                    is_active: 1
-                } : {})
-            })
-            .then(r => {
-                btn.disabled = false;
-                if (!r.ok) return smToast(r.msg || 'Gagal menyimpan.', true);
-                smModalCat.hide();
-                smToast(+id ? 'Kategori diperbarui.' : 'Kategori ditambahkan.');
-                setTimeout(() => location.reload(), 500);
-            });
-    }
-
-    // ══ MODAL: ITEM ════════════════════════════════════════════════
-    const smModalItem = new bootstrap.Modal(document.getElementById('smModalItem'));
-
-    function smOpenItemModal(item, defaultCatId) {
-        const editing = !!item;
-        document.getElementById('smModalItemTitle').innerHTML =
-            `<i class="ph ph-${editing?'pencil-simple':'plus-circle'} me-2" style="color:var(--accent)"></i>${editing?'Edit Item':'Tambah Item'}`;
-
-        document.getElementById('smItemId').value = item?.id || 0;
-        document.getElementById('smItemName').value = item?.name || '';
-        document.getElementById('smItemIconVal').value = item?.icon_value || '';
-        document.getElementById('smItemBg').value = item?.icon_bg || '#dbeafe';
-        document.getElementById('smItemBgHex').value = item?.icon_bg || '#dbeafe';
-        document.getElementById('smItemFg').value = item?.icon_color || '#3b82f6';
-        document.getElementById('smItemFgHex').value = item?.icon_color || '#3b82f6';
-        document.getElementById('smItemHref').value = item?.href || '#';
-        document.getElementById('smItemQueryCat').value = item?.query_cat || '';
-        document.getElementById('smItemBadge').value = item?.badge || '';
-        document.getElementById('smItemBadgeColor').value = item?.badge_color || '#ef4444';
-        document.getElementById('smItemSort').value = item?.sort_order || 0;
-
-        // Kategori dropdown
-        const sel = document.getElementById('smItemCat');
-        sel.value = item?.category_id || defaultCatId || (SM_CATS[0]?.id ?? '');
-
-        // Icon type pills
-        const itype = item?.icon_type || 'ph';
-        document.querySelectorAll('input[name="smIconType"]').forEach(r => {
-            r.checked = r.value === itype;
-        });
-        document.querySelectorAll('.sm-itype-pill').forEach(p => {
-            p.classList.toggle('active', p.querySelector('input').value === itype);
-        });
-        smUpdateIconHint(itype);
-
-        // Status toggle
-        const chk = document.getElementById('smItemActive');
-        chk.checked = item ? !!+item.is_active : true;
-        smSwAnim(chk);
-
-        document.getElementById('smItemSaveLbl').textContent = editing ? 'Perbarui Item' : 'Simpan Item';
-
-        smItemPreview();
-        smModalItem.show();
-    }
-
-    function smOnIconTypeChange() {
-        const itype = document.querySelector('input[name="smIconType"]:checked')?.value || 'ph';
-        document.querySelectorAll('.sm-itype-pill').forEach(p => {
-            p.classList.toggle('active', p.querySelector('input').value === itype);
-        });
-        smUpdateIconHint(itype);
-        smItemPreview();
-    }
-
-    function smUpdateIconHint(itype) {
-        const hints = {
-            ph: 'Nama class Phosphor — contoh: <code style="background:var(--hover);padding:0 5px;border-radius:3px">ph-lightning</code>',
-            fa: 'Class Font Awesome — contoh: <code style="background:var(--hover);padding:0 5px;border-radius:3px">fas fa-home</code>',
-            img: 'URL lengkap gambar JPG/PNG/SVG',
-        };
-        document.getElementById('smItemIconHint').innerHTML = hints[itype] || '';
-        document.getElementById('smItemIconVal').placeholder = {
-            ph: 'ph-star',
-            fa: 'fas fa-home',
-            img: 'https://…'
-        } [itype] || '';
-    }
-
-    function smItemPreview() {
-        const itype = document.querySelector('input[name="smIconType"]:checked')?.value || 'ph';
-        const ival = document.getElementById('smItemIconVal').value.trim();
-        const ibg = document.getElementById('smItemBg').value || '#dbeafe';
-        const ifg = document.getElementById('smItemFg').value || '#3b82f6';
-        const badge = document.getElementById('smItemBadge').value.trim();
-        const bclr = document.getElementById('smItemBadgeColor').value;
-
-        const box = document.getElementById('smItemPrevBox');
-        if (!box) return;
-        box.style.background = ibg;
-
-        let inner = `<i class="ph ph-image-square" style="font-size:26px;color:#94a3b8"></i>`;
-        if (ival) {
-            if (itype === 'ph') inner = `<i class="ph ${esc(ival)}" style="font-size:26px;color:${esc(ifg)}"></i>`;
-            if (itype === 'fa') inner = `<i class="${esc(ival)}" style="font-size:22px;color:${esc(ifg)}"></i>`;
-            if (itype === 'img') inner = `<img src="${esc(ival)}" style="width:32px;height:32px;object-fit:contain" onerror="this.style.display='none'"/>`;
+        function smItemPreviewName() {
+            const el = document.getElementById('smItemPrevName');
+            if (el) el.textContent = document.getElementById('smItemName').value || 'Nama Item';
         }
-        if (badge) {
-            inner += `<div style="position:absolute;top:-5px;right:-5px;background:${esc(bclr)};color:#fff;font-size:7px;font-weight:800;padding:1px 5px;border-radius:99px;line-height:1.5">${esc(badge)}</div>`;
+
+        function smPickBg(c) {
+            document.getElementById('smItemBg').value = c;
+            document.getElementById('smItemBgHex').value = c;
+            smItemPreview();
         }
-        box.innerHTML = inner;
-    }
 
-    function smItemPreviewName() {
-        const el = document.getElementById('smItemPrevName');
-        if (el) el.textContent = document.getElementById('smItemName').value || 'Nama Item';
-    }
+        function smPickFg(c) {
+            document.getElementById('smItemFg').value = c;
+            document.getElementById('smItemFgHex').value = c;
+            smItemPreview();
+        }
 
-    function smPickBg(c) {
-        document.getElementById('smItemBg').value = c;
-        document.getElementById('smItemBgHex').value = c;
-        smItemPreview();
-    }
+        function smSaveItem() {
+            const id = document.getElementById('smItemId').value;
+            const category_id = document.getElementById('smItemCat').value;
+            const name = document.getElementById('smItemName').value.trim();
+            const icon_type = document.querySelector('input[name="smIconType"]:checked')?.value || 'ph';
+            const icon_value = document.getElementById('smItemIconVal').value.trim();
+            const icon_bg = document.getElementById('smItemBg').value;
+            const icon_color = document.getElementById('smItemFg').value;
+            const href = document.getElementById('smItemHref').value.trim() || '#';
+            const query_cat = document.getElementById('smItemQueryCat').value.trim();
+            const badge = document.getElementById('smItemBadge').value.trim();
+            const badge_color = document.getElementById('smItemBadgeColor').value;
+            const sort_order = document.getElementById('smItemSort').value;
+            const is_active = document.getElementById('smItemActive').checked ? 1 : 0;
 
-    function smPickFg(c) {
-        document.getElementById('smItemFg').value = c;
-        document.getElementById('smItemFgHex').value = c;
-        smItemPreview();
-    }
+            if (!name) return smToast('Nama item wajib diisi.', true);
+            if (!category_id) return smToast('Pilih kategori.', true);
 
-    function smSaveItem() {
-        const id = document.getElementById('smItemId').value;
-        const category_id = document.getElementById('smItemCat').value;
-        const name = document.getElementById('smItemName').value.trim();
-        const icon_type = document.querySelector('input[name="smIconType"]:checked')?.value || 'ph';
-        const icon_value = document.getElementById('smItemIconVal').value.trim();
-        const icon_bg = document.getElementById('smItemBg').value;
-        const icon_color = document.getElementById('smItemFg').value;
-        const href = document.getElementById('smItemHref').value.trim() || '#';
-        const query_cat = document.getElementById('smItemQueryCat').value.trim();
-        const badge = document.getElementById('smItemBadge').value.trim();
-        const badge_color = document.getElementById('smItemBadgeColor').value;
-        const sort_order = document.getElementById('smItemSort').value;
-        const is_active = document.getElementById('smItemActive').checked ? 1 : 0;
+            const btn = document.getElementById('smItemSaveBtn');
+            btn.disabled = true;
 
-        if (!name) return smToast('Nama item wajib diisi.', true);
-        if (!category_id) return smToast('Pilih kategori.', true);
+            smPost({
+                    action: 'save_item',
+                    id,
+                    category_id,
+                    name,
+                    icon_type,
+                    icon_value,
+                    icon_bg,
+                    icon_color,
+                    href,
+                    query_cat,
+                    badge,
+                    badge_color,
+                    sort_order,
+                    ...(is_active ? {
+                        is_active: 1
+                    } : {})
+                })
+                .then(r => {
+                    btn.disabled = false;
+                    if (!r.ok) return smToast(r.msg || 'Gagal menyimpan.', true);
+                    smModalItem.hide();
+                    smToast(+id ? `Item "${name}" diperbarui.` : `Item "${name}" ditambahkan.`);
+                    setTimeout(() => location.reload(), 500);
+                });
+        }
 
-        const btn = document.getElementById('smItemSaveBtn');
-        btn.disabled = true;
+        // ══ HELPERS ════════════════════════════════════════════════════
+        function smPost(data) {
+            const fd = new FormData();
+            Object.entries(data).forEach(([k, v]) => fd.append(k, v));
+            return fetch(SM_URL, {
+                method: 'POST',
+                body: fd
+            }).then(r => r.json()).catch(() => ({
+                ok: false
+            }));
+        }
 
-        smPost({
-                action: 'save_item',
-                id,
-                category_id,
-                name,
-                icon_type,
-                icon_value,
-                icon_bg,
-                icon_color,
-                href,
-                query_cat,
-                badge,
-                badge_color,
-                sort_order,
-                ...(is_active ? {
-                    is_active: 1
-                } : {})
-            })
-            .then(r => {
-                btn.disabled = false;
-                if (!r.ok) return smToast(r.msg || 'Gagal menyimpan.', true);
-                smModalItem.hide();
-                smToast(+id ? `Item "${name}" diperbarui.` : `Item "${name}" ditambahkan.`);
-                setTimeout(() => location.reload(), 500);
-            });
-    }
+        function smToast(msg, err = false) {
+            const wrap = document.getElementById('smToastWrap');
+            if (!wrap) return;
+            const t = document.createElement('div');
+            t.className = `toast-item ${err ? 'toast-err' : 'toast-ok'}`;
+            t.innerHTML = `<i class="ph ${err?'ph-warning-circle':'ph-check-circle'}" style="font-size:18px;flex-shrink:0"></i>${msg}`;
+            wrap.appendChild(t);
+            setTimeout(() => t.style.opacity = '0', 3000);
+            setTimeout(() => t.remove(), 3500);
+        }
 
-    // ══ HELPERS ════════════════════════════════════════════════════
-    function smPost(data) {
-        const fd = new FormData();
-        Object.entries(data).forEach(([k, v]) => fd.append(k, v));
-        return fetch(SM_URL, {
-            method: 'POST',
-            body: fd
-        }).then(r => r.json()).catch(() => ({
-            ok: false
-        }));
-    }
+        function smSwAnim(inp) {
+            const track = inp.nextElementSibling;
+            if (!track) return;
+            track.style.background = inp.checked ? '#3b82f6' : 'rgba(255,255,255,.12)';
+            const dot = track.querySelector('.sm-sw-dot');
+            if (dot) dot.style.left = inp.checked ? '21px' : '3px';
+        }
 
-    function smToast(msg, err = false) {
-        const wrap = document.getElementById('smToastWrap');
-        if (!wrap) return;
-        const t = document.createElement('div');
-        t.className = `toast-item ${err ? 'toast-err' : 'toast-ok'}`;
-        t.innerHTML = `<i class="ph ${err?'ph-warning-circle':'ph-check-circle'}" style="font-size:18px;flex-shrink:0"></i>${msg}`;
-        wrap.appendChild(t);
-        setTimeout(() => t.style.opacity = '0', 3000);
-        setTimeout(() => t.remove(), 3500);
-    }
+        function esc(s) {
+            return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
 
-    function smSwAnim(inp) {
-        const track = inp.nextElementSibling;
-        if (!track) return;
-        track.style.background = inp.checked ? '#3b82f6' : 'rgba(255,255,255,.12)';
-        const dot = track.querySelector('.sm-sw-dot');
-        if (dot) dot.style.left = inp.checked ? '21px' : '3px';
-    }
+        // Init toggle states on load
+        document.querySelectorAll('.sm-sw-wrap input').forEach(smSwAnim);
 
-    function esc(s) {
-        return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
-    // Init toggle states on load
-    document.querySelectorAll('.sm-sw-wrap input').forEach(smSwAnim);
+    }); // end DOMContentLoaded
 </script>
 <?php
 require_once __DIR__ . '/includes/footer.php';
