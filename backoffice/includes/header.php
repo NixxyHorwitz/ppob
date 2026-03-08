@@ -47,6 +47,7 @@ $_menus = [
     ['key' => 'frontend',  'label' => 'Frontend',   'icon' => 'ph-app-window',        'url' => 'frontend'],
     ['key' => 'media',  'label' => 'Media', 'icon' => 'ph-folder-open',        'url' => 'media'],
     ['key' => 'menus',  'label' => 'Menus', 'icon' => 'ph-list',        'url' => 'menu'],
+    ['key' => 'service_menus',  'label' => 'Service Menus', 'icon' => 'ph-list',        'url' => 'sermenu'],
   ]],
   ['section' => 'Management', 'items' => [
     ['key' => 'users',      'label' => 'Users',       'icon' => 'ph-users-three',          'url' => 'users.php'],
