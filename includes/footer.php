@@ -346,7 +346,7 @@ $sosmed = [
         });
         $('#close-chat').on('click', () => $('#chat-box').addClass('d-none'));
 
-        setInterval(loadMsgs, 3000);
-        if (isAdmin) setInterval(loadList, 5000);
+        // setInterval(loadMsgs, 3000);
+        // if (isAdmin) setInterval(loadList, 5000);
     });
 </script>
