@@ -9,7 +9,7 @@
  */
 
 $pageTitle = 'Semua Layanan';
-require_once $_SERVER['DOCUMENT_ROOT'] . '/includes/header.php';
+require_once __DIR__ . '/../includes/header.php';
 
 /* ── 1. Dashboard menus (static bar atas) ──────────────────── */
 $dashMenus = $pdo->query(
@@ -752,7 +752,7 @@ function menuHref(array $m): string
 
 <!-- TOP BAR -->
 <div class="sv-topbar">
-    <a href="<?= $_SERVER['DOCUMENT_ROOT'] ?>/dashboard.php" class="sv-topbar-back">
+    <a href="<?= base_url('dashboard.php') ?>" class="sv-topbar-back">
         <i class="ph ph-caret-left"></i>
     </a>
     <div class="sv-topbar-title">Semua Layanan</div>
@@ -1105,7 +1105,7 @@ function menuHref(array $m): string
         const grid = document.getElementById('svProdGrid');
         if (!grid) return;
         const type = isPasca ? 'pascabayar' : 'prabayar';
-        const url = `<?= $_SERVER['DOCUMENT_ROOT'] ?>/api/get_products.php?cat=${encodeURIComponent(cat||'')}&type=${type}`;
+        const url = `<?= base_url('api/get_products.php') ?>?cat=${encodeURIComponent(cat||'')}&type=${type}`;
         try {
             const res = await fetch(url);
             const data = await res.json();
@@ -1178,7 +1178,7 @@ function menuHref(array $m): string
             fd.append('sku', _selectedSku || document.getElementById('svSelSku')?.value || '');
             fd.append('target', target);
             try {
-                const res = await fetch('<?= $_SERVER['DOCUMENT_ROOT'] ?>/api/inquiry.php', {
+                const res = await fetch('<?= base_url('api/inquiry.php') ?>', {
                     method: 'POST',
                     body: fd
                 });
@@ -1296,4 +1296,4 @@ function menuHref(array $m): string
     }
 </script>
 
-<?php require_once $_SERVER['DOCUMENT_ROOT'] . '/includes/footer.php'; ?>
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>

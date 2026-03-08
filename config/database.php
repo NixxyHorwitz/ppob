@@ -13,3 +13,16 @@ try {
 } catch (\PDOException $e) {
     die("Koneksi gagal: " . $e->getMessage());
 }
+
+if (!function_exists('base_url')) {
+    function base_url(string $path = ''): string
+    {
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+            $scheme = 'https';
+        }
+        $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $root   = rtrim($scheme . '://' . $host . '/', '/') . '/';
+        return $root . ltrim($path, '/');
+    }
+}
