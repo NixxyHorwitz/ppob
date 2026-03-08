@@ -8,7 +8,7 @@
 
 $pageTitle = 'Riwayat Transaksi';
 
-require_once dirname(__DIR__, 2) . '/includes/header.php';
+require_once dirname(__DIR__) . '/includes/header.php';
 
 /* ── Query transaksi user ──────────────────────────────────────────── */
 $stmt = $pdo->prepare("
@@ -612,7 +612,7 @@ function monthLabel(string $ym): string
 
 <!-- TOP BAR -->
 <div class="hist-topbar">
-    <a href="<?= dirname($_SERVER['PHP_SELF'], 2) ?>/dashboard.php" class="hist-topbar-back">
+    <a href="<?= dirname($_SERVER['PHP_SELF']) ?>/dashboard.php" class="hist-topbar-back">
         <i class="ph ph-caret-left"></i>
     </a>
     <div class="hist-topbar-title">Aktivitas</div>
@@ -865,4 +865,4 @@ function monthLabel(string $ym): string
     })();
 </script>
 
-<?php require_once dirname(__DIR__, 2) . '/includes/footer.php'; ?>
+<?php require_once dirname(__DIR__) . '/includes/footer.php'; ?>
