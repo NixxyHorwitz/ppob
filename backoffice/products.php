@@ -857,7 +857,7 @@ function doBulk(status) {
   if (!ids.length) return;
   const form    = document.getElementById('bulkForm');
   const idsDiv  = document.getElementById('bulkIds');
-  document.getElementById('bulkStatus').value = status;
+  document.getElementById('bulkStaxtus').value = status;
   idsDiv.innerHTML = ids.map(id => '<input type="hidden" name="ids[]" value="'+id+'"/>').join('');
   form.submit();
 }
