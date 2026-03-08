@@ -741,11 +741,13 @@ function menuHref(array $m): string
             <div class="sv-static-list">
                 <?php foreach ($dashMenus as $dm): ?>
                     <a class="sv-static-item" href="<?= htmlspecialchars($dm['href'] ?? '#') ?>">
-                        <div class="sv-static-ico">
-                            <?php if (($dm['icon_type'] ?? 'ph') === 'img'): ?>
-                                <img src="<?= htmlspecialchars($dm['icon_value']) ?>" style="width:22px;height:22px;object-fit:contain" alt="">
-                            <?php else: ?>
-                                <i class="ph <?= htmlspecialchars($dm['icon_value'] ?? 'ph-circle') ?>"></i>
+                        <div class="sv-static-ico" style="background:<?= htmlspecialchars($dm['icon_bg_color'] ?? 'rgba(255,255,255,.18)') ?>">
+                            <?php if ($dm['icon_type'] === 'image_url'): ?>
+                                <img src="<?= htmlspecialchars($dm['icon_value']) ?>" style="width:26px;height:26px;object-fit:contain" alt="">
+                            <?php elseif ($dm['icon_type'] === 'emoji'): ?>
+                                <span style="font-size:20px"><?= htmlspecialchars($dm['icon_value']) ?></span>
+                            <?php else: /* fontawesome */ ?>
+                                <i class="<?= htmlspecialchars($dm['icon_value']) ?>" style="color:<?= htmlspecialchars($dm['icon_color'] ?? '#fff') ?>"></i>
                             <?php endif; ?>
                         </div>
                         <span class="sv-static-lbl2"><?= htmlspecialchars($dm['name'] ?? '') ?></span>
