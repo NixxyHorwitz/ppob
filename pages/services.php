@@ -1284,5 +1284,3 @@ function menuHref(array $m): string
         setTimeout(() => el.remove(), 3000);
     }
 </script>
-
-<!-- <?php require_once __DIR__ . '/../includes/footer.php'; ?> -->
