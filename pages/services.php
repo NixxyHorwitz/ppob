@@ -9,8 +9,7 @@
  */
 
 $pageTitle = 'Semua Layanan';
-$extraHead = '<script src="https://unpkg.com/@phosphor-icons/web@2.1.1" defer></script>';
-// require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/header.php';
 
 /* ── 1. Dashboard menus (static bar atas) ──────────────────── */
 $dashMenus = $pdo->query(
@@ -56,7 +55,7 @@ function menuHref(array $m): string
     return htmlspecialchars($href);
 }
 ?>
-<script src="https://unpkg.com/@phosphor-icons/web@2.1.1" defer></script>
+
 <style>
     /* ══════════════════════════════════════════════════════════════
    SERVICES PAGE
@@ -1163,8 +1162,7 @@ function menuHref(array $m): string
     }
 
     function bindStep2() {
-        /* nothing extra needed */
-    }
+        /* nothing extra needed */ }
 
     async function goStep2() {
         const m = _sheetMeta;
@@ -1229,8 +1227,7 @@ function menuHref(array $m): string
     }
 
     function bindPin() {
-        /* handled by onclick */
-    }
+        /* handled by onclick */ }
 
     function pinKey(k) {
         if (k === 'del') {
