@@ -9,13 +9,13 @@
 
 // ── Kredensial langsung dari website_settings ─────────────────────
 $API_USERNAME = 'yiyuteD282qg';
-$API_KEY      = 'dev-7c368ea0-0e22-11f1-9ff0-bf9c50cdde71';
+$API_KEY      = 'a6eb6d58-44dd-5b18-bbb6-bc9392f9c0f5';
 $API_URL      = 'https://api.digiflazz.com/v1/transaction';
 
 // ── Ubah ini untuk testing ────────────────────────────────────────
 $TEST_SKU     = 'danacek';          // ganti dengan sku yang mau ditest
 $TEST_TARGET  = '085714705875';   // ganti dengan nomor tujuan
-$TESTING_MODE = true;             // true = sandbox, false = production
+$TESTING_MODE = false;             // true = sandbox, false = production
 
 // ─────────────────────────────────────────────────────────────────
 
