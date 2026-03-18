@@ -1,7 +1,7 @@
 <?php
 
 /**
- * /backoffice/cms_manage.php
+ * /backoffice/media.php
  * CMS File Manager — Upload, browse & manage media files
  * Files are served publicly via /cms/{id}.{ext}  (see .htaccess)
  *
@@ -237,7 +237,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'upload') {
    REGULAR POST ACTIONS (edit / toggle / delete)
 ════════════════════════════════════════════════════════════ */
 $page_title  = 'CMS File Manager';
-$active_menu = 'cms_manage';
+$active_menu = 'media';
 
 $toast = '';
 $toast_e = '';
@@ -1102,7 +1102,7 @@ require_once __DIR__ . '/includes/header.php';
                 <p class="ct">Folder</p>
             </div>
             <div class="cb" style="padding-top:6px">
-                <a href="cms_manage.php" class="ttab <?= !$filter_folder ? 'active' : '' ?>" style="width:100%;margin-bottom:5px;display:flex">
+                <a href="media.php" class="ttab <?= !$filter_folder ? 'active' : '' ?>" style="width:100%;margin-bottom:5px;display:flex">
                     <i class="ph ph-folder-open"></i> Semua Folder
                     <span style="margin-left:auto;font-size:10px;opacity:.6"><?= $all_count ?></span>
                 </a>
@@ -1111,7 +1111,7 @@ require_once __DIR__ . '/includes/header.php';
                     $fc_stmt->execute([$fo]);
                     $fc_n = $fc_stmt->fetchColumn();
                 ?>
-                    <a href="cms_manage.php?folder=<?= urlencode($fo) ?><?= $filter_type ? "&type={$filter_type}" : '' ?>"
+                    <a href="media.php?folder=<?= urlencode($fo) ?><?= $filter_type ? "&type={$filter_type}" : '' ?>"
                         class="ttab <?= $filter_folder === $fo ? 'active' : '' ?>"
                         style="width:100%;margin-bottom:5px;display:flex">
                         <i class="ph ph-folder"></i> <?= htmlspecialchars($fo) ?>
@@ -1139,7 +1139,7 @@ require_once __DIR__ . '/includes/header.php';
                             <i class="ph ph-magnifying-glass"></i>
                         </button>
                         <?php if ($search): ?>
-                            <a href="cms_manage.php?<?= $filter_type ? "type={$filter_type}&" : '' ?><?= $filter_folder ? "folder=" . urlencode($filter_folder) : ''; ?>"
+                            <a href="media.php?<?= $filter_type ? "type={$filter_type}&" : '' ?><?= $filter_folder ? "folder=" . urlencode($filter_folder) : ''; ?>"
                                 class="btn btn-sm" style="border-radius:7px;padding:7px 10px;background:var(--hover);border:1px solid var(--border);color:var(--sub)">
                                 <i class="ph ph-x"></i>
                             </a>
@@ -1171,7 +1171,7 @@ require_once __DIR__ . '/includes/header.php';
                         ['other', 'ph-file', 'Lainnya',   $stat_map['other']['cnt']   ?? 0],
                     ];
                     foreach ($tabs as [$tv, $ti, $tl, $tn]):
-                        $url = 'cms_manage.php?';
+                        $url = 'media.php?';
                         if ($tv) $url .= "type={$tv}&";
                         if ($filter_folder) $url .= 'folder=' . urlencode($filter_folder) . '&';
                         if ($search) $url .= 'q=' . urlencode($search) . '&';
@@ -1381,7 +1381,7 @@ require_once __DIR__ . '/includes/header.php';
             <div class="modal-head">
                 <i class="ph ph-pencil-simple" style="font-size:18px;color:var(--accent)"></i>
                 Edit Metadata File
-                <a href="cms_manage.php?<?= $filter_type ? "type={$filter_type}&" : '' ?><?= $filter_folder ? "folder=" . urlencode($filter_folder) . '&' : ''; ?><?= $search ? "q=" . urlencode($search) : ''; ?>"
+                <a href="media.php?<?= $filter_type ? "type={$filter_type}&" : '' ?><?= $filter_folder ? "folder=" . urlencode($filter_folder) . '&' : ''; ?><?= $search ? "q=" . urlencode($search) : ''; ?>"
                     class="modal-close"><i class="ph ph-x"></i></a>
             </div>
             <div class="modal-body">
@@ -1432,7 +1432,7 @@ require_once __DIR__ . '/includes/header.php';
                     </div>
 
                     <div style="display:flex;gap:8px;justify-content:flex-end">
-                        <a href="cms_manage.php?<?= $filter_type ? "type={$filter_type}&" : '' ?><?= $filter_folder ? "folder=" . urlencode($filter_folder) . '&' : ''; ?><?= $search ? "q=" . urlencode($search) : ''; ?>"
+                        <a href="media.php?<?= $filter_type ? "type={$filter_type}&" : '' ?><?= $filter_folder ? "folder=" . urlencode($filter_folder) . '&' : ''; ?><?= $search ? "q=" . urlencode($search) : ''; ?>"
                             class="btn btn-sm" style="border-radius:7px;background:var(--hover);border:1px solid var(--border);color:var(--sub)">
                             Batal
                         </a>
@@ -1623,7 +1623,7 @@ $page_scripts = <<<'SCRIPT'
         if (customName) fd.append('custom_name', customName);
 
         var xhr = new XMLHttpRequest();
-        xhr.open('POST', 'cms_manage.php?ajax=upload', true);
+        xhr.open('POST', 'media.php?ajax=upload', true);
 
         xhr.upload.onprogress = function(e) {
           if (!e.lengthComputable) return;
