@@ -240,7 +240,7 @@ function monthLabel(string $ym): string
 
     /* ── Month group ── */
     .hist-month {
-        padding: 14px 14px 0;
+        padding: 14px 0 0;
     }
 
     .hist-month-hd {
@@ -248,6 +248,7 @@ function monthLabel(string $ym): string
         justify-content: space-between;
         align-items: center;
         margin-bottom: 8px;
+        padding: 0 14px;
     }
 
     .hist-month-lbl {
@@ -273,9 +274,8 @@ function monthLabel(string $ym): string
     /* ── List group card ── */
     .hist-group {
         background: var(--cc);
-        border-radius: 16px;
-        border: 1px solid rgba(0, 0, 0, .04);
-        box-shadow: 0 1px 8px rgba(0, 0, 0, .05);
+        border-top: 1px solid rgba(0, 0, 0, .05);
+        border-bottom: 1px solid rgba(0, 0, 0, .05);
         overflow: hidden;
     }
 
@@ -545,7 +545,7 @@ function monthLabel(string $ym): string
     }
 
     .hist-sheet-body {
-        padding: 14px 18px;
+        padding: 14px 18px calc(84px + env(safe-area-inset-bottom));
     }
 
     .hist-kv {
