@@ -422,7 +422,7 @@ function menuHref(array $m): string
     }
 
     .sv-sheet-body {
-        padding: 16px 18px;
+        padding: 16px 18px calc(84px + env(safe-area-inset-bottom));
     }
 
     .sv-field {
