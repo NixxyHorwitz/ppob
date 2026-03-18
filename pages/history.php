@@ -623,6 +623,120 @@ function monthLabel(string $ym): string
     .hist-bottom-space {
         height: 16px;
     }
+
+    /* ── Filter modal ── */
+    .hist-fmodal-bg {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, .4);
+        backdrop-filter: blur(2px);
+        z-index: 200;
+        display: none;
+    }
+
+    .hist-fmodal-bg.show {
+        display: block;
+    }
+
+    .hist-fmodal {
+        position: fixed;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%) translateY(100%);
+        width: 100%;
+        max-width: 480px;
+        background: var(--cc);
+        border-radius: 22px 22px 0 0;
+        z-index: 201;
+        padding: 0 0 calc(84px + env(safe-area-inset-bottom));
+        transition: transform .3s cubic-bezier(.4, 0, .2, 1);
+        box-shadow: 0 -8px 32px rgba(0, 0, 0, .15);
+    }
+
+    .hist-fmodal.show {
+        transform: translateX(-50%) translateY(0);
+    }
+
+    .hist-fmodal-pull {
+        width: 36px;
+        height: 4px;
+        background: rgba(0, 0, 0, .1);
+        border-radius: 99px;
+        margin: 12px auto 0;
+    }
+
+    .hist-fmodal-head {
+        padding: 14px 18px 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid rgba(0, 0, 0, .06);
+    }
+
+    .hist-fmodal-title {
+        font-size: 14px;
+        font-weight: 800;
+        color: var(--ct);
+    }
+
+    .hist-fmodal-reset {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--cp);
+        cursor: pointer;
+    }
+
+    .hist-fmodal-body {
+        padding: 16px 18px 0;
+    }
+
+    .hist-fmodal-lbl {
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        color: var(--cm);
+        margin-bottom: 10px;
+    }
+
+    .hist-fmodal-opts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 18px;
+    }
+
+    .hist-fopt {
+        padding: 7px 14px;
+        border-radius: 99px;
+        border: 1.5px solid #e2e8f0;
+        background: var(--cc);
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--cm);
+        cursor: pointer;
+        transition: all .15s;
+    }
+
+    .hist-fopt.on {
+        background: var(--cp);
+        border-color: var(--cp);
+        color: #fff;
+    }
+
+    .hist-fapply {
+        width: 100%;
+        padding: 13px;
+        border: none;
+        border-radius: 13px;
+        background: var(--cp);
+        color: #fff;
+        font-size: 14px;
+        font-weight: 800;
+        font-family: var(--f);
+        cursor: pointer;
+        margin-top: 4px;
+    }
 </style>
 
 <!-- TOP BAR -->
@@ -751,9 +865,9 @@ function monthLabel(string $ym): string
         <?php endforeach; ?>
     <?php endif; ?>
 
-    <!-- ── TOPUP HISTORY ─────────────────────────────────────────── -->
-    <?php if (!empty($topupHistory)): ?>
-        <div id="topupSection" style="display:none">
+    <!-- ── TOPUP HISTORY (di dalam histList) ─────────────────────── -->
+    <div id="topupSection" style="display:none">
+        <?php if (!empty($topupHistory)): ?>
             <div class="hist-month" style="padding-top:16px">
                 <div class="hist-month-hd">
                     <span class="hist-month-lbl">Riwayat Top Up Saldo</span>
@@ -834,8 +948,14 @@ function monthLabel(string $ym): string
                     <?php endforeach; ?>
                 </div>
             </div>
-        </div>
-    <?php endif; ?>
+        <?php else: ?>
+            <div class="hist-empty">
+                <div class="hist-empty-ic"><i class="ph ph-arrow-circle-up"></i></div>
+                <h6>Belum Ada Top Up</h6>
+                <p>Riwayat top up saldo<br>akan muncul di sini.</p>
+            </div>
+        <?php endif; ?>
+    </div>
 </div>
 
 <!-- No result placeholder -->
@@ -846,6 +966,32 @@ function monthLabel(string $ym): string
 </div>
 
 <div class="hist-bottom-space"></div>
+
+<!-- ── FILTER MODAL ─────────────────────────────────────────────── -->
+<div class="hist-fmodal-bg" id="fmodalBg" onclick="closeFModal()"></div>
+<div class="hist-fmodal" id="fmodal">
+    <div class="hist-fmodal-pull"></div>
+    <div class="hist-fmodal-head">
+        <span class="hist-fmodal-title">Filter Riwayat</span>
+        <span class="hist-fmodal-reset" onclick="resetFilter()">Reset</span>
+    </div>
+    <div class="hist-fmodal-body">
+        <div class="hist-fmodal-lbl">Jenis Transaksi</div>
+        <div class="hist-fmodal-opts" id="foptTab">
+            <div class="hist-fopt on" data-val="all">Semua</div>
+            <div class="hist-fopt" data-val="topup">Top Up Saldo</div>
+            <div class="hist-fopt" data-val="ppob">Transaksi PPOB</div>
+        </div>
+        <div class="hist-fmodal-lbl">Status</div>
+        <div class="hist-fmodal-opts" id="foptStatus">
+            <div class="hist-fopt on" data-val="all">Semua</div>
+            <div class="hist-fopt" data-val="success">Sukses</div>
+            <div class="hist-fopt" data-val="pending">Pending</div>
+            <div class="hist-fopt" data-val="failed">Gagal</div>
+        </div>
+        <button class="hist-fapply" onclick="applyFModal()">Terapkan Filter</button>
+    </div>
+</div>
 
 <!-- ── DETAIL SHEET ─────────────────────────────────────────────── -->
 <div class="hist-sheet-bg" id="sheetBg" onclick="closeSheet()"></div>
@@ -865,14 +1011,18 @@ function monthLabel(string $ym): string
     /* ── Filter & Search ───────────────────────────────────────────── */
     let _status = 'all';
     let _search = '';
-    let _tab = 'all'; // 'all' | 'topup'
+    let _tab = 'all'; // 'all' | 'topup' | 'ppob'
+    let _status = 'all';
 
+    // Chip status bar (atas) — hanya untuk filter status cepat
     document.querySelectorAll('.hchip').forEach(chip => {
         chip.addEventListener('click', () => {
             document.querySelectorAll('.hchip').forEach(x => x.classList.remove('on'));
             chip.classList.add('on');
             _status = chip.dataset.status;
             _tab = chip.dataset.tab || 'all';
+            // sync fmodal opts
+            syncFModalOpts();
             applyFilter();
         });
     });
@@ -882,11 +1032,63 @@ function monthLabel(string $ym): string
         applyFilter();
     });
 
+    // ── Filter modal ──────────────────────────────────────────────
+    document.getElementById('btnFilter').addEventListener('click', () => {
+        syncFModalOpts();
+        document.getElementById('fmodalBg').classList.add('show');
+        requestAnimationFrame(() => document.getElementById('fmodal').classList.add('show'));
+    });
+
+    function closeFModal() {
+        document.getElementById('fmodal').classList.remove('show');
+        setTimeout(() => document.getElementById('fmodalBg').classList.remove('show'), 300);
+    }
+
+    // Single-select per group
+    document.querySelectorAll('#foptTab .hist-fopt').forEach(o => {
+        o.addEventListener('click', () => {
+            document.querySelectorAll('#foptTab .hist-fopt').forEach(x => x.classList.remove('on'));
+            o.classList.add('on');
+        });
+    });
+    document.querySelectorAll('#foptStatus .hist-fopt').forEach(o => {
+        o.addEventListener('click', () => {
+            document.querySelectorAll('#foptStatus .hist-fopt').forEach(x => x.classList.remove('on'));
+            o.classList.add('on');
+        });
+    });
+
+    function applyFModal() {
+        _tab = document.querySelector('#foptTab .hist-fopt.on')?.dataset.val || 'all';
+        _status = document.querySelector('#foptStatus .hist-fopt.on')?.dataset.val || 'all';
+        // sync chips
+        document.querySelectorAll('.hchip').forEach(x => x.classList.remove('on'));
+        const matchChip = document.querySelector(`.hchip[data-status="${_status}"][data-tab="all"]`);
+        if (matchChip) matchChip.classList.add('on');
+        else document.querySelector('.hchip[data-status="all"]')?.classList.add('on');
+        closeFModal();
+        applyFilter();
+    }
+
+    function resetFilter() {
+        _tab = 'all';
+        _status = 'all';
+        document.querySelectorAll('#foptTab .hist-fopt').forEach(x => x.classList.remove('on'));
+        document.querySelectorAll('#foptStatus .hist-fopt').forEach(x => x.classList.remove('on'));
+        document.querySelector('#foptTab .hist-fopt[data-val="all"]')?.classList.add('on');
+        document.querySelector('#foptStatus .hist-fopt[data-val="all"]')?.classList.add('on');
+    }
+
+    function syncFModalOpts() {
+        document.querySelectorAll('#foptTab .hist-fopt').forEach(o => o.classList.toggle('on', o.dataset.val === _tab));
+        document.querySelectorAll('#foptStatus .hist-fopt').forEach(o => o.classList.toggle('on', o.dataset.val === _status));
+    }
+
+    // ── Main filter ───────────────────────────────────────────────
     function applyFilter() {
         const topupSec = document.getElementById('topupSection');
-        const histList = document.getElementById('histList');
 
-        // Tab: topup — tampilkan topupSection, sembunyikan transaksi biasa
+        // Topup only
         if (_tab === 'topup') {
             document.querySelectorAll('.hist-month').forEach(m => m.style.display = 'none');
             if (topupSec) topupSec.style.display = '';
@@ -894,7 +1096,7 @@ function monthLabel(string $ym): string
             return;
         }
 
-        // Tab: all — sembunyikan topupSection
+        // PPOB / all — sembunyikan topupSection
         if (topupSec) topupSec.style.display = 'none';
 
         let anyVisible = false;
