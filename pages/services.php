@@ -702,43 +702,69 @@ function menuHref(array $m): string
         display: inline-block;
     }
 
-    .sv-tx-msg {
-        margin: 12px 14px 0;
-        padding: 11px 14px;
-        border-radius: 12px;
+    /* ── Toast ── */
+    .sv-toast {
+        position: fixed;
+        top: -80px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9999;
+        max-width: 340px;
+        width: calc(100% - 28px);
+        padding: 12px 16px;
+        border-radius: 14px;
         font-size: 13px;
         font-weight: 700;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, .18);
+        transition: top .35s cubic-bezier(.4, 0, .2, 1), opacity .35s;
+        opacity: 0;
+        pointer-events: none;
     }
 
-    .sv-tx-msg.ok {
-        background: #f0fdf4;
-        border: 1px solid #bbf7d0;
-        color: #15803d;
+    .sv-toast.show {
+        top: 14px;
+        opacity: 1;
+        pointer-events: auto;
     }
 
-    .sv-tx-msg.err {
-        background: #fef2f2;
-        border: 1px solid #fecaca;
-        color: #dc2626;
+    .sv-toast.ok {
+        background: #064e3b;
+        color: #6ee7b7;
+    }
+
+    .sv-toast.err {
+        background: #7f1d1d;
+        color: #fca5a5;
+    }
+
+    .sv-toast-close {
+        margin-left: auto;
+        cursor: pointer;
+        opacity: .7;
+        flex-shrink: 0;
     }
 </style>
 
+<!-- TOAST -->
+<div class="sv-toast" id="svToast">
+    <span id="svToastIcon"></span>
+    <span id="svToastMsg"></span>
+    <span class="sv-toast-close" onclick="closeToast()">
+        <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+            <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+    </span>
+</div>
+
 <?php if ($txMessage): ?>
-    <div class="sv-tx-msg <?= $txStatus ?>">
-        <?php if ($txStatus === 'ok'): ?>
-            <svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor">
-                <path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z" />
-            </svg>
-        <?php else: ?>
-            <svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor">
-                <path d="M236.8,188.09,149.35,36.22a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z" />
-            </svg>
-        <?php endif; ?>
-        <?= htmlspecialchars($txMessage) ?>
-    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            showToast(<?= json_encode($txMessage) ?>, <?= json_encode($txStatus) ?>);
+        });
+    </script>
 <?php endif; ?>
 
 <!-- TOP BAR -->
@@ -1217,19 +1243,27 @@ function menuHref(array $m): string
         return Number(n).toLocaleString('id-ID');
     }
 
+    const SVG_CHECK = `<svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg>`;
+    const SVG_WARN = `<svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor"><path d="M236.8,188.09,149.35,36.22a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/></svg>`;
+
+    let _toastTimer = null;
+
     function showToast(msg, type) {
-        const el = document.createElement('div');
-        el.style.cssText = `position:fixed;top:14px;left:50%;transform:translateX(-50%);
-        background:${type==='err'?'#7f1d1d':'#064e3b'};color:${type==='err'?'#fca5a5':'#6ee7b7'};
-        padding:8px 18px;border-radius:10px;font-size:12px;font-weight:700;
-        z-index:9999;box-shadow:0 6px 20px rgba(0,0,0,.3);max-width:340px;text-align:center`;
-        el.textContent = msg;
-        document.body.appendChild(el);
-        setTimeout(() => {
-            el.style.opacity = '0';
-            el.style.transition = 'opacity .4s';
-        }, 2600);
-        setTimeout(() => el.remove(), 3000);
+        const toast = document.getElementById('svToast');
+        const icon = document.getElementById('svToastIcon');
+        const msgEl = document.getElementById('svToastMsg');
+        if (!toast) return;
+        toast.className = 'sv-toast ' + (type === 'ok' ? 'ok' : 'err');
+        icon.innerHTML = type === 'ok' ? SVG_CHECK : SVG_WARN;
+        msgEl.textContent = msg;
+        requestAnimationFrame(() => toast.classList.add('show'));
+        clearTimeout(_toastTimer);
+        _toastTimer = setTimeout(() => closeToast(), 3500);
+    }
+
+    function closeToast() {
+        const toast = document.getElementById('svToast');
+        if (toast) toast.classList.remove('show');
     }
 </script>
 
