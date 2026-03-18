@@ -866,7 +866,7 @@ function monthLabel(string $ym): string
     <?php endif; ?>
 
     <!-- ── TOPUP HISTORY (di dalam histList) ─────────────────────── -->
-    <div id="topupSection" style="display:none">
+    <div id="topupSection">
         <?php if (!empty($topupHistory)): ?>
             <div class="hist-month" style="padding-top:16px">
                 <div class="hist-month-hd">
@@ -1012,7 +1012,6 @@ function monthLabel(string $ym): string
     let _status = 'all';
     let _search = '';
     let _tab = 'all'; // 'all' | 'topup' | 'ppob'
-    let _status = 'all';
 
     // Chip status bar (atas) — hanya untuk filter status cepat
     document.querySelectorAll('.hchip').forEach(chip => {
@@ -1096,8 +1095,13 @@ function monthLabel(string $ym): string
             return;
         }
 
-        // PPOB / all — sembunyikan topupSection
-        if (topupSec) topupSec.style.display = 'none';
+        // PPOB only — sembunyikan topupSection
+        if (_tab === 'ppob') {
+            if (topupSec) topupSec.style.display = 'none';
+        } else {
+            // tab=all → topup tetap tampil di bawah
+            if (topupSec) topupSec.style.display = '';
+        }
 
         let anyVisible = false;
         document.querySelectorAll('.hist-month').forEach(month => {
