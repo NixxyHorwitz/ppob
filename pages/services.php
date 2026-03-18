@@ -1060,7 +1060,7 @@ function menuHref(array $m): string
         return `
     <div class="sv-field">
         <label>Nomor / ID Pelanggan</label>
-        <input type="text" class="sv-inp" id="svTarget" placeholder="Masukkan nomor..." inputmode="numeric">
+        <input type="tel" class="sv-inp" id="svTarget" placeholder="Contoh: 085819478911" autocomplete="tel">
         <div class="sv-op-lbl" id="svOpLbl"></div>
     </div>
     <div class="sv-field">
@@ -1080,21 +1080,29 @@ function menuHref(array $m): string
         loadProducts(m.query_cat, m.type === 'pasca');
         const ti = document.getElementById('svTarget');
         if (ti) ti.addEventListener('input', function() {
-            _target = this.value.trim(); // simpan ke state
-            const op = OPERATOR_MAP[this.value.substring(0, 4)] || '';
+            let val = this.value.replace(/[^0-9]/g, ''); // strip non-digit
+            // Auto-prefix 0 jika user mulai dengan 8 (lupa ketik 0 di depan)
+            if (val.length >= 2 && val.startsWith('8')) val = '0' + val;
+            // Sync value ke input jika berubah
+            if (this.value !== val) {
+                this.value = val;
+            }
+            _target = val; // simpan ke state
+            const op = OPERATOR_MAP[val.substring(0, 4)] || '';
             const lbl = document.getElementById('svOpLbl');
-            if (lbl) lbl.textContent = op;
+            if (lbl) lbl.textContent = op ? ('✓ ' + op) : '';
             checkCta1();
             filterProductsByOp(op);
         });
     }
 
     function checkCta1() {
-        const target = document.getElementById('svTarget')?.value;
+        const target = _target || document.getElementById('svTarget')?.value || '';
         const sku = document.getElementById('svSelSku')?.value;
         const cta = document.getElementById('svCta1');
         if (!cta) return;
-        cta.disabled = !(target && (_sheetMeta.type === 'pasca' || sku));
+        const validTarget = target.length >= 9; // min 9 digit
+        cta.disabled = !(validTarget && (_sheetMeta.type === 'pasca' || sku));
     }
 
     function filterProductsByOp(op) {
