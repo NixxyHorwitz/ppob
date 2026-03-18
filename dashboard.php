@@ -1143,7 +1143,7 @@ function timeAgo(string $ts): string
                     <i class="fas fa-bell"></i>
                     <?php if ($unreadCount > 0): ?><span class="nbadge"><?= $unreadCount > 9 ? '9+' : $unreadCount ?></span><?php endif; ?>
                 </a>
-                <a href="modules/user/profil" class="hbtn"><i class="fas fa-user-circle"></i></a>
+                <a href="pages/profile/" class="hbtn"><i class="fas fa-user-circle"></i></a>
             </div>
         </div>
 
