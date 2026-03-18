@@ -7,8 +7,8 @@
 
 $pageTitle = 'Semua Layanan';
 require_once __DIR__ . '/../includes/header.php';
-require_once __DIR__ . '/../core/api_handler.php';
 require_once __DIR__ . '/../core/transaction.php';
+require_once __DIR__ . '/../core/api_handler.php';
 
 /* ── POST handler — proses transaksi langsung di sini ──────── */
 $txMessage = '';
