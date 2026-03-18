@@ -1,4 +1,5 @@
 <?php
+// api_handler.php
 require_once __DIR__ . '/../config/database.php';
 
 $stmt = $pdo->query("SELECT api_username, api_key, api_url FROM website_settings LIMIT 1");
@@ -8,7 +9,8 @@ define('API_USERNAME', $api['api_username']);
 define('API_KEY', $api['api_key']);
 define('API_URL', $api['api_url']);
 
-function hitVendor($endpoint, $data) {
+function hitVendor($endpoint, $data)
+{
     $url = API_URL . $endpoint;
     $payload = json_encode($data);
 
@@ -23,7 +25,7 @@ function hitVendor($endpoint, $data) {
     ]);
 
     $result = curl_exec($ch);
-    
+
     if (curl_errno($ch)) {
         $error_msg = curl_error($ch);
         error_log("[" . date('Y-m-d H:i:s') . "] cURL Error: $error_msg | URL: $url\n", 3, __DIR__ . '/../logs/error_api.log');

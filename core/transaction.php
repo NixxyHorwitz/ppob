@@ -1,4 +1,5 @@
 <?php
+// transaction.php
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -12,7 +13,8 @@ define('API_USERNAME', $api['api_username']);
 define('API_KEY', $api['api_key']);
 define('API_URL', $api['api_url']);
 
-function prosesTransaksi($userId, $sku, $target, $pin) {
+function prosesTransaksi($userId, $sku, $target, $pin)
+{
     global $pdo;
 
     $stmt = $pdo->prepare("SELECT username, saldo, pin FROM users WHERE id = ?");
@@ -20,7 +22,7 @@ function prosesTransaksi($userId, $sku, $target, $pin) {
     $user = $stmt->fetch();
 
     if (!$user) return "User tidak ditemukan.";
-    
+
     if ($pin !== $user['pin']) {
         return "PIN yang Anda masukkan salah.";
     }
@@ -40,7 +42,7 @@ function prosesTransaksi($userId, $sku, $target, $pin) {
         $harga = $product['price_sell'];
         $stmt = $pdo->prepare("INSERT INTO transactions (user_id, ref_id, sku_code, target, amount, status) VALUES (?, ?, ?, ?, ?, 'pending')");
         $stmt->execute([$userId, $trxIdInternal, $sku, $target, $harga]);
-      
+
         $sign = md5(API_USERNAME . API_KEY . $trxIdInternal);
 
 
@@ -53,34 +55,32 @@ function prosesTransaksi($userId, $sku, $target, $pin) {
             //'testing' => true 
         ]);
 
-    if (is_null($vendorRes) || !is_array($vendorRes)) {
-        if ($pdo->inTransaction()) $pdo->rollBack();
-        return "Gagal: Server vendor tidak memberikan respon (Timeout/Error).";
-    }
-
-
-    if (isset($vendorRes['data'])) {
-        $statusResponse = $vendorRes['data']['status'] ?? '';
-    
-        if ($statusResponse == 'Gagal') {
-            $pdo->rollBack();
-            return "Transaksi Gagal: " . ($vendorRes['data']['message'] ?? 'Ditolak vendor');
+        if (is_null($vendorRes) || !is_array($vendorRes)) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            return "Gagal: Server vendor tidak memberikan respon (Timeout/Error).";
         }
-    
-        $pdo->commit();
-        $username = $user['username'];
-        
-        notifyUser($pdo, $userId, "Transaksi Diproses", "Pesanan produk $sku dengan ID: [$trxIdInternal] sedang diproses.");
-        notifyAdmins($pdo, "Transaksi Baru", "User $username membeli $sku dengan ID: [$trxIdInternal]");
-                
-        return "Transaksi sedang diproses (Status: $statusResponse)";
-            
+
+
+        if (isset($vendorRes['data'])) {
+            $statusResponse = $vendorRes['data']['status'] ?? '';
+
+            if ($statusResponse == 'Gagal') {
+                $pdo->rollBack();
+                return "Transaksi Gagal: " . ($vendorRes['data']['message'] ?? 'Ditolak vendor');
+            }
+
+            $pdo->commit();
+            $username = $user['username'];
+
+            notifyUser($pdo, $userId, "Transaksi Diproses", "Pesanan produk $sku dengan ID: [$trxIdInternal] sedang diproses.");
+            notifyAdmins($pdo, "Transaksi Baru", "User $username membeli $sku dengan ID: [$trxIdInternal]");
+
+            return "Transaksi sedang diproses (Status: $statusResponse)";
         } else {
             $pdo->rollBack();
             $errorMsg = $vendorRes['message'] ?? 'Format respon tidak dikenali.';
             return "Gagal: " . $errorMsg;
         }
-
     } catch (\Exception $e) {
         $pdo->rollBack();
         return "System Error: " . $e->getMessage();
@@ -88,7 +88,8 @@ function prosesTransaksi($userId, $sku, $target, $pin) {
 }
 
 
-function cekTagihanPasca($user_id, $sku, $target) {
+function cekTagihanPasca($user_id, $sku, $target)
+{
     global $pdo;
 
     $user = $pdo->prepare("SELECT saldo FROM users WHERE id = ?");
@@ -109,41 +110,42 @@ function cekTagihanPasca($user_id, $sku, $target) {
         'sign' => $sign
     ];
 
-        $ch = curl_init("https://api.digiflazz.com/v1/transaction");
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        
-        $response = curl_exec($ch);
-        curl_close($ch);
-        
-    
-        $res = json_decode($response, true);
-        
-        if (isset($res['data'])) {
-            return $res['data'];
-        }
-        
-        
-        $msg = $res['data']['message'] ?? $response;
-        
-        return [
-            'rc' => '99',
-            'message' => 'Digiflazz Error: ' . $msg
-        ];
+    $ch = curl_init("https://api.digiflazz.com/v1/transaction");
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+    $response = curl_exec($ch);
+    curl_close($ch);
+
+
+    $res = json_decode($response, true);
+
+    if (isset($res['data'])) {
+        return $res['data'];
+    }
+
+
+    $msg = $res['data']['message'] ?? $response;
+
+    return [
+        'rc' => '99',
+        'message' => 'Digiflazz Error: ' . $msg
+    ];
 }
 
 
-function bayarTagihanPasca($user_id, $sku, $target, $refIdInquiry, $pin) {
+function bayarTagihanPasca($user_id, $sku, $target, $refIdInquiry, $pin)
+{
     global $pdo;
 
     $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
     $stmt->execute([$user_id]);
     $user = $stmt->fetch();
 
-     if ($pin !== $user['pin']) {
+    if ($pin !== $user['pin']) {
         return "PIN yang Anda masukkan salah.";
     }
 
@@ -159,7 +161,7 @@ function bayarTagihanPasca($user_id, $sku, $target, $refIdInquiry, $pin) {
         'ref_id' => $refIdInquiry,
         'sign' => $sign
     ];
-    
+
     $ch = curl_init("https://api.digiflazz.com/v1/transaction");
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
@@ -173,18 +175,18 @@ function bayarTagihanPasca($user_id, $sku, $target, $refIdInquiry, $pin) {
         $totalBayar = $data['selling_price'];
         $refIdInquiry = $data['ref_id'];
         $sn = $data['sn'];
-        
+
         if ($user['saldo'] < $totalBayar) {
             return "Saldo tidak cukup!";
         }
 
         $pdo->prepare("UPDATE users SET saldo = saldo - ? WHERE id = ?")->execute([$totalBayar, $user_id]);
-        
-    $stmt = $pdo->prepare("INSERT INTO transactions (user_id, sku_code, target, amount, ref_id, sn, status, type) VALUES (?, ?, ?, ?, ?, ?, 'success', 'pascabayar')");
-    $stmt->execute([$user_id, $sku, $target, $totalBayar, $refIdInquiry, $sn ]);
-    $username = $user['username'];
-    notifyUser($pdo, $user_id, "Pembayaran Berhasil", "Tagihan $sku dengan ID: [$refIdInquiry] sukses dibayar.");
-    notifyAdmins($pdo, "Tagihan Terbayar", "User $username membayar pascabayar $sku dengan ID: [$refIdInquiry]");
+
+        $stmt = $pdo->prepare("INSERT INTO transactions (user_id, sku_code, target, amount, ref_id, sn, status, type) VALUES (?, ?, ?, ?, ?, ?, 'success', 'pascabayar')");
+        $stmt->execute([$user_id, $sku, $target, $totalBayar, $refIdInquiry, $sn]);
+        $username = $user['username'];
+        notifyUser($pdo, $user_id, "Pembayaran Berhasil", "Tagihan $sku dengan ID: [$refIdInquiry] sukses dibayar.");
+        notifyAdmins($pdo, "Tagihan Terbayar", "User $username membayar pascabayar $sku dengan ID: [$refIdInquiry]");
 
         return "Pembayaran Berhasil!";
     }
