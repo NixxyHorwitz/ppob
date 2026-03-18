@@ -1062,6 +1062,12 @@ function menuHref(array $m): string
         <label>Nomor / ID Pelanggan</label>
         <input type="tel" class="sv-inp" id="svTarget" placeholder="Contoh: 085819478911" autocomplete="tel">
         <div class="sv-op-lbl" id="svOpLbl"></div>
+        <div style="font-size:10.5px;color:var(--cm);margin-top:4px;line-height:1.6">
+            Format yang didukung: <code style="background:rgba(0,0,0,.06);padding:1px 5px;border-radius:4px">085xxx</code>
+            &nbsp;<code style="background:rgba(0,0,0,.06);padding:1px 5px;border-radius:4px">6285xxx</code>
+            &nbsp;<code style="background:rgba(0,0,0,.06);padding:1px 5px;border-radius:4px">+6285xxx</code>
+            &nbsp;<code style="background:rgba(0,0,0,.06);padding:1px 5px;border-radius:4px">85xxx</code>
+        </div>
     </div>
     <div class="sv-field">
         <label>Pilih Produk</label>
@@ -1075,22 +1081,46 @@ function menuHref(array $m): string
     <button class="sv-cta" id="svCta1" onclick="goStep2()" disabled>${ctaIcon} ${ctaLabel}</button>`;
     }
 
+    /* ── Normalisasi nomor HP — handle semua format ──────────────────
+     * Input yang didukung:
+     *   85819478911       → 085819478911  (tanpa 0)
+     *   085819478911      → 085819478911  (sudah benar)
+     *   6285819478911     → 085819478911  (format internasional tanpa +)
+     *   +6285819478911    → 085819478911  (format internasional dengan +)
+     *   0858-1947-8911    → 085819478911  (dengan strip/dash)
+     *   0858 1947 8911    → 085819478911  (dengan spasi)
+     */
+    function normalizePhone(raw) {
+        // 1. Strip semua kecuali digit dan +
+        let num = raw.replace(/[^0-9+]/g, '');
+        // 2. Handle +62 → 0
+        if (num.startsWith('+62')) num = '0' + num.slice(3);
+        // 3. Handle 62 → 0 (hanya jika panjang > 11 digit, hindari angka biasa yg mulai 62xx)
+        else if (num.startsWith('62') && num.length >= 12) num = '0' + num.slice(2);
+        // 4. Handle 8xxx tanpa awalan → tambah 0
+        else if (num.startsWith('8') && !num.startsWith('0')) num = '0' + num;
+        return num;
+    }
+
     function bindStep1() {
         const m = _sheetMeta;
         loadProducts(m.query_cat, m.type === 'pasca');
         const ti = document.getElementById('svTarget');
         if (ti) ti.addEventListener('input', function() {
-            let val = this.value.replace(/[^0-9]/g, ''); // strip non-digit
-            // Auto-prefix 0 jika user mulai dengan 8 (lupa ketik 0 di depan)
-            if (val.length >= 2 && val.startsWith('8')) val = '0' + val;
-            // Sync value ke input jika berubah
-            if (this.value !== val) {
-                this.value = val;
-            }
-            _target = val; // simpan ke state
-            const op = OPERATOR_MAP[val.substring(0, 4)] || '';
+            const normalized = normalizePhone(this.value);
+            _target = normalized;
+            const op = OPERATOR_MAP[normalized.substring(0, 4)] || '';
             const lbl = document.getElementById('svOpLbl');
-            if (lbl) lbl.textContent = op ? ('✓ ' + op) : '';
+            // Tampilkan operator atau hint format
+            if (lbl) {
+                if (op) {
+                    lbl.innerHTML = '<span style="color:var(--cp)">✓ ' + op + '</span>';
+                } else if (this.value.trim() && normalized.length < 9) {
+                    lbl.innerHTML = '<span style="color:#f59e0b">⚠ Format: 085xxxxxxx atau 6285xxxxxxx</span>';
+                } else {
+                    lbl.innerHTML = '';
+                }
+            }
             checkCta1();
             filterProductsByOp(op);
         });
@@ -1173,8 +1203,8 @@ function menuHref(array $m): string
 
     async function goStep2() {
         const m = _sheetMeta;
-        const target = document.getElementById('svTarget')?.value?.trim() || _target;
-        _target = target; // pastikan tersimpan di state
+        const target = normalizePhone(document.getElementById('svTarget')?.value?.trim() || _target);
+        _target = target; // simpan normalized ke state
         if (!target) return;
         if (m.type === 'pasca') {
             const body = document.getElementById('svSheetBody');
@@ -1247,7 +1277,7 @@ function menuHref(array $m): string
     function submitTransaction() {
         const m = _sheetMeta;
         // Pakai _target dari state — #svTarget sudah tidak ada di DOM saat step 3 (PIN)
-        const target = _target || document.getElementById('svTarget')?.value?.trim() || '';
+        const target = _target || normalizePhone(document.getElementById('svTarget')?.value?.trim() || '');
         document.getElementById('fTarget').value = target;
         document.getElementById('fSku').value = _selectedSku || '';
         document.getElementById('fPin').value = _pinVal;
