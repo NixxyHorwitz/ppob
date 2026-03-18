@@ -953,7 +953,8 @@ function menuHref(array $m): string
         _step = 1,
         _selectedSku = '',
         _pinVal = '',
-        _inquiryData = null;
+        _inquiryData = null,
+        _target = '';
 
     const OPERATOR_MAP = {
         '0811': 'Telkomsel',
@@ -998,6 +999,7 @@ function menuHref(array $m): string
         _selectedSku = '';
         _pinVal = '';
         _inquiryData = null;
+        _target = '';
         renderSheet();
         document.getElementById('svBg').classList.add('show');
         requestAnimationFrame(() => document.getElementById('svSheet').classList.add('show'));
@@ -1078,6 +1080,7 @@ function menuHref(array $m): string
         loadProducts(m.query_cat, m.type === 'pasca');
         const ti = document.getElementById('svTarget');
         if (ti) ti.addEventListener('input', function() {
+            _target = this.value.trim(); // simpan ke state
             const op = OPERATOR_MAP[this.value.substring(0, 4)] || '';
             const lbl = document.getElementById('svOpLbl');
             if (lbl) lbl.textContent = op;
@@ -1162,7 +1165,8 @@ function menuHref(array $m): string
 
     async function goStep2() {
         const m = _sheetMeta;
-        const target = document.getElementById('svTarget')?.value?.trim() || '';
+        const target = document.getElementById('svTarget')?.value?.trim() || _target;
+        _target = target; // pastikan tersimpan di state
         if (!target) return;
         if (m.type === 'pasca') {
             const body = document.getElementById('svSheetBody');
@@ -1234,7 +1238,8 @@ function menuHref(array $m): string
 
     function submitTransaction() {
         const m = _sheetMeta;
-        const target = document.getElementById('svTarget')?.value?.trim() || '';
+        // Pakai _target dari state — #svTarget sudah tidak ada di DOM saat step 3 (PIN)
+        const target = _target || document.getElementById('svTarget')?.value?.trim() || '';
         document.getElementById('fTarget').value = target;
         document.getElementById('fSku').value = _selectedSku || '';
         document.getElementById('fPin').value = _pinVal;
