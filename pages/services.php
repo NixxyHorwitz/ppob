@@ -731,13 +731,15 @@ function menuHref(array $m): string
     }
 
     .sv-toast.ok {
-        background: #064e3b;
-        color: #6ee7b7;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        color: #15803d;
     }
 
     .sv-toast.err {
-        background: #7f1d1d;
-        color: #fca5a5;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #dc2626;
     }
 
     .sv-toast-close {
