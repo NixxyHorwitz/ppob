@@ -22,6 +22,21 @@ $stmt = $pdo->prepare("
 $stmt->execute([$userId]);
 $history = $stmt->fetchAll();
 
+/* ── Query topup history ───────────────────────────────────────────── */
+$stmtTopup = $pdo->prepare("
+    SELECT * FROM topup_history
+    WHERE user_id = ?
+    ORDER BY created_at DESC
+");
+$stmtTopup->execute([$userId]);
+$topupHistory = $stmtTopup->fetchAll();
+
+// Topup expired jika pending > 24 jam
+function isTopupExpired(string $createdAt): bool
+{
+    return (time() - strtotime($createdAt)) > 86400;
+}
+
 /* ── Group by bulan ────────────────────────────────────────────────── */
 $grouped = [];
 foreach ($history as $row) {
@@ -634,10 +649,11 @@ function monthLabel(string $ym): string
 
 <!-- FILTER CHIPS -->
 <div class="hist-chips" id="statusChips">
-    <div class="hchip on" data-status="all"><i class="ph ph-list"></i>Semua</div>
-    <div class="hchip" data-status="success"><i class="ph ph-check-circle"></i>Sukses</div>
-    <div class="hchip" data-status="pending"><i class="ph ph-clock"></i>Pending</div>
-    <div class="hchip" data-status="failed"><i class="ph ph-x-circle"></i>Gagal</div>
+    <div class="hchip on" data-tab="all" data-status="all"><i class="ph ph-list"></i>Semua</div>
+    <div class="hchip" data-tab="all" data-status="success"><i class="ph ph-check-circle"></i>Sukses</div>
+    <div class="hchip" data-tab="all" data-status="pending"><i class="ph ph-clock"></i>Pending</div>
+    <div class="hchip" data-tab="all" data-status="failed"><i class="ph ph-x-circle"></i>Gagal</div>
+    <div class="hchip" data-tab="topup" data-status="all"><i class="ph ph-arrow-circle-up"></i>Top Up</div>
 </div>
 
 <!-- LIST TRANSAKSI -->
@@ -734,6 +750,92 @@ function monthLabel(string $ym): string
             </div>
         <?php endforeach; ?>
     <?php endif; ?>
+
+    <!-- ── TOPUP HISTORY ─────────────────────────────────────────── -->
+    <?php if (!empty($topupHistory)): ?>
+        <div id="topupSection" style="display:none">
+            <div class="hist-month" style="padding-top:16px">
+                <div class="hist-month-hd">
+                    <span class="hist-month-lbl">Riwayat Top Up Saldo</span>
+                    <span class="hist-count"><?= count($topupHistory) ?> transaksi</span>
+                </div>
+                <div class="hist-group">
+                    <?php foreach ($topupHistory as $tu):
+                        $tuStatus   = strtolower($tu['status'] ?? 'pending');
+                        $tuSuccess  = $tuStatus === 'success';
+                        $tuFailed   = $tuStatus === 'failed';
+                        $tuPending  = $tuStatus === 'pending';
+                        $tuExpired  = $tuPending && isTopupExpired($tu['created_at']);
+                        [$bgBadge, $fgBadge, $statusLabel] = txColor($tu['status'] ?? 'pending');
+                        if ($tuExpired) {
+                            $bgBadge = '#f1f5f9';
+                            $fgBadge = '#94a3b8';
+                            $statusLabel = 'Kedaluwarsa';
+                        }
+                        $amount     = number_format((float)($tu['amount_original'] ?? 0), 0, ',', '.');
+                        $created    = strtotime($tu['created_at']);
+                        $dateFmt    = date('d M Y', $created);
+                        $timeFmt    = date('H:i', $created);
+                        $invoiceUrl = base_url('pages/invoice.php?ext_id=' . urlencode($tu['external_id']));
+                        $canPay     = $tuPending && !$tuExpired;
+                    ?>
+                        <div class="hist-row"
+                            data-topup="1"
+                            data-status="<?= $tuStatus ?>"
+                            data-search="top up saldo qris <?= strtolower($tu['external_id']) ?>"
+                            onclick="showTopupSheet(this)"
+                            data-extid="<?= htmlspecialchars($tu['external_id']) ?>"
+                            data-amount="<?= $amount ?>"
+                            data-amount-total="<?= number_format((float)($tu['amount'] ?? 0), 0, ',', '.') ?>"
+                            data-date="<?= $dateFmt ?>"
+                            data-time="<?= $timeFmt ?>"
+                            data-method="<?= htmlspecialchars($tu['payment_method'] ?? 'QRIS') ?>"
+                            data-status-label="<?= htmlspecialchars($statusLabel) ?>"
+                            data-bg-badge="<?= $bgBadge ?>"
+                            data-fg-badge="<?= $fgBadge ?>"
+                            data-can-pay="<?= $canPay ? '1' : '0' ?>"
+                            data-invoice-url="<?= htmlspecialchars($invoiceUrl) ?>">
+                            <!-- Icon -->
+                            <div class="hist-dot" style="background:#dcfce7;color:#16a34a">
+                                <i class="ph ph-arrow-circle-up"></i>
+                            </div>
+                            <!-- Body -->
+                            <div class="hist-body">
+                                <div class="hist-name">Top Up Saldo</div>
+                                <div class="hist-meta">
+                                    <span class="hist-date"><?= $dateFmt ?> • <?= $timeFmt ?> WIB</span>
+                                    <span class="hist-target"><i class="ph ph-credit-card"></i><?= htmlspecialchars($tu['payment_method'] ?? 'QRIS') ?></span>
+                                </div>
+                                <div class="hist-detail">
+                                    <span class="hist-badge" style="background:<?= $bgBadge ?>;color:<?= $fgBadge ?>">
+                                        <?php if ($tuSuccess): ?><i class="ph ph-check"></i>
+                                        <?php elseif ($tuFailed || $tuExpired): ?><i class="ph ph-x"></i>
+                                        <?php else: ?><i class="ph ph-clock"></i><?php endif; ?>
+                                        <?= $statusLabel ?>
+                                    </span>
+                                    <span class="hist-sku"><?= htmlspecialchars($tu['external_id']) ?></span>
+                                    <?php if ($canPay): ?>
+                                        <a href="<?= $invoiceUrl ?>" onclick="event.stopPropagation()"
+                                            style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:5px;
+                              background:var(--cp);color:#fff;text-decoration:none;display:inline-flex;align-items:center;gap:3px">
+                                            <i class="ph ph-qr-code"></i> Bayar
+                                        </a>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            <!-- Amount -->
+                            <div class="hist-right">
+                                <span class="hist-amount <?= $tuSuccess ? 'cr' : 'db' ?>">
+                                    <?= $tuSuccess ? '+' : '' ?>Rp <?= $amount ?>
+                                </span>
+                                <i class="ph ph-caret-right hist-chev"></i>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
 </div>
 
 <!-- No result placeholder -->
@@ -763,12 +865,14 @@ function monthLabel(string $ym): string
     /* ── Filter & Search ───────────────────────────────────────────── */
     let _status = 'all';
     let _search = '';
+    let _tab = 'all'; // 'all' | 'topup'
 
-    document.querySelectorAll('.hchip').forEach(c => {
-        c.addEventListener('click', () => {
+    document.querySelectorAll('.hchip').forEach(chip => {
+        chip.addEventListener('click', () => {
             document.querySelectorAll('.hchip').forEach(x => x.classList.remove('on'));
-            c.classList.add('on');
-            _status = c.dataset.status;
+            chip.classList.add('on');
+            _status = chip.dataset.status;
+            _tab = chip.dataset.tab || 'all';
             applyFilter();
         });
     });
@@ -779,6 +883,20 @@ function monthLabel(string $ym): string
     });
 
     function applyFilter() {
+        const topupSec = document.getElementById('topupSection');
+        const histList = document.getElementById('histList');
+
+        // Tab: topup — tampilkan topupSection, sembunyikan transaksi biasa
+        if (_tab === 'topup') {
+            document.querySelectorAll('.hist-month').forEach(m => m.style.display = 'none');
+            if (topupSec) topupSec.style.display = '';
+            document.getElementById('noResult').style.display = 'none';
+            return;
+        }
+
+        // Tab: all — sembunyikan topupSection
+        if (topupSec) topupSec.style.display = 'none';
+
         let anyVisible = false;
         document.querySelectorAll('.hist-month').forEach(month => {
             let monthHasVisible = false;
