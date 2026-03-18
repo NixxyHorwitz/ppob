@@ -1,4 +1,5 @@
 <?php
+
 /**
  * core/transaction.php
  * Digiflazz API — sesuai dokumentasi resmi
@@ -20,21 +21,25 @@
 require_once __DIR__ . '/../core/api_handler.php';
 
 if (!function_exists('notifyUser')) {
-    function notifyUser(PDO $pdo, int $userId, string $title, string $body): void {
+    function notifyUser(PDO $pdo, int $userId, string $title, string $body): void
+    {
         try {
             $pdo->prepare("INSERT INTO notifications (user_id, title, body) VALUES (?,?,?)")
                 ->execute([$userId, $title, $body]);
-        } catch (Exception $e) {}
+        } catch (Exception $e) {
+        }
     }
 }
 
 if (!function_exists('notifyAdmins')) {
-    function notifyAdmins(PDO $pdo, string $title, string $body): void {
+    function notifyAdmins(PDO $pdo, string $title, string $body): void
+    {
         try {
             $admins = $pdo->query("SELECT id FROM users WHERE role='admin'")->fetchAll(PDO::FETCH_COLUMN);
             $stmt   = $pdo->prepare("INSERT INTO notifications (user_id, title, body) VALUES (?,?,?)");
             foreach ($admins as $aid) $stmt->execute([$aid, $title, $body]);
-        } catch (Exception $e) {}
+        } catch (Exception $e) {
+        }
     }
 }
 
@@ -74,11 +79,10 @@ function prosesTransaksi(int $userId, string $sku, string $target, string $pin):
 
         // 5. Hit vendor — sesuai doc: endpoint 'transaction'
         $vendorRes = hitVendor('transaction', [
-            'commands'       => 'transaction',
             'username'       => API_USERNAME,
-            'ref_id'         => $refId,
             'buyer_sku_code' => $sku,
             'customer_no'    => $target,
+            'ref_id'         => $refId,
             'sign'           => $sign,
         ]);
 
@@ -112,17 +116,19 @@ function prosesTransaksi(int $userId, string $sku, string $target, string $pin):
 
         $pdo->commit();
 
-        notifyUser($pdo, $userId,
+        notifyUser(
+            $pdo,
+            $userId,
             'Transaksi Diproses',
             "Pembelian $sku (ID: $refId) sedang diproses. Status: $msg"
         );
-        notifyAdmins($pdo,
+        notifyAdmins(
+            $pdo,
             'Transaksi Baru',
             "User {$user['username']} membeli $sku (ID: $refId)"
         );
 
         return "Transaksi sedang diproses (Status: $msg)";
-
     } catch (\Exception $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         return 'System Error: ' . $e->getMessage();
@@ -223,17 +229,19 @@ function bayarTagihanPasca(int $userId, string $sku, string $target, string $ref
         $pdo->prepare("INSERT INTO transactions (user_id, sku_code, target, amount, ref_id, sn, status, type) VALUES (?,?,?,?,?,?,'success','pascabayar')")
             ->execute([$userId, $sku, $target, $totalBayar, $refIdInquiry, $sn]);
 
-        notifyUser($pdo, $userId,
+        notifyUser(
+            $pdo,
+            $userId,
             'Pembayaran Berhasil',
             "Tagihan $sku (ID: $refIdInquiry) berhasil dibayar. SN: $sn"
         );
-        notifyAdmins($pdo,
+        notifyAdmins(
+            $pdo,
             'Tagihan Terbayar',
             "User {$user['username']} membayar pascabayar $sku (ID: $refIdInquiry)"
         );
 
         return 'Pembayaran Berhasil!';
-
     } catch (\Exception $e) {
         return 'System Error: ' . $e->getMessage();
     }
