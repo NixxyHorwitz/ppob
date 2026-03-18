@@ -1,45 +1,58 @@
 <?php
-// api_handler.php
-require_once __DIR__ . '/../config/database.php';
 
-$stmt = $pdo->query("SELECT api_username, api_key, api_url FROM website_settings LIMIT 1");
-$api = $stmt->fetch(PDO::FETCH_ASSOC);
+/**
+ * core/api_handler.php
+ * Fungsi hitVendor() + define API constants dari website_settings
+ * Aman dipanggil berkali-kali (guard defined)
+ */
+if (!defined('API_USERNAME')) {
+    if (!isset($pdo)) {
+        require_once dirname(__DIR__) . '/config/database.php';
+    }
 
-define('API_USERNAME', $api['api_username']);
-define('API_KEY', $api['api_key']);
-define('API_URL', $api['api_url']);
+    $stmt = $pdo->query("SELECT api_username, api_key, api_url FROM website_settings LIMIT 1");
+    $api  = $stmt->fetch(PDO::FETCH_ASSOC);
 
-function hitVendor($endpoint, $data)
-{
-    $url = API_URL . $endpoint;
-    $payload = json_encode($data);
+    define('API_USERNAME', $api['api_username'] ?? '');
+    define('API_KEY',      $api['api_key']      ?? '');
+    define('API_URL',      rtrim($api['api_url'] ?? 'https://api.digiflazz.com/v1/', '/') . '/');
+}
 
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Content-Type: application/json',
-        'Accept: application/json',
-        'Authorization: Bearer ' . API_KEY
-    ]);
+if (!function_exists('hitVendor')) {
+    function hitVendor(string $endpoint, array $data): ?array
+    {
+        $url     = API_URL . ltrim($endpoint, '/');
+        $payload = json_encode($data);
 
-    $result = curl_exec($ch);
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $payload,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'Accept: application/json',
+            ],
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_TIMEOUT        => 30,
+        ]);
 
-    if (curl_errno($ch)) {
-        $error_msg = curl_error($ch);
-        error_log("[" . date('Y-m-d H:i:s') . "] cURL Error: $error_msg | URL: $url\n", 3, __DIR__ . '/../logs/error_api.log');
+        $result = curl_exec($ch);
+
+        if (curl_errno($ch)) {
+            $err = curl_error($ch);
+            curl_close($ch);
+            error_log("[hitVendor] cURL error: $err | URL: $url");
+            return null;
+        }
         curl_close($ch);
-        return ['status' => 'error', 'message' => 'Koneksi ke server gagal.'];
+
+        $decoded = json_decode($result, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            error_log("[hitVendor] Invalid JSON: $result | URL: $url");
+            return null;
+        }
+
+        return $decoded;
     }
-
-    curl_close($ch);
-    $decoded = json_decode($result, true);
-
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        error_log("[" . date('Y-m-d H:i:s') . "] Invalid JSON: $result | URL: $url\n", 3, __DIR__ . '/../logs/error_api.log');
-        return ['status' => 'error', 'message' => 'Respon vendor tidak valid.'];
-    }
-
-    return $decoded;
 }
