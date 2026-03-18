@@ -3,9 +3,6 @@
 /**
  * pages/services.php
  * Halaman Semua Layanan
- * - Top bar: semua item dari dashboard_menus (static)
- * - Bawahnya: kategori + item dari service_menus (dynamic)
- * - Form pembelian muncul sebagai bottom sheet modal
  */
 
 $pageTitle = 'Semua Layanan';
@@ -14,20 +11,16 @@ require_once __DIR__ . '/../core/transaction.php';
 
 /* ── POST handler — proses transaksi langsung di sini ──────── */
 $txMessage = '';
-$txStatus  = ''; // 'ok' | 'err'
-
+$txStatus  = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pin    = $_POST['pin_transaksi'] ?? '';
     $sku    = $_POST['sku']           ?? '';
     $target = $_POST['target']        ?? '';
     $refId  = $_POST['ref_id']        ?? '';
-
     if (isset($_POST['bayar_tagihan']) && $_POST['bayar_tagihan'] === '1') {
-        // Pascabayar — bayar tagihan
         $txMessage = bayarTagihanPasca($_SESSION['user_id'], $sku, $target, $refId, $pin);
         $txStatus  = str_contains(strtolower($txMessage), 'berhasil') ? 'ok' : 'err';
     } elseif (isset($_POST['beli'])) {
-        // Prabayar — beli produk
         $txMessage = prosesTransaksi($_SESSION['user_id'], $sku, $target, $pin);
         $txStatus  = str_contains(strtolower($txMessage), 'diproses') ? 'ok' : 'err';
     }
@@ -43,7 +36,6 @@ $smRows = $pdo->query(
     "SELECT * FROM service_menus WHERE is_active=1 ORDER BY sort_order ASC"
 )->fetchAll(PDO::FETCH_ASSOC);
 
-// Pisahkan kategori & items, build tree
 $smCats  = [];
 $smItems = [];
 foreach ($smRows as $r) {
@@ -54,19 +46,6 @@ foreach ($smRows as $r) {
     }
 }
 
-/* ── Helper: render icon ────────────────────────────────────── */
-function renderIcon(array $m, string $size = '20px'): string
-{
-    $type  = $m['icon_type']  ?? 'ph';
-    $value = $m['icon_value'] ?? 'ph-circle';
-    $color = $m['icon_color'] ?? '#0ea5e9';
-    if ($type === 'img') {
-        return "<img src=\"" . htmlspecialchars($value) . "\" style=\"width:{$size};height:{$size};object-fit:contain\" alt=\"\">";
-    }
-    return "<i class=\"" . htmlspecialchars($value) . "\" style=\"color:{$color};font-size:{$size}\"></i>";
-}
-
-/* ── Helper: build href dengan query_cat ────────────────────── */
 function menuHref(array $m): string
 {
     $href = $m['href'] ?? '#';
@@ -79,11 +58,6 @@ function menuHref(array $m): string
 ?>
 
 <style>
-    /* ══════════════════════════════════════════════════════════════
-   SERVICES PAGE
-══════════════════════════════════════════════════════════════ */
-
-    /* ── Top bar ── */
     .sv-topbar {
         position: sticky;
         top: 0;
@@ -130,7 +104,6 @@ function menuHref(array $m): string
         cursor: pointer;
     }
 
-    /* ── Static scroll bar (dashboard_menus) ── */
     .sv-static-wrap {
         background: var(--cp);
         padding: 0 14px 16px;
@@ -206,7 +179,6 @@ function menuHref(array $m): string
         text-overflow: ellipsis;
     }
 
-    /* ── Search bar ── */
     .sv-search-wrap {
         padding: 12px 14px 4px;
     }
@@ -246,7 +218,6 @@ function menuHref(array $m): string
         color: var(--cm);
     }
 
-    /* ── Section kategori ── */
     .sv-section {
         padding: 16px 14px 0;
     }
@@ -265,19 +236,6 @@ function menuHref(array $m): string
         letter-spacing: -.1px;
     }
 
-    .sv-sec-more {
-        font-size: 11px;
-        font-weight: 700;
-        color: var(--cpd);
-        display: flex;
-        align-items: center;
-        gap: 3px;
-        cursor: pointer;
-        display: none;
-        /* tampil jika overflow */
-    }
-
-    /* ── Grid item ── */
     .sv-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -343,12 +301,10 @@ function menuHref(array $m): string
         color: #fff;
     }
 
-    /* ── Divider antar section ── */
     .sv-div {
         height: 8px;
     }
 
-    /* ── Empty ── */
     .sv-empty {
         padding: 50px 20px;
         text-align: center;
@@ -369,7 +325,6 @@ function menuHref(array $m): string
         color: var(--cm);
     }
 
-    /* ── Bottom sheet modal ── */
     .sv-sheet-bg {
         position: fixed;
         inset: 0;
@@ -470,7 +425,6 @@ function menuHref(array $m): string
         padding: 16px 18px;
     }
 
-    /* Form fields */
     .sv-field {
         margin-bottom: 14px;
     }
@@ -509,31 +463,6 @@ function menuHref(array $m): string
         color: #94a3b8;
     }
 
-    .sv-sel {
-        width: 100%;
-        background: #f8fafc;
-        border: 1.5px solid #e2e8f0;
-        border-radius: 11px;
-        padding: 11px 13px;
-        font-size: 13px;
-        font-weight: 600;
-        font-family: var(--f);
-        color: var(--ct);
-        outline: none;
-        appearance: none;
-        cursor: pointer;
-        transition: border-color .15s;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 12px center;
-    }
-
-    .sv-sel:focus {
-        border-color: var(--cp);
-        background-color: #fff;
-    }
-
-    /* Operator detect label */
     .sv-op-lbl {
         font-size: 11px;
         font-weight: 700;
@@ -542,7 +471,6 @@ function menuHref(array $m): string
         margin-top: 4px;
     }
 
-    /* Product grid in sheet */
     .sv-prod-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -587,7 +515,6 @@ function menuHref(array $m): string
         display: block;
     }
 
-    /* Inquiry box */
     .sv-inquiry {
         background: var(--cpl);
         border: 1.5px dashed var(--cp);
@@ -624,7 +551,6 @@ function menuHref(array $m): string
         font-weight: 900;
     }
 
-    /* PIN field */
     .sv-pin-wrap {
         display: flex;
         justify-content: center;
@@ -642,8 +568,6 @@ function menuHref(array $m): string
         align-items: center;
         justify-content: center;
         font-size: 24px;
-        color: var(--ct);
-        font-weight: 900;
         transition: border-color .15s;
     }
 
@@ -658,7 +582,6 @@ function menuHref(array $m): string
         font-size: 12px;
     }
 
-    /* Numpad */
     .sv-numpad {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -690,7 +613,6 @@ function menuHref(array $m): string
 
     .sv-numpad-key.del {
         color: var(--cm);
-        font-size: 20px;
     }
 
     .sv-numpad-key.empty {
@@ -699,7 +621,6 @@ function menuHref(array $m): string
         pointer-events: none;
     }
 
-    /* Step indicator */
     .sv-steps {
         display: flex;
         gap: 5px;
@@ -720,7 +641,6 @@ function menuHref(array $m): string
         background: var(--cp);
     }
 
-    /* CTA button */
     .sv-cta {
         width: 100%;
         padding: 14px;
@@ -748,10 +668,6 @@ function menuHref(array $m): string
         pointer-events: none;
     }
 
-    .sv-cta.green {
-        background: #16a34a;
-    }
-
     .sv-cta-sec {
         width: 100%;
         padding: 11px;
@@ -766,27 +682,61 @@ function menuHref(array $m): string
         cursor: pointer;
     }
 
-    /* Bottom spacing */
     .sv-bottom {
         height: 16px;
     }
+
+    @keyframes sv-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .sv-spinner {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 3px solid rgba(0, 0, 0, .08);
+        border-top-color: var(--cp);
+        animation: sv-spin .7s linear infinite;
+        display: inline-block;
+    }
+
+    .sv-tx-msg {
+        margin: 12px 14px 0;
+        padding: 11px 14px;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .sv-tx-msg.ok {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        color: #15803d;
+    }
+
+    .sv-tx-msg.err {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #dc2626;
+    }
 </style>
 
-<!-- TX RESULT MESSAGE -->
 <?php if ($txMessage): ?>
-    <?php
-    $isTxOk  = ($txStatus === 'ok');
-    $txBg    = $isTxOk ? '#f0fdf4' : '#fef2f2';
-    $txBdr   = $isTxOk ? '#bbf7d0' : '#fecaca';
-    $txClr   = $isTxOk ? '#15803d' : '#dc2626';
-    $txIcon  = $isTxOk
-        ? '<svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg>'
-        : '<svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor"><path d="M236.8,188.09,149.35,36.22a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/></svg>';
-    ?>
-    <div style="margin:12px 14px 0;padding:11px 14px;border-radius:12px;font-size:13px;font-weight:700;
-            background:<?= $txBg ?>;border:1px solid <?= $txBdr ?>;color:<?= $txClr ?>;
-            display:flex;align-items:center;gap:8px">
-        <?= $txIcon ?>
+    <div class="sv-tx-msg <?= $txStatus ?>">
+        <?php if ($txStatus === 'ok'): ?>
+            <svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor">
+                <path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z" />
+            </svg>
+        <?php else: ?>
+            <svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor">
+                <path d="M236.8,188.09,149.35,36.22a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z" />
+            </svg>
+        <?php endif; ?>
         <?= htmlspecialchars($txMessage) ?>
     </div>
 <?php endif; ?>
@@ -794,11 +744,11 @@ function menuHref(array $m): string
 <!-- TOP BAR -->
 <div class="sv-topbar">
     <a href="<?= base_url('dashboard.php') ?>" class="sv-topbar-back">
-        <i class="ph ph-caret-left"></i>
+        <i class="fas fa-chevron-left"></i>
     </a>
     <div class="sv-topbar-title">Semua Layanan</div>
     <button class="sv-topbar-srch" onclick="document.getElementById('svSearch').focus()">
-        <i class="ph ph-magnifying-glass"></i>
+        <i class="fas fa-search"></i>
     </button>
 </div>
 
@@ -810,11 +760,13 @@ function menuHref(array $m): string
             <div class="sv-static-list">
                 <?php foreach ($dashMenus as $dm): ?>
                     <a class="sv-static-item" href="<?= htmlspecialchars($dm['href'] ?? '#') ?>">
-                        <div class="sv-static-ico">
-                            <?php if (($dm['icon_type'] ?? 'ph') === 'img'): ?>
-                                <img src="<?= htmlspecialchars($dm['icon_value']) ?>" style="width:22px;height:22px;object-fit:contain" alt="">
+                        <div class="sv-static-ico" style="background:<?= htmlspecialchars($dm['icon_bg_color'] ?? 'rgba(255,255,255,.18)') ?>">
+                            <?php if ($dm['icon_type'] === 'image_url'): ?>
+                                <img src="<?= htmlspecialchars($dm['icon_value']) ?>" style="width:26px;height:26px;object-fit:contain" alt="">
+                            <?php elseif ($dm['icon_type'] === 'emoji'): ?>
+                                <span style="font-size:20px"><?= htmlspecialchars($dm['icon_value']) ?></span>
                             <?php else: ?>
-                                <i class="<?= htmlspecialchars($dm['icon_value'] ?? 'ph ph-circle') ?>"></i>
+                                <i class="<?= htmlspecialchars($dm['icon_value']) ?>" style="color:<?= htmlspecialchars($dm['icon_color'] ?? '#fff') ?>"></i>
                             <?php endif; ?>
                         </div>
                         <span class="sv-static-lbl2"><?= htmlspecialchars($dm['name'] ?? '') ?></span>
@@ -828,7 +780,7 @@ function menuHref(array $m): string
 <!-- SEARCH -->
 <div class="sv-search-wrap">
     <div class="sv-search">
-        <i class="ph ph-magnifying-glass"></i>
+        <i class="fas fa-search"></i>
         <input type="text" id="svSearch" placeholder="Cari layanan...">
     </div>
 </div>
@@ -837,52 +789,42 @@ function menuHref(array $m): string
 <div id="svList">
     <?php if (empty($smCats)): ?>
         <div class="sv-empty">
-            <i class="ph ph-squares-four"></i>
+            <i class="fas fa-th-large"></i>
             <p>Belum ada layanan.<br>Tambah melalui menu Admin.</p>
         </div>
     <?php else: ?>
         <?php foreach ($smCats as $catId => $cat): ?>
-            <?php
-            $items = $smItems[$catId] ?? [];
-            if (empty($items)) continue;
-            ?>
+            <?php $items = $smItems[$catId] ?? [];
+            if (empty($items)) continue; ?>
             <div class="sv-section" data-cat="<?= htmlspecialchars($cat['cat_slug']) ?>">
                 <div class="sv-sec-hd">
                     <span class="sv-sec-title"><?= htmlspecialchars($cat['cat_name']) ?></span>
                 </div>
                 <div class="sv-grid">
-                    <?php foreach ($items as $item): ?>
-                        <?php
-                        $href = menuHref($item);
-                        // Jika href menuju prabayar/pascabayar → pakai sheet modal
-                        $useModal = (
-                            str_contains($item['href'] ?? '', 'prabayar') ||
-                            str_contains($item['href'] ?? '', 'pascabayar')
-                        );
-                        ?>
+                    <?php foreach ($items as $item):
+                        $href     = menuHref($item);
+                        $useModal = str_contains($item['href'] ?? '', 'prabayar') || str_contains($item['href'] ?? '', 'pascabayar');
+                        $modalData = $useModal ? htmlspecialchars(json_encode([
+                            'name'       => $item['name'],
+                            'icon_type'  => $item['icon_type'],
+                            'icon_value' => $item['icon_value'],
+                            'icon_bg'    => $item['icon_bg'],
+                            'icon_color' => $item['icon_color'],
+                            'href'       => $item['href'],
+                            'query_cat'  => $item['query_cat'],
+                            'type'       => str_contains($item['href'], 'pascabayar') ? 'pasca' : 'prabayar',
+                        ])) : '';
+                    ?>
                         <<?= $useModal ? 'div' : 'a' ?>
                             class="sv-item"
-                            <?php if ($useModal): ?>
-                            onclick="openSheet(<?= htmlspecialchars(json_encode([
-                                                    'name'      => $item['name'],
-                                                    'icon_type' => $item['icon_type'],
-                                                    'icon_value' => $item['icon_value'],
-                                                    'icon_bg'   => $item['icon_bg'],
-                                                    'icon_color' => $item['icon_color'],
-                                                    'href'      => $item['href'],
-                                                    'query_cat' => $item['query_cat'],
-                                                    'type'      => str_contains($item['href'], 'pascabayar') ? 'pasca' : 'prabayar',
-                                                ])) ?>)"
-                            data-search="<?= strtolower(htmlspecialchars($item['name'])) ?>"
-                            <?php else: ?>
-                            href="<?= $href ?>"
-                            data-search="<?= strtolower(htmlspecialchars($item['name'])) ?>"
-                            <?php endif; ?>>
+                            <?= $useModal ? "onclick=\"openSheet({$modalData})\"" : "href=\"{$href}\"" ?>
+                            data-search="<?= strtolower(htmlspecialchars($item['name'])) ?>">
                             <div class="sv-ico" style="background:<?= htmlspecialchars($item['icon_bg']) ?>">
                                 <?php if ($item['icon_type'] === 'img'): ?>
                                     <img src="<?= htmlspecialchars($item['icon_value']) ?>" alt="">
                                 <?php else: ?>
-                                    <i class="<?= htmlspecialchars($item['icon_value']) ?>" style="color:<?= htmlspecialchars($item['icon_color']) ?>;font-size:22px"></i>
+                                    <i class="<?= htmlspecialchars($item['icon_value']) ?>"
+                                        style="color:<?= htmlspecialchars($item['icon_color']) ?>;font-size:22px"></i>
                                 <?php endif; ?>
                             </div>
                             <span class="sv-name"><?= htmlspecialchars($item['name']) ?></span>
@@ -896,19 +838,15 @@ function menuHref(array $m): string
             <div class="sv-div"></div>
         <?php endforeach; ?>
     <?php endif; ?>
-
-    <!-- No result -->
     <div id="svNoResult" class="sv-empty" style="display:none">
-        <i class="ph ph-magnifying-glass"></i>
+        <i class="fas fa-search"></i>
         <p>Layanan tidak ditemukan.</p>
     </div>
 </div>
 
 <div class="sv-bottom"></div>
 
-<!-- ══════════════════════════════════════════════════════════════
-     BOTTOM SHEET MODAL PEMBELIAN
-══════════════════════════════════════════════════════════════ -->
+<!-- BOTTOM SHEET -->
 <div class="sv-sheet-bg" id="svBg" onclick="closeSheet()"></div>
 <div class="sv-sheet" id="svSheet">
     <div class="sv-sheet-pull"></div>
@@ -919,31 +857,34 @@ function menuHref(array $m): string
             <div class="sv-sheet-sub" id="svSheetSub"></div>
         </div>
         <button class="sv-sheet-close" onclick="closeSheet()">
-            <i class="ph ph-x"></i>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
         </button>
     </div>
-    <div class="sv-sheet-body" id="svSheetBody">
-        <!-- Isi dirender oleh JS -->
-    </div>
+    <div class="sv-sheet-body" id="svSheetBody"></div>
 </div>
 
-<!-- Hidden form for POST submit -->
+<!-- Hidden form POST -->
 <form method="POST" id="svHiddenForm" style="display:none">
     <input type="hidden" name="sku" id="fSku">
     <input type="hidden" name="target" id="fTarget">
     <input type="hidden" name="pin_transaksi" id="fPin">
     <input type="hidden" name="ref_id" id="fRefId">
+    <input type="hidden" name="cat" id="fCat">
     <input type="hidden" name="beli" value="1">
     <input type="hidden" name="cek_tagihan" id="fCekTagihan" value="">
     <input type="hidden" name="bayar_tagihan" id="fBayarTagihan" value="">
 </form>
 
 <script>
-    /* ══════════════════════════════════════════════════════════════
-   SERVICES PAGE JS
-══════════════════════════════════════════════════════════════ */
+    const SVG = {
+        arrowRight: `<svg width="18" height="18" viewBox="0 0 256 256" fill="currentColor"><path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"/></svg>`,
+        search: `<svg width="18" height="18" viewBox="0 0 256 256" fill="currentColor"><path d="M229.66,218.34l-50.07-50.07a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.31ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"/></svg>`,
+        lock: `<svg width="18" height="18" viewBox="0 0 256 256" fill="currentColor"><path d="M208,80H168V56a40,40,0,0,0-80,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM104,56a24,24,0,0,1,48,0V80H104ZM208,208H48V96H208V208Zm-80-48a16,16,0,1,0-16-16A16,16,0,0,0,128,160Z"/></svg>`,
+        backspace: `<svg width="22" height="22" viewBox="0 0 256 256" fill="currentColor"><path d="M216,48H88a16,16,0,0,0-13.16,6.92l-61.6,84.85a8,8,0,0,0,0,9.35l61.6,84.85A16,16,0,0,0,88,240H216a16,16,0,0,0,16-16V64A16,16,0,0,0,216,48Zm0,176H88L30.43,140,88,64H216ZM178.34,146.34,161,128l17.37-17.37a8,8,0,0,0-11.32-11.32L149.66,116.7l-17.37-17.37a8,8,0,0,0-11.32,11.32L138.35,128l-17.38,17.34a8,8,0,0,0,11.32,11.32l17.37-17.37,17.37,17.37a8,8,0,0,0,11.31-11.32Z"/></svg>`,
+    };
 
-    // ── Search filter ─────────────────────────────────────────────
     document.getElementById('svSearch').addEventListener('input', function() {
         const kw = this.value.toLowerCase();
         let any = false;
@@ -952,7 +893,6 @@ function menuHref(array $m): string
             el.style.display = match ? '' : 'none';
             if (match) any = true;
         });
-        // Hide section if all items hidden
         document.querySelectorAll('.sv-section').forEach(sec => {
             const vis = [...sec.querySelectorAll('.sv-item')].some(el => el.style.display !== 'none');
             sec.style.display = vis ? '' : 'none';
@@ -960,12 +900,11 @@ function menuHref(array $m): string
         document.getElementById('svNoResult').style.display = any ? 'none' : '';
     });
 
-    // ── State ─────────────────────────────────────────────────────
-    let _sheetMeta = null; // {name, href, query_cat, type, icon_*}
-    let _step = 1; // 1=input form | 2=confirm/inquiry | 3=pin
-    let _selectedSku = '';
-    let _pinVal = '';
-    let _inquiryData = null;
+    let _sheetMeta = null,
+        _step = 1,
+        _selectedSku = '',
+        _pinVal = '',
+        _inquiryData = null;
 
     const OPERATOR_MAP = {
         '0811': 'Telkomsel',
@@ -1004,7 +943,6 @@ function menuHref(array $m): string
         '0885': 'Smartfren',
     };
 
-    // ── Sheet open/close ──────────────────────────────────────────
     function openSheet(meta) {
         _sheetMeta = meta;
         _step = 1;
@@ -1020,7 +958,6 @@ function menuHref(array $m): string
         document.getElementById('svSheet').classList.remove('show');
         setTimeout(() => document.getElementById('svBg').classList.remove('show'), 300);
     }
-    // Swipe down
     (function() {
         const sh = document.getElementById('svSheet');
         let sy = 0,
@@ -1038,47 +975,37 @@ function menuHref(array $m): string
         });
     })();
 
-    // ── Render sheet content by step ─────────────────────────────
     function renderSheet() {
         const m = _sheetMeta;
         if (!m) return;
-
-        // Head icon
         const ico = document.getElementById('svSheetIco');
-        ico.style.background = (m.icon_bg || '#e0f2fe');
+        ico.style.background = m.icon_bg || '#e0f2fe';
         if (m.icon_type === 'img') {
             ico.innerHTML = `<img src="${esc(m.icon_value)}" style="width:26px;height:26px;object-fit:contain" alt="">`;
         } else {
             ico.innerHTML = `<i class="${esc(m.icon_value)}" style="color:${esc(m.icon_color)};font-size:22px"></i>`;
         }
         document.getElementById('svSheetTitle').textContent = m.name || 'Layanan';
-
-        // Step indicator
         const stepHtml = `<div class="sv-steps">
-        <div class="sv-step ${_step >= 1 ? 'on' : ''}"></div>
-        <div class="sv-step ${_step >= 2 ? 'on' : ''}"></div>
-        <div class="sv-step ${_step >= 3 ? 'on' : ''}"></div>
+        <div class="sv-step ${_step>=1?'on':''}"></div>
+        <div class="sv-step ${_step>=2?'on':''}"></div>
+        <div class="sv-step ${_step>=3?'on':''}"></div>
     </div>`;
-        const sub = ['Form Input', 'Konfirmasi', 'Masukkan PIN'];
-        document.getElementById('svSheetSub').textContent = sub[_step - 1] || '';
-
+        document.getElementById('svSheetSub').textContent = ['Form Input', 'Konfirmasi', 'Masukkan PIN'][_step - 1] || '';
         const body = document.getElementById('svSheetBody');
-
         if (_step === 1) {
             body.innerHTML = stepHtml + renderStep1(m);
             bindStep1();
         } else if (_step === 2) {
             body.innerHTML = stepHtml + (_inquiryData ? renderInquiry() : renderConfirm(m));
-            bindStep2();
         } else if (_step === 3) {
             body.innerHTML = stepHtml + renderPin();
-            bindPin();
         }
     }
 
-    // ── Step 1: Form input ────────────────────────────────────────
     function renderStep1(m) {
-        // Load produk via AJAX (inline PHP menyediakan data)
+        const ctaIcon = m.type === 'pasca' ? SVG.search : SVG.arrowRight;
+        const ctaLabel = m.type === 'pasca' ? 'Cek Tagihan' : 'Lanjutkan';
         return `
     <div class="sv-field">
         <label>Nomor / ID Pelanggan</label>
@@ -1089,56 +1016,40 @@ function menuHref(array $m): string
         <label>Pilih Produk</label>
         <div class="sv-prod-grid" id="svProdGrid">
             <div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--cm);font-size:12px">
-                <i class="ph ph-circle-notch" style="animation:spin .8s linear infinite;font-size:20px;display:block;margin-bottom:6px"></i>
-                Memuat produk...
+                <span class="sv-spinner" style="margin:0 auto 8px;display:block"></span>Memuat produk...
             </div>
         </div>
         <input type="hidden" id="svSelSku">
     </div>
-    <button class="sv-cta" id="svCta1" onclick="goStep2()" disabled>
-        ${m.type === 'pasca' ? '<i class="ph ph-magnifying-glass"></i> Cek Tagihan' : '<i class="ph ph-arrow-right"></i> Lanjutkan'}
-    </button>
-    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>`;
+    <button class="sv-cta" id="svCta1" onclick="goStep2()" disabled>${ctaIcon} ${ctaLabel}</button>`;
     }
 
     function bindStep1() {
         const m = _sheetMeta;
-        // Load products
         loadProducts(m.query_cat, m.type === 'pasca');
-
-        // Operator detect
         const ti = document.getElementById('svTarget');
-        if (ti) {
-            ti.addEventListener('input', function() {
-                const pfx = this.value.substring(0, 4);
-                const op = OPERATOR_MAP[pfx] || '';
-                const lbl = document.getElementById('svOpLbl');
-                if (lbl) lbl.textContent = op;
-                checkCta1();
-                // Filter produk by operator
-                filterProductsByOp(op);
-            });
-        }
+        if (ti) ti.addEventListener('input', function() {
+            const op = OPERATOR_MAP[this.value.substring(0, 4)] || '';
+            const lbl = document.getElementById('svOpLbl');
+            if (lbl) lbl.textContent = op;
+            checkCta1();
+            filterProductsByOp(op);
+        });
     }
 
     function checkCta1() {
         const target = document.getElementById('svTarget')?.value;
         const sku = document.getElementById('svSelSku')?.value;
         const cta = document.getElementById('svCta1');
-        const m = _sheetMeta;
         if (!cta) return;
-        // pasca: cukup target; prabayar: butuh sku juga
-        cta.disabled = !(target && (m.type === 'pasca' || sku));
+        cta.disabled = !(target && (_sheetMeta.type === 'pasca' || sku));
     }
 
     function filterProductsByOp(op) {
+        const cat = (_sheetMeta?.query_cat || '').toLowerCase();
+        if (cat !== 'pulsa' && cat !== 'data') return;
         document.querySelectorAll('.sv-prod-card').forEach(c => {
-            if (!op) {
-                c.style.display = '';
-                return;
-            }
-            const info = (c.dataset.info || '').toLowerCase();
-            c.style.display = info.includes(op.toLowerCase()) ? '' : 'none';
+            c.style.display = (!op || (c.dataset.info || '').toLowerCase().includes(op.toLowerCase())) ? '' : 'none';
         });
     }
 
@@ -1155,11 +1066,10 @@ function menuHref(array $m): string
                 return;
             }
             grid.innerHTML = data.map(p => `
-            <div class="sv-prod-card" data-sku="${esc(p.sku_code)}" data-info="${(p.brand||'').toLowerCase()+' '+(p.product_name||'').toLowerCase()}" onclick="selectProd(this)">
-                <span class="sv-prod-name">${esc(p.product_name)}</span>
-                <span class="sv-prod-price">Rp ${numFmt(p.price_sell)}</span>
-            </div>`).join('');
-            // Recheck CTA after load
+        <div class="sv-prod-card" data-sku="${esc(p.sku_code)}" data-info="${(p.brand||'').toLowerCase()+' '+(p.product_name||'').toLowerCase()}" onclick="selectProd(this)">
+            <span class="sv-prod-name">${esc(p.product_name)}</span>
+            <span class="sv-prod-price">Rp ${numFmt(p.price_sell)}</span>
+        </div>`).join('');
             checkCta1();
         } catch (e) {
             grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:16px;color:#dc2626;font-size:12px">Gagal memuat produk.</div>`;
@@ -1174,7 +1084,6 @@ function menuHref(array $m): string
         checkCta1();
     }
 
-    // ── Step 2: Confirm / Inquiry ─────────────────────────────────
     function renderConfirm(m) {
         const target = document.getElementById('svTarget')?.value || '';
         const card = document.querySelector('.sv-prod-card.on');
@@ -1186,7 +1095,7 @@ function menuHref(array $m): string
         <div class="sv-iq-row"><span class="sv-iq-k">No. Tujuan</span><span class="sv-iq-v">${esc(target)}</span></div>
         <div class="sv-iq-row sv-iq-total"><span class="sv-iq-k">Harga</span><span class="sv-iq-v">${esc(price)}</span></div>
     </div>
-    <button class="sv-cta" onclick="goStep3()"><i class="ph ph-lock-simple"></i> Masukkan PIN</button>
+    <button class="sv-cta" onclick="goStep3()">${SVG.lock} Masukkan PIN</button>
     <button class="sv-cta-sec" onclick="backStep()">Kembali</button>`;
     }
 
@@ -1198,25 +1107,24 @@ function menuHref(array $m): string
         <div class="sv-iq-row"><span class="sv-iq-k">ID Pelanggan</span><span class="sv-iq-v">${esc(d.customer_no||'-')}</span></div>
         <div class="sv-iq-row sv-iq-total"><span class="sv-iq-k">Total Tagihan</span><span class="sv-iq-v">Rp ${numFmt(d.selling_price||0)}</span></div>
     </div>
-    <button class="sv-cta" onclick="goStep3()"><i class="ph ph-lock-simple"></i> Masukkan PIN</button>
+    <button class="sv-cta" onclick="goStep3()">${SVG.lock} Masukkan PIN</button>
     <button class="sv-cta-sec" onclick="backStep()">Kembali</button>`;
     }
-
-    function bindStep2() {
-        /* nothing extra needed */ }
 
     async function goStep2() {
         const m = _sheetMeta;
         const target = document.getElementById('svTarget')?.value?.trim() || '';
         if (!target) return;
-
         if (m.type === 'pasca') {
-            // AJAX cek tagihan
             const body = document.getElementById('svSheetBody');
-            body.innerHTML += `<div id="svLoadingOv" style="position:absolute;inset:0;background:rgba(255,255,255,.8);display:flex;align-items:center;justify-content:center;border-radius:0 0 24px 24px;z-index:10"><i class="ph ph-circle-notch" style="font-size:28px;color:var(--cp);animation:spin .8s linear infinite"></i></div>`;
-
+            const ov = document.createElement('div');
+            ov.id = 'svLoadingOv';
+            ov.style.cssText = 'position:absolute;inset:0;background:rgba(255,255,255,.8);display:flex;align-items:center;justify-content:center;z-index:10';
+            ov.innerHTML = '<span class="sv-spinner"></span>';
+            body.style.position = 'relative';
+            body.appendChild(ov);
             const fd = new FormData();
-            fd.append('sku', _selectedSku || document.getElementById('svSelSku')?.value || '');
+            fd.append('sku', _selectedSku || '');
             fd.append('target', target);
             try {
                 const res = await fetch('<?= base_url('api/inquiry.php') ?>', {
@@ -1248,35 +1156,26 @@ function menuHref(array $m): string
         renderSheet();
     }
 
-    // ── Step 3: PIN ───────────────────────────────────────────────
     function renderPin() {
         _pinVal = '';
+        const keys = [1, 2, 3, 4, 5, 6, 7, 8, 9, '', '0', 'del'];
         return `
     <p style="text-align:center;font-size:13px;color:var(--cm);margin-bottom:12px">Masukkan PIN 6 digit transaksi kamu</p>
     <div class="sv-pin-wrap" id="svPinDots">
         ${[...Array(6)].map((_,i) => `<div class="sv-pin-dot" id="dot${i}"></div>`).join('')}
     </div>
-    <div class="sv-numpad" id="svNumpad">
-        ${[1,2,3,4,5,6,7,8,9,'','0','del'].map(k =>
-            k === 'del' ?
-                `<div class="sv-numpad-key del" onclick="pinKey('del')"><i class="ph ph-backspace"></i></div>` :
-            k === '' ?
-                `<div class="sv-numpad-key empty"></div>` :
-                `<div class="sv-numpad-key" onclick="pinKey('${k}')">${k}</div>`
+    <div class="sv-numpad">
+        ${keys.map(k =>
+            k==='del' ? `<div class="sv-numpad-key del" onclick="pinKey('del')">${SVG.backspace}</div>`
+          : k===''    ? `<div class="sv-numpad-key empty"></div>`
+          :             `<div class="sv-numpad-key" onclick="pinKey('${k}')">${k}</div>`
         ).join('')}
     </div>`;
     }
 
-    function bindPin() {
-        /* handled by onclick */ }
-
     function pinKey(k) {
-        if (k === 'del') {
-            _pinVal = _pinVal.slice(0, -1);
-        } else if (_pinVal.length < 6) {
-            _pinVal += k;
-        }
-        // Update dots
+        if (k === 'del') _pinVal = _pinVal.slice(0, -1);
+        else if (_pinVal.length < 6) _pinVal += k;
         for (let i = 0; i < 6; i++) {
             const d = document.getElementById('dot' + i);
             if (d) d.classList.toggle('filled', i < _pinVal.length);
@@ -1287,26 +1186,22 @@ function menuHref(array $m): string
     function submitTransaction() {
         const m = _sheetMeta;
         const target = document.getElementById('svTarget')?.value?.trim() || '';
-        const sku = _selectedSku || '';
-
         document.getElementById('fTarget').value = target;
-        document.getElementById('fSku').value = sku;
+        document.getElementById('fSku').value = _selectedSku || '';
         document.getElementById('fPin').value = _pinVal;
-
+        document.getElementById('fCat').value = m.query_cat || '';
         if (m.type === 'pasca' && _inquiryData) {
             document.getElementById('fRefId').value = _inquiryData.ref_id || '';
             document.getElementById('fBayarTagihan').value = '1';
             document.getElementById('fCekTagihan').value = '';
         } else {
-            document.getElementById('fCekTagihan').value = '';
             document.getElementById('fBayarTagihan').value = '';
+            document.getElementById('fCekTagihan').value = '';
         }
-
-        document.getElementById('svHiddenForm').action = m.href + (m.query_cat ? '?cat=' + encodeURIComponent(m.query_cat) : '');
+        document.getElementById('svHiddenForm').action = window.location.pathname;
         document.getElementById('svHiddenForm').submit();
     }
 
-    // ── Helpers ───────────────────────────────────────────────────
     function goStep3() {
         _step = 3;
         renderSheet();
@@ -1320,13 +1215,12 @@ function menuHref(array $m): string
         return Number(n).toLocaleString('id-ID');
     }
 
-    // Toast
     function showToast(msg, type) {
         const el = document.createElement('div');
         el.style.cssText = `position:fixed;top:14px;left:50%;transform:translateX(-50%);
         background:${type==='err'?'#7f1d1d':'#064e3b'};color:${type==='err'?'#fca5a5':'#6ee7b7'};
-        padding:8px 18px;border-radius:10px;font-size:12px;font-weight:700;z-index:9999;
-        box-shadow:0 6px 20px rgba(0,0,0,.3);max-width:340px;text-align:center`;
+        padding:8px 18px;border-radius:10px;font-size:12px;font-weight:700;
+        z-index:9999;box-shadow:0 6px 20px rgba(0,0,0,.3);max-width:340px;text-align:center`;
         el.textContent = msg;
         document.body.appendChild(el);
         setTimeout(() => {
