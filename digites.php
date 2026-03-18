@@ -13,7 +13,7 @@ $API_KEY      = 'a6eb6d58-44dd-5b18-bbb6-bc9392f9c0f5';
 $API_URL      = 'https://api.digiflazz.com/v1/transaction';
 
 // ── Ubah ini untuk testing ────────────────────────────────────────
-$TEST_SKU     = 'pre30110241';          // ganti dengan sku yang mau ditest
+$TEST_SKU     = 'danacek';          // ganti dengan sku yang mau ditest
 $TEST_TARGET  = '085714705875';   // ganti dengan nomor tujuan
 $TESTING_MODE = false;             // true = sandbox, false = production
 

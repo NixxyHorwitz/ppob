@@ -97,7 +97,7 @@ function prosesTransaksi(int $userId, string $sku, string $target, string $pin):
             'sign'           => $sign,
         ];
         txLog('PRABAYAR_REQUEST', $payload);
-        $vendorRes = hitVendor('transaction', $payload);
+        $vendorRes = hitVendor($payload);
         txLog('PRABAYAR_RESPONSE', $vendorRes);
 
         // 6. Handle null (timeout/error)
@@ -169,7 +169,7 @@ function cekTagihanPasca(int $userId, string $sku, string $target): array
         'sign'           => $sign,
     ];
     txLog('INQ_PASCA_REQUEST', $payload);
-    $res = hitVendor('transaction', $payload);
+    $res = hitVendor($payload);
     txLog('INQ_PASCA_RESPONSE', $res);
 
     if (is_null($res)) {
@@ -214,7 +214,7 @@ function bayarTagihanPasca(int $userId, string $sku, string $target, string $ref
         'sign'           => $sign,
     ];
     txLog('PAY_PASCA_REQUEST', $payload);
-    $res = hitVendor('transaction', $payload);
+    $res = hitVendor($payload);
     txLog('PAY_PASCA_RESPONSE', $res);
 
     if (is_null($res)) {
