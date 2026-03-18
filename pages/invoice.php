@@ -575,5 +575,3 @@ require_once __DIR__ . '/../includes/header.php';
         }, 5000);
     <?php endif; ?>
 </script>
-
-<?php require_once __DIR__ . '/../includes/footer.php'; ?>
