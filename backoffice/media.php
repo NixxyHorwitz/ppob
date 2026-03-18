@@ -252,7 +252,7 @@ if ($action === 'edit' && !empty($_POST['id'])) {
             trim($_POST['folder']      ?? 'uncategorized'),
             (int)$_POST['id']
         ]);
-    $toast = 'Metadata file diperbarui.';
+    $toast = 'Metadata file diperbarusi.';
 }
 
 /* ── Toggle active ──────────────────────────────────────────── */
