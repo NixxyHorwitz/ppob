@@ -1,14 +1,14 @@
 <?php
 
 /**
- * pages/history/index.php
+ * pages/history.php
  * Riwayat Transaksi — dipindah dari modules/user/riwayat
  * Include universal header/footer dari root/includes/
  */
 
 $pageTitle = 'Riwayat Transaksi';
 
-require_once dirname(__DIR__) . '/includes/header.php';
+require_once __DIR__ . '/../includes/header.php';
 
 /* ── Query transaksi user ──────────────────────────────────────────── */
 $stmt = $pdo->prepare("
@@ -30,7 +30,7 @@ foreach ($history as $row) {
 }
 
 /* ── Helper: icon & label kategori ────────────────────────────────── */
-function txIcon(string $cat, string $sku): string
+function txIcon(string $cat, string $sku): array
 {
     $cat = strtolower(trim($cat));
     $sku = strtolower($sku);
@@ -865,4 +865,4 @@ function monthLabel(string $ym): string
     })();
 </script>
 
-<?php require_once dirname(__DIR__) . '/includes/footer.php'; ?>
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>
