@@ -18,6 +18,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $sku    = $_POST['sku']           ?? '';
     $target = $_POST['target']        ?? '';
     $refId  = $_POST['ref_id']        ?? '';
+
+    // ── Debug: log semua POST yang masuk ─────────────────────
+    $logDir = dirname(__DIR__) . '/logs';
+    if (!is_dir($logDir)) @mkdir($logDir, 0755, true);
+    file_put_contents(
+        $logDir . '/transaction_debug.log',
+        '[' . date('Y-m-d H:i:s') . '] [SERVICES_POST] ' . json_encode([
+            'sku'           => $sku,
+            'target'        => $target,
+            'ref_id'        => $refId,
+            'has_beli'      => isset($_POST['beli']),
+            'bayar_tagihan' => $_POST['bayar_tagihan'] ?? '',
+            'user_id'       => $_SESSION['user_id'],
+        ], JSON_UNESCAPED_UNICODE) . PHP_EOL,
+        FILE_APPEND | LOCK_EX
+    );
+    // ─────────────────────────────────────────────────────────
+
     if (isset($_POST['bayar_tagihan']) && $_POST['bayar_tagihan'] === '1') {
         $txMessage = bayarTagihanPasca($_SESSION['user_id'], $sku, $target, $refId, $pin);
         $txStatus  = str_contains(strtolower($txMessage), 'berhasil') ? 'ok' : 'err';

@@ -20,6 +20,17 @@
 
 require_once __DIR__ . '/../core/api_handler.php';
 
+
+/* ── Debug logger ─────────────────────────────────────────────────── */
+function txLog(string $tag, $data): void
+{
+    $logDir  = dirname(__DIR__) . '/logs';
+    if (!is_dir($logDir)) @mkdir($logDir, 0755, true);
+    $logFile = $logDir . '/transaction_debug.log';
+    $line    = '[' . date('Y-m-d H:i:s') . '] [' . $tag . '] ' . json_encode($data, JSON_UNESCAPED_UNICODE) . PHP_EOL;
+    file_put_contents($logFile, $line, FILE_APPEND | LOCK_EX);
+}
+
 if (!function_exists('notifyUser')) {
     function notifyUser(PDO $pdo, int $userId, string $title, string $body): void
     {
@@ -78,13 +89,16 @@ function prosesTransaksi(int $userId, string $sku, string $target, string $pin):
             ->execute([$userId, $refId, $sku, $target, $product['price_sell']]);
 
         // 5. Hit vendor — sesuai doc: endpoint 'transaction'
-        $vendorRes = hitVendor('transaction', [
+        $payload = [
             'username'       => API_USERNAME,
             'buyer_sku_code' => $sku,
             'customer_no'    => $target,
             'ref_id'         => $refId,
             'sign'           => $sign,
-        ]);
+        ];
+        txLog('PRABAYAR_REQUEST', $payload);
+        $vendorRes = hitVendor('transaction', $payload);
+        txLog('PRABAYAR_RESPONSE', $vendorRes);
 
         // 6. Handle null (timeout/error)
         if (is_null($vendorRes)) {
@@ -146,14 +160,17 @@ function cekTagihanPasca(int $userId, string $sku, string $target): array
     $refId = 'CEK' . time() . rand(100, 999);
     $sign  = md5(API_USERNAME . API_KEY . $refId);
 
-    $res = hitVendor('transaction', [
+    $payload = [
         'commands'       => 'inq-pasca',
         'username'       => API_USERNAME,
         'buyer_sku_code' => $sku,
         'customer_no'    => $target,
         'ref_id'         => $refId,
         'sign'           => $sign,
-    ]);
+    ];
+    txLog('INQ_PASCA_REQUEST', $payload);
+    $res = hitVendor('transaction', $payload);
+    txLog('INQ_PASCA_RESPONSE', $res);
 
     if (is_null($res)) {
         return ['rc' => '99', 'message' => 'Server vendor tidak merespons.'];
@@ -188,14 +205,17 @@ function bayarTagihanPasca(int $userId, string $sku, string $target, string $ref
     $sign = md5(API_USERNAME . API_KEY . $refIdInquiry);
 
     // 3. Hit vendor pay-pasca
-    $res = hitVendor('transaction', [
+    $payload = [
         'commands'       => 'pay-pasca',
         'username'       => API_USERNAME,
         'buyer_sku_code' => $sku,
         'customer_no'    => $target,
         'ref_id'         => $refIdInquiry,
         'sign'           => $sign,
-    ]);
+    ];
+    txLog('PAY_PASCA_REQUEST', $payload);
+    $res = hitVendor('transaction', $payload);
+    txLog('PAY_PASCA_RESPONSE', $res);
 
     if (is_null($res)) {
         return 'Gagal: Server vendor tidak merespons.';
