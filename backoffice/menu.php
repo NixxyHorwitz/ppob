@@ -1,5 +1,5 @@
 <?php
-// backoffice/dashboard_menus.php
+// backoffice/menu.php
 
 require_once __DIR__ . '/includes/session.php';
 require_once __DIR__ . '/../config/database.php';
@@ -480,7 +480,7 @@ require_once __DIR__ . '/includes/header.php';
           <h5 class="modal-title" style="font-size:15px;font-weight:700">
             <i class="ph ph-pencil-simple me-2" style="color:#3b82f6"></i>Edit Menu
           </h5>
-          <button type="button" class="btn-close" style="filter:invert(1);opacity:.7" data-bs-dismiss="modal" onclick="window.location='dashboard_menus.php'"></button>
+          <button type="button" class="btn-close" style="filter:invert(1);opacity:.7" data-bs-dismiss="modal" onclick="window.location='menu.php'"></button>
         </div>
         <form method="POST">
           <input type="hidden" name="action" value="edit" />
@@ -489,7 +489,7 @@ require_once __DIR__ . '/includes/header.php';
             <?php menus_form_fields('mEdit', $edit_data); ?>
           </div>
           <div class="modal-footer" style="border-top:1px solid var(--border) !important;padding:14px 22px;background:transparent !important">
-            <a href="dashboard_menus.php" class="btn btn-sm" style="border-radius:7px;background:var(--hover);border:1px solid var(--border);color:var(--sub)">Batal</a>
+            <a href="menu.php" class="btn btn-sm" style="border-radius:7px;background:var(--hover);border:1px solid var(--border);color:var(--sub)">Batal</a>
             <button type="submit" class="btn btn-sm btn-primary" style="border-radius:7px"><i class="ph ph-floppy-disk me-1"></i>Simpan Perubahan</button>
           </div>
         </form>
@@ -549,7 +549,7 @@ function menusSaveOrder() {
   const fd = new FormData();
   fd.append('action','reorder');
   fd.append('order', JSON.stringify(ids));
-  fetch('dashboard_menus.php',{method:'POST',body:fd}).then(r=>r.json()).then(()=>{
+  fetch('menu.php',{method:'POST',body:fd}).then(r=>r.json()).then(()=>{
     document.getElementById('menusSaveBtn').classList.remove('menus-show');
     menusToast('Urutan berhasil disimpan!');
   });
